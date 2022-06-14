@@ -31,7 +31,7 @@ jobs:
         python -m pip install .
     - name: Lint with pylint
       run: |
-        pylint metasynth
+        pylint docembedder
     - name: Test with pytest
       run: |
         pytest tests
