@@ -3,9 +3,6 @@
 from abc import ABC, abstractmethod
 from typing import Iterable, Union
 
-import numpy as np
-import numpy.typing as npt
-
 
 class BaseDocEmbedder(ABC):
     """Base class for creating document embeddings."""
@@ -14,7 +11,7 @@ class BaseDocEmbedder(ABC):
         """Train the model on documents."""
 
     @abstractmethod
-    def predict(self, document: Union[str, Iterable[str]]) -> npt.NDArray[np.float_]:
+    def transform(self, documents: Union[str, Iterable[str]]) -> Iterable:
         """Get the embedding for a document."""
 
     @property
