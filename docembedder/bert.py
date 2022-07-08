@@ -86,8 +86,8 @@ class BERTEmbedder(BaseDocEmbedder):
 if __name__ == "__main__":
     start_time = time.time()
 
-    with open('../data/sample_cleaned_v3.jsonl', encoding="utf-8") as f:
-        patent_df = pd.DataFrame(json.loads(line) for line in f)
+    with open('../data/sample_cleaned_v3.jsonl', encoding="utf-8") as p:
+        patent_df = pd.DataFrame(json.loads(line) for line in p)
     # print(patent_df)
     documents_df = patent_df['contents']
     patent = BERTEmbedder()
