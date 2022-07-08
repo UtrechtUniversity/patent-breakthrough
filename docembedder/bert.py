@@ -7,7 +7,6 @@ from pathlib import Path
 import numpy as np
 import numpy.typing as npt
 import scipy
-import pandas as pd
 import dill
 
 from sklearn.metrics.pairwise import cosine_similarity
