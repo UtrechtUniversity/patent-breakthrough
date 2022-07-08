@@ -3,10 +3,14 @@
 from typing import Iterable, Union
 
 from pathlib import Path
+import json
+import time
+
 
 import numpy as np
 import numpy.typing as npt
 import scipy
+import pandas as pd
 import dill
 
 from sklearn.metrics.pairwise import cosine_similarity
@@ -79,22 +83,22 @@ class BERTEmbedder(BaseDocEmbedder):
         pass
 
 
-# if __name__ == "__main__":
-#     start_time = time.time()
-#
-#     with open('../data/sample_cleaned_v3.jsonl', encoding="utf-8") as f:
-#         patent_df = pd.DataFrame(json.loads(line) for line in f)
-#     # print(patent_df)
-#     documents_df = patent_df['contents']
-#     patent = BERTEmbedder()
-#     # patent.fit(documents_df)
-#     #
-#     path = Path(__file__).parent / "../models/document_embeddings.model"
-#     with open(path, 'rb') as f:
-#         document_embeddings = dill.load(f)
-#     print(document_embeddings.shape)
-#
-#     patent.most_similar(patent_df, 0, patent.create_similarity_matrix(document_embeddings),
-#                         'Cosine Similarity')
-#
-#     # print("--- %s seconds ---" % (time.time() - start_time))
+if __name__ == "__main__":
+    start_time = time.time()
+
+    with open('../data/sample_cleaned_v3.jsonl', encoding="utf-8") as f:
+        patent_df = pd.DataFrame(json.loads(line) for line in f)
+    # print(patent_df)
+    documents_df = patent_df['contents']
+    patent = BERTEmbedder()
+    # patent.fit(documents_df)
+    #
+    path = Path(__file__).parent / "../models/document_embeddings.model"
+    with open(path, 'rb') as f:
+        document_embeddings = dill.load(f)
+    print(document_embeddings.shape)
+
+    patent.most_similar(patent_df, 0, patent.create_similarity_matrix(document_embeddings),
+                        'Cosine Similarity')
+
+    # print("--- %s seconds ---" % (time.time() - start_time))
