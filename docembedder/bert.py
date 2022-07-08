@@ -2,20 +2,22 @@
 
 from typing import Iterable, Union
 
+from pathlib import Path
+import json
+import time
+
+
 import numpy as np
 import numpy.typing as npt
 import scipy
-import time
-import json
 import pandas as pd
-from pathlib import Path
 import dill
 
-from docembedder.base import BaseDocEmbedder
-
-from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.metrics.pairwise import euclidean_distances
+from sentence_transformers import SentenceTransformer
+
+from docembedder.base import BaseDocEmbedder
 
 
 class BERTEmbedder(BaseDocEmbedder):
@@ -26,17 +28,19 @@ class BERTEmbedder(BaseDocEmbedder):
     - AI-Growth-Lab/PatentSBERTa : https://huggingface.co/AI-Growth-Lab/PatentSBERTa
      """
 
-    def __init__(self, pretrained_model: str = "sentence-transformers/stsb-distilbert-base", text_column: str = "contents"):
+    def __init__(self,
+                 pretrained_model: str = "sentence-transformers/stsb-distilbert-base",
+                 text_column: str = "contents"):
         self.pretraiend_model = pretrained_model
         self.text_column = text_column
         self._sbert_model = SentenceTransformer(pretrained_model)
 
     def fit(self, documents: Iterable[str]) -> None:
-        document_embeddings = self._sbert_model.encode(documents)
+        embedding_vectors = self._sbert_model.encode(documents)
 
-        path = Path(__file__).parent / "../models/document_embeddings.model"
-        with open(path, 'wb') as f:
-            dill.dump(document_embeddings, f)
+        path_model = Path(__file__).parent / "../models/document_embeddings.model"
+        with open(path_model, 'wb') as file:
+            dill.dump(embedding_vectors, file)
 
     def transform(self, documents: Union[str, Iterable[str]]) -> Union[
             scipy.sparse.base.spmatrix, npt.NDArray[np.float_]]:
@@ -44,54 +48,57 @@ class BERTEmbedder(BaseDocEmbedder):
 
     @staticmethod
     def create_similarity_matrix(embeddings):
+        """create similarity matrix
+        """
         pairwise_similarities = cosine_similarity(embeddings)
         return pairwise_similarities
 
     @staticmethod
     def create_difference_matrix(embeddings):
-        pairwise_similarities = euclidean_distances(document_embeddings)
+        """ Create difference matrix
+        """
+        pairwise_similarities = euclidean_distances(embeddings)
         return pairwise_similarities
 
     @staticmethod
     def most_similar(documents, doc_id, similarity_matrix, matrix):
+        """ Find most similar documents
+        """
         print(f'Document: {documents.iloc[doc_id]["contents"]}')
         print('\n')
         print('Most similar Document:')
         if matrix == 'Cosine Similarity':
-            similar_ix = np.argsort(similarity_matrix[doc_id])[-2::]
+            similar_index = np.argsort(similarity_matrix[doc_id])[-2::]
         elif matrix == 'Euclidean Distance':
-            similar_ix = np.argsort(similarity_matrix[doc_id])
-        for ix in similar_ix:
-            if ix == doc_id:
+            similar_index = np.argsort(similarity_matrix[doc_id])
+        for index in similar_index:
+            if index == doc_id:
                 continue
             print('\n')
-            print(f'Document: {documents.iloc[ix]["contents"]}')
-            print(f'{matrix} : {similarity_matrix[doc_id][ix]}')
-
+            print(f'Document: {documents.iloc[index]["contents"]}')
+            print(f'{matrix} : {similarity_matrix[doc_id][index]}')
 
     @property
-    def embedding_size(self, embeddings) -> int:
+    def embedding_size(self) -> int:
         pass
 
 
 if __name__ == "__main__":
     start_time = time.time()
 
-    with open('../data/sample_cleaned_v3.jsonl') as f:
+    with open('../data/sample_cleaned_v3.jsonl', encoding="utf-8") as f:
         patent_df = pd.DataFrame(json.loads(line) for line in f)
-    # documents_df = patent_df['contents']
+    # print(patent_df)
+    documents_df = patent_df['contents']
     patent = BERTEmbedder()
-    # patent_vector.fit(documents_df)
-
+    patent.fit(documents_df)
+    #
     path = Path(__file__).parent / "../models/document_embeddings.model"
     with open(path, 'rb') as f:
         document_embeddings = dill.load(f)
     print(document_embeddings.shape)
 
-    similarity_matrix = patent.create_similarity_matrix(document_embeddings)
-    patent.most_similar(patent_df, 0, similarity_matrix, 'Cosine Similarity')
+    patent.most_similar(patent_df, 0, patent.create_similarity_matrix(document_embeddings),
+                        'Cosine Similarity')
 
-    print("--- %s seconds ---" % (time.time() - start_time))
-
-
-
+    # print("--- %s seconds ---" % (time.time() - start_time))
