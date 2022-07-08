@@ -3,9 +3,6 @@
 from typing import Iterable, Union
 
 from pathlib import Path
-import json
-import time
-
 
 import numpy as np
 import numpy.typing as npt
