@@ -82,23 +82,3 @@ class BERTEmbedder(BaseDocEmbedder):
     def embedding_size(self) -> int:
         pass
 
-
-if __name__ == "__main__":
-    start_time = time.time()
-
-    with open('../data/sample_cleaned_v3.jsonl', encoding="utf-8") as p:
-        patent_df = pd.DataFrame(json.loads(line) for line in p)
-    # print(patent_df)
-    documents_df = patent_df['contents']
-    patent = BERTEmbedder()
-    # patent.fit(documents_df)
-    #
-    path = Path(__file__).parent / "../models/document_embeddings.model"
-    with open(path, 'rb') as f:
-        document_embeddings = dill.load(f)
-    print(document_embeddings.shape)
-
-    patent.most_similar(patent_df, 0, patent.create_similarity_matrix(document_embeddings),
-                        'Cosine Similarity')
-
-    # print("--- %s seconds ---" % (time.time() - start_time))
