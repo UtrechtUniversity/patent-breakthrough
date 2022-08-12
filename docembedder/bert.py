@@ -3,18 +3,12 @@
 from typing import Iterable, Union
 
 from pathlib import Path
-import json
-import time
-
 
 import numpy as np
 import numpy.typing as npt
 import scipy
-import pandas as pd
 import dill
 
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.metrics.pairwise import euclidean_distances
 from sentence_transformers import SentenceTransformer
 
 from docembedder.base import BaseDocEmbedder
@@ -49,4 +43,3 @@ class BERTEmbedder(BaseDocEmbedder):
     @property
     def embedding_size(self) -> int:
         pass
-
