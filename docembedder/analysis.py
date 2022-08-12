@@ -1,18 +1,25 @@
+"""Module containing patent similarity analysis"""
+
+from pathlib import Path
+
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.metrics.pairwise import euclidean_distances
 import numpy as np
-from pathlib import Path
 import dill
 
 
 class DOCSimilarity:
-    """ Creates similarity and difference matrix
+    """ Class to create similarity and difference matrix
+
+    Arguments
+    ---------
+    path: path to the saved document embeddings
      """
 
     def __init__(self, path=Path(__file__).parent / "../models/document_embeddings.model"):
         self.path = path
-        with open(self.path, 'rb') as f:
-            self._embeddings = dill.load(f)
+        with open(self.path, 'rb') as file:
+            self._embeddings = dill.load(file)
 
     def create_similarity_matrix(self):
         """create similarity matrix
@@ -43,4 +50,3 @@ class DOCSimilarity:
             print('\n')
             print(f'Document: {documents.iloc[index]["contents"]}')
             print(f'{measure} : {similarity_matrix[doc_id][index]}')
-
