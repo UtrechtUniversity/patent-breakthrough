@@ -46,38 +46,6 @@ class BERTEmbedder(BaseDocEmbedder):
             scipy.sparse.base.spmatrix, npt.NDArray[np.float_]]:
         pass
 
-    @staticmethod
-    def create_similarity_matrix(embeddings):
-        """create similarity matrix
-        """
-        pairwise_similarities = cosine_similarity(embeddings)
-        return pairwise_similarities
-
-    @staticmethod
-    def create_difference_matrix(embeddings):
-        """ Create difference matrix
-        """
-        pairwise_similarities = euclidean_distances(embeddings)
-        return pairwise_similarities
-
-    @staticmethod
-    def most_similar(documents, doc_id, similarity_matrix, matrix):
-        """ Find most similar documents
-        """
-        print(f'Document: {documents.iloc[doc_id]["contents"]}')
-        print('\n')
-        print('Most similar Document:')
-        if matrix == 'Cosine Similarity':
-            similar_index = np.argsort(similarity_matrix[doc_id])[-2::]
-        elif matrix == 'Euclidean Distance':
-            similar_index = np.argsort(similarity_matrix[doc_id])
-        for index in similar_index:
-            if index == doc_id:
-                continue
-            print('\n')
-            print(f'Document: {documents.iloc[index]["contents"]}')
-            print(f'{matrix} : {similarity_matrix[doc_id][index]}')
-
     @property
     def embedding_size(self) -> int:
         pass
