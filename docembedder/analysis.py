@@ -47,6 +47,9 @@ class DOCSimilarity:
         for index in similar_index:
             if index == doc_id:
                 continue
-            print('\n')
-            print(f'Document: {documents.iloc[index]["contents"]}')
-            print(f'{measure} : {similarity_matrix[doc_id][index]}')
+            most_similar_documents = documents.iloc[index]["contents"]
+            most_similar_document_index = similarity_matrix[doc_id][index]
+            return most_similar_documents, most_similar_document_index
+            # print('\n')
+            # print(f'Document: {documents.iloc[index]["contents"]}')
+            # print(f'{measure} : {similarity_matrix[doc_id][index]}')
