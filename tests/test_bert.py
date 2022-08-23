@@ -1,7 +1,7 @@
 """ pytest file for bert.py"""
 import dill as pickle
 
-from docembedder.bert import BERTEmbedder
+from docembedder import BERTEmbedder
 
 
 def test_bert():
