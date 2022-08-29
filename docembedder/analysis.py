@@ -25,7 +25,7 @@ class DOCSimilarity:
             embeddings = dill.load(file)
         return cls(embeddings)
 
-    def create_similarity_matrix(self):
+    def cosine_similarity_matrix(self):
         """create similarity matrix
         """
         pairwise_similarities = cosine_similarity(self.embeddings)
