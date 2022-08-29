@@ -16,10 +16,14 @@ class DOCSimilarity:
     path: path to the saved document embeddings
      """
 
-    def __init__(self, path=Path(__file__).parent / "../models/document_embeddings.model"):
-        self.path = path
-        with open(self.path, 'rb') as file:
-            self._embeddings = dill.load(file)
+    def __init__(self, embeddings):
+        self.embeddings = embeddings
+
+    @classmethod
+    def from_drill(cls, path=Path(__file__).parent / "../models/document_embeddings.model"):
+        with open(path, 'rb') as file:
+            embeddings = dill.load(file)
+        return cls(embeddings)
 
     def create_similarity_matrix(self):
         """create similarity matrix
