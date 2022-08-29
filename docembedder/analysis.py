@@ -31,7 +31,7 @@ class DOCSimilarity:
         pairwise_similarities = cosine_similarity(self._embeddings)
         return pairwise_similarities
 
-    def create_difference_matrix(self):
+    def euclidean_similarity_matrix(self):
         """ Create difference matrix
         """
         pairwise_similarities = euclidean_distances(self._embeddings)
