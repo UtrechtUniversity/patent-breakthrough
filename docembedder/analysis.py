@@ -38,16 +38,15 @@ class DOCSimilarity:
         return pairwise_similarities
 
     @staticmethod
-    def most_similar(documents, doc_id, similarity_matrix, measure):
+    def most_similar(documents, doc_id, similarity_matrix):
         """ Find most similar documents
         """
         print(f'Document: {documents.iloc[doc_id]["contents"]}')
         print('\n')
         print('Most similar Document:')
-        if measure == 'Cosine Similarity':
-            similar_index = np.argsort(similarity_matrix[doc_id])[-2::]
-        elif measure == 'Euclidean Distance':
-            similar_index = np.argsort(similarity_matrix[doc_id])
+
+        similar_index = np.argsort(similarity_matrix[doc_id])[-2::]
+
         for index in similar_index:
             if index == doc_id:
                 continue
