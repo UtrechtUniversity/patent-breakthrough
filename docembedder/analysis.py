@@ -28,13 +28,13 @@ class DOCSimilarity:
     def create_similarity_matrix(self):
         """create similarity matrix
         """
-        pairwise_similarities = cosine_similarity(self._embeddings)
+        pairwise_similarities = cosine_similarity(self.embeddings)
         return pairwise_similarities
 
     def euclidean_similarity_matrix(self):
         """ Create difference matrix
         """
-        pairwise_similarities = euclidean_distances(self._embeddings)
+        pairwise_similarities = 1-euclidean_distances(self.embeddings)
         return pairwise_similarities
 
     @staticmethod
