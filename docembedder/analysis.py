@@ -38,20 +38,29 @@ class DOCSimilarity:
         return pairwise_similarities
 
     @staticmethod
-    def most_similar(documents, doc_id, similarity_matrix):
+    def most_similar(documents, document_id, similarity_matrix):
         """ Find most similar documents
+
+        Arguments
+        --------
+        documents: Pandas.DataFrame
+            The entire corpus
+        document_id: int
+            The document of interest
+        similarity_matrix:  numpy.ndarray
+            Euclidean or cosine similarity matrix
         """
-        print(f'Document: {documents.iloc[doc_id]["contents"]}')
+        print(f'Document: {documents.iloc[document_id]["contents"]}')
         print('\n')
         print('Most similar Document:')
 
-        similar_index = np.argsort(similarity_matrix[doc_id])[-2::]
+        similar_index = np.argsort(similarity_matrix[document_id])[-2::]
 
         for index in similar_index:
-            if index == doc_id:
+            if index == document_id:
                 continue
             most_similar_documents = documents.iloc[index]["contents"]
-            most_similar_document_index = similarity_matrix[doc_id][index]
+            most_similar_document_index = similarity_matrix[document_id][index]
             return most_similar_documents, most_similar_document_index
             # print('\n')
             # print(f'Document: {documents.iloc[index]["contents"]}')
