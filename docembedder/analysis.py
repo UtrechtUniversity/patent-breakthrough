@@ -27,7 +27,7 @@ class DOCSimilarity:
         Arguments
         ---------
         path: str
-            path to the saved document embeddings
+            path to the embedding file
 
         """
         with open(path, 'rb') as file:
