@@ -25,17 +25,19 @@ class BERTEmbedder(BaseDocEmbedder):
     def __init__(self,
                  pretrained_model: str = "sentence-transformers/stsb-distilbert-base",
                  text_column: str = "contents",
-                 embedding_vectors: np.ndarray = None):
+                 embedding_vectors: np.ndarray = None,
+                 model_path: str = "./models/document_embeddings.dill"
+                 ):
         self.pretrained_model = pretrained_model
         self.text_column = text_column
         self.embedding_vectors = embedding_vectors
         self._sbert_model = SentenceTransformer(pretrained_model)
-        self._model_path = Path("./models", "document_embeddings.dill")
+        self.model_path = model_path
 
     def fit(self, documents: Iterable[str]) -> None:
         self.embedding_vectors = self._sbert_model.encode(documents)
 
-        with open(self._model_path, 'wb') as dill_file:
+        with open(self.model_path, 'wb') as dill_file:
             dill.dump(self.embedding_vectors, dill_file)
 
     def transform(self, documents: Union[str, Iterable[str]]) -> Union[
