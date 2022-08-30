@@ -12,8 +12,7 @@ def test_bert():
         "And here is another one"
     ]
 
-    embedder = BERTEmbedder()
-    embedder.model_path = "../models/test_patent_embeddings.model"
+    embedder = BERTEmbedder(model_path="../models/test_document_embeddings.model")
     embedder.fit(documents)
 
     try:
