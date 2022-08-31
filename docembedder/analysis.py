@@ -19,7 +19,7 @@ class DOCSimilarity:
         self.embeddings = embeddings
 
     @classmethod
-    def from_drill(cls, path="./models/document_embeddings.dill"):
+    def from_dill(cls, path="./models/document_embeddings.dill"):
         """ Load embeddings to the memory
 
         Arguments
