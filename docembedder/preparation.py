@@ -16,7 +16,8 @@ class DOCPreparation:
     """
     def __init__(self):
         self.all_files = glob.glob("./data" + "/*.jsonl")
-        print("File does not appear to exist.") if not self.all_files else 0
+        if not self.all_files:
+            print("File does not appear to exist.")
         self._li = []
 
     def read_patents(self):
@@ -30,6 +31,7 @@ class DOCPreparation:
 
             patent_df = pd.concat(self._li, axis=0, ignore_index=True)
             return patent_df["contents"].to_frame(name="contents")
+        return None
 
     def preprocess_patent(self, patent_data):
         """method for preprocessing patents data"""
