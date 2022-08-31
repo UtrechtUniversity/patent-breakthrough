@@ -1,7 +1,5 @@
 """Module containing patent similarity analysis"""
 
-from pathlib import Path
-
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.metrics.pairwise import euclidean_distances
 import numpy as np
