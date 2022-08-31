@@ -14,5 +14,10 @@ setup(
         "numpy",
         "scipy",
         "sklearn",
+        "torch",
+        "torchvision",
+        "transformers",
+        "sentence-transformers",
+        "pandas",
     ]
 )
