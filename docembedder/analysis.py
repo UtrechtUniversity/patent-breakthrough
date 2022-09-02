@@ -4,6 +4,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.metrics.pairwise import euclidean_distances
 import numpy as np
 import dill
+import pandas as pd
 
 
 class DOCSimilarity:
@@ -19,7 +20,7 @@ class DOCSimilarity:
         self.embeddings = embeddings
 
     @classmethod
-    def from_dill(cls, path="./models/document_embeddings.dill"):
+    def from_dill(cls, path="../models/document_embeddings.dill"):
         """ Load embeddings to the memory
 
         Arguments
@@ -72,3 +73,44 @@ class DOCSimilarity:
             # print('\n')
             # print(f'Document: {documents.iloc[index]["contents"]}')
             # print(f'{measure} : {similarity_matrix[doc_id][index]}')
+
+    @staticmethod
+    def collect_blocks(patent_id, look_up_window):
+        """
+        Collect a block of patents for a window of n years regarding the year of the focus
+        patent.
+
+        """
+
+        df_patents = pd.read_csv('../data/patents_concatenated.csv')
+        patent_year = df_patents[df_patents['patent'] == patent_id]['year'].values[0]
+        print(patent_year)
+
+        backward_years = patent_year - look_up_window
+        forward_years = patent_year + look_up_window
+
+        forward_block_list = []
+        backward_block_list = []
+
+        grouped_df = df_patents.groupby('year')
+
+        for key, item in grouped_df:
+            if backward_years <= key <= patent_year:  # backward n-years patents
+                backward_block_sub = grouped_df.get_group(key)
+                backward_block_list.append(backward_block_sub)
+
+            if patent_year <= key <= forward_years:  # forward n-years patents
+                forward_block_sub = grouped_df.get_group(key)
+                forward_block_list.append(forward_block_sub)
+        forward_block = pd.concat(forward_block_list)
+        backward_block = pd.concat(backward_block_list)
+
+        return backward_block, forward_block
+
+
+if __name__ == "__main__":
+    patent_analyser = DOCSimilarity.from_dill()
+    a, b = patent_analyser.collect_blocks(patent_id=2445033, look_up_window=3)
+    # print(a)
+    print('#########')
+    print(b)
