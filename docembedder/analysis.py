@@ -19,21 +19,25 @@ class DOCSimilarity:
         self.embeddings = embeddings
         self.embeddings_df = pd.DataFrame()
         self.embeddings_df['embeddings'] = self.embeddings.tolist()
-        self.df_patents = pd.read_csv('../data/patents_concatenated.csv')
-        self.df_patents_embeddings = self.df_patents.join(self.embeddings_df)
+        # self.df_patents = pd.read_csv('../data/patents_concatenated.csv')
+        self.df_patents = pd.read_csv('data/tst_doc2.csv')
+        self.df_patents_embeddings = self.df_patents.join(self.embeddings_df, how='left')
         self.forward_block = None
         self.backward_block = None
 
     @classmethod
-    def from_dill(cls, path="../models/document_embeddings.dill"):
+    def from_dill(cls, path="models/document_embeddings_tst.dill"):
         """ Load embeddings to the memory
 
         Arguments
         ---------
         path: str
             path to the embedding file
-        patent_index: int
 
+        Returns
+        -------
+        embeddings:
+            Initialized embeddings
 
         """
         with open(path, 'rb') as file:
@@ -49,19 +53,23 @@ class DOCSimilarity:
 
         # patent_year = self.df_patents_embeddings[
         #     self.df_patents_embeddings['patent'] == patent_number]['year'].values[0]
+        grouped_df = self.df_patents_embeddings.groupby('year')
+        max_year = max(grouped_df.groups.keys())
+        min_year = min(grouped_df.groups.keys())
+
         patent_year = self.df_patents.loc[patent_index]['year']
 
         print(patent_year)
 
         backward_years = patent_year - look_up_window
+        backward_years = max(backward_years, min_year)
         forward_years = patent_year + look_up_window
+        forward_years = min(forward_years, max_year)
 
         forward_block_list = []
         backward_block_list = []
 
-        grouped_df = self.df_patents_embeddings.groupby('year')
-
-        for key in grouped_df:
+        for key in grouped_df.groups.keys():
             if backward_years <= key < patent_year:  # backward n-years patents
                 backward_block_sub = grouped_df.get_group(key)
                 backward_block_list.append(backward_block_sub)
@@ -109,8 +117,8 @@ class DOCSimilarity:
         # Calculate impact of the focus patent
         for brow in range(len(self.backward_block)):
             forward_similarity += \
-                cosine_similarity(target_patent_vector, np.array
-                (self.df_patents_embeddings.loc[brow]['embeddings']))
+                cosine_similarity(target_patent_vector,
+                                  np.array(self.df_patents_embeddings.loc[brow]['embeddings']))
         average_forward_similarity = forward_similarity / len(self.forward_block)
         self.df_patents_embeddings.loc[patent_index]['impact'] = average_forward_similarity
 
@@ -121,5 +129,5 @@ class DOCSimilarity:
 
 if __name__ == "__main__":
     patent_analyser = DOCSimilarity.from_dill()
-    patent_analyser.collect_blocks2(patent_number=2445033, look_up_window=3)
+    patent_analyser.collect_blocks(patent_index=2445033, look_up_window=3)
     # patent_analyser.compute_similarity()
