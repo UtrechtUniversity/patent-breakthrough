@@ -15,7 +15,7 @@ class DOCPreparation:
     path: path to the *.jsol files
     """
     def __init__(self):
-        self.all_files = glob.glob("../data/patents_cleaned_complete" + "/*.jsonl")
+        self.all_files = glob.glob("./data/patents_cleaned_complete" + "/*.jsonl")
         if not self.all_files:
             print("File does not appear to exist.")
         self._li = []
@@ -31,6 +31,7 @@ class DOCPreparation:
                     self._li.append(sub_patent_df)
 
             patent_df = pd.concat(self._li, axis=0, ignore_index=True)
+            patent_df[self.columns].to_csv('./data/patents_concatenated.csv', index=False)
             return patent_df[self.columns]
         return None
 
