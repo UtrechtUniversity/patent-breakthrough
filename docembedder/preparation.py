@@ -22,7 +22,9 @@ class DOCPreparation:
         self.columns = ['patent', 'contents', 'year']
 
     def read_patents(self):
-        """ Method for loading patent documents from multiple Jsonl files and concatenate them as a pandas dataframe
+        """
+        Method for loading patent documents from multiple Jsonl files and
+        concatenate them as a pandas dataframe
         """
         if self.all_files:
             for filename in self.all_files:
