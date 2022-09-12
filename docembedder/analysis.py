@@ -59,8 +59,6 @@ class DOCSimilarity:
 
         patent_year = self.df_patents.loc[patent_index]['year']
 
-        print(patent_year)
-
         backward_years = patent_year - look_up_window
         backward_years = max(backward_years, min_year)
         forward_years = patent_year + look_up_window
@@ -78,10 +76,52 @@ class DOCSimilarity:
                 forward_block_sub = grouped_df.get_group(key)
                 forward_block_list.append(forward_block_sub)
 
-        self.forward_block = pd.concat(forward_block_list)
-        self.backward_block = pd.concat(backward_block_list)
+        if forward_block_list:
+            self.forward_block = pd.concat(forward_block_list)
+        if backward_block_list:
+            self.backward_block = pd.concat(backward_block_list)
 
-    def compute_similarity(self, patent_index):
+    def compute_novelty(self, patent_index, target_patent_vector):
+        backward_similarity = 0
+
+        # Calculate novelty of the focus patent
+        if self.backward_block is not None:
+            for brow in self.backward_block.index:
+                backward_similarity += \
+                    cosine_similarity([target_patent_vector], np.array(
+                        [self.df_patents_embeddings.loc[brow]['embeddings']]))
+            average_backward_similarity = backward_similarity / len(self.backward_block)
+            average_backward_similarity_list = average_backward_similarity.tolist()
+            self.df_patents_embeddings.loc[patent_index, 'novelty'] = average_backward_similarity_list[0][0]
+        else:
+            self.df_patents_embeddings.loc[patent_index, 'novelty'] = -1
+
+    def compute_impact(self, patent_index, target_patent_vector):
+        forward_similarity = 0
+
+        # Calculate impact of the focus patent
+        if self.forward_block is not None:
+            for frow in self.forward_block.index:
+                forward_similarity += \
+                    cosine_similarity([target_patent_vector],
+                                      np.array([self.df_patents_embeddings.loc[frow]['embeddings']]))
+            average_forward_similarity = forward_similarity / len(self.forward_block)
+            average_forward_similarity_list = average_forward_similarity.tolist()
+            self.df_patents_embeddings.loc[patent_index, 'impact'] = average_forward_similarity_list[0][0]
+        else:
+            self.df_patents_embeddings.loc[patent_index, 'impact'] = -1
+
+    def compute_influence(self, patent_index):
+        # calculate influence of the focus patent
+        if (self.df_patents_embeddings.loc[patent_index, 'impact'] == -1) | (self.df_patents_embeddings.loc[
+                    patent_index, 'novelty'] == -1):
+            self.df_patents_embeddings.loc[patent_index, 'influence'] = -1
+        else:
+            self.df_patents_embeddings.loc[patent_index, 'influence'] = \
+                self.df_patents_embeddings.loc[patent_index, 'impact'] / self.df_patents_embeddings.loc[
+                    patent_index, 'novelty']
+
+    def compute_similarity(self):
         """
         Function to compute the novelty score, impact score, and influence of the patents for
         a window size of n-year using cosine similarity.
@@ -100,34 +140,15 @@ class DOCSimilarity:
             index of the focus patent
 
         """
+        for patent_index in range(len(self.df_patents_embeddings)):
+            target_patent_vector = np.array(self.df_patents_embeddings.loc[patent_index]['embeddings'])
 
-        backward_similarity = 0
-        forward_similarity = 0
-        self.collect_blocks(patent_index, 3)
-        target_patent_vector = np.array(self.df_patents_embeddings.loc[patent_index]['embeddings'])
-
-        # Calculate novelty of the focus patent
-        for frow in range(len(self.backward_block)):
-            backward_similarity += \
-                cosine_similarity(target_patent_vector, np.array(
-                    self.df_patents_embeddings.loc[frow]['embeddings']))
-        average_backward_similarity = backward_similarity/len(self.backward_block)
-        self.df_patents_embeddings.loc[patent_index]['novelty'] = average_backward_similarity
-
-        # Calculate impact of the focus patent
-        for brow in range(len(self.backward_block)):
-            forward_similarity += \
-                cosine_similarity(target_patent_vector,
-                                  np.array(self.df_patents_embeddings.loc[brow]['embeddings']))
-        average_forward_similarity = forward_similarity / len(self.forward_block)
-        self.df_patents_embeddings.loc[patent_index]['impact'] = average_forward_similarity
-
-        # calculate influence of the focus patent
-        self.df_patents_embeddings.loc[patent_index]['influence'] = \
-            average_forward_similarity/average_backward_similarity
-
+            self.collect_blocks(patent_index, 3)
+            self.compute_novelty(patent_index, target_patent_vector)
+            self.compute_impact(patent_index, target_patent_vector)
+            self.compute_influence(patent_index)
 
 if __name__ == "__main__":
     patent_analyser = DOCSimilarity.from_dill()
-    patent_analyser.collect_blocks(patent_index=2445033, look_up_window=3)
-    # patent_analyser.compute_similarity()
+    patent_analyser.compute_similarity()
+    print(patent_analyser.df_patents_embeddings)
