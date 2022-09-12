@@ -19,5 +19,6 @@ setup(
         "transformers",
         "sentence-transformers",
         "pandas",
+        "dill"
     ]
 )
