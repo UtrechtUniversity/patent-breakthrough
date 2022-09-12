@@ -21,10 +21,10 @@ class BERTEmbedder(BaseDocEmbedder):
      """
 
     def __init__(self,
-                 pretrained_model: str = "sentence-transformers/stsb-distilbert-base",
+                 pretrained_model: str = "prithivida/bert-for-patents-64d",
                  text_column: str = "contents",
                  embedding_vectors: np.ndarray = None,
-                 model_path: str = "./models/document_embeddings.dill"
+                 model_path: str = "./models/document_embeddings_tst.dill"
                  ):
         self.pretrained_model = pretrained_model
         self.text_column = text_column
