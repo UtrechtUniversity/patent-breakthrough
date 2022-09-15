@@ -61,6 +61,7 @@ class Preprocessor:
         # self.input_dir = input_dir
         self.output_dir = output_dir
         os.makedirs(self.output_dir, exist_ok=True)
+        self.logger.info(f'reading {input_dir}')
         self.file_list = self.get_file_list(input_dir)
 
     def from_arguments(self):
@@ -104,11 +105,12 @@ class Preprocessor:
     @staticmethod
     def get_file_list(input_dir) -> list[str]:
         """Reads files from input directory"""
-        return glob.glob(input_dir)
+        return sorted(glob.glob(input_dir))
 
     def preprocess_files(self):
         """Iterates all input JSONL-files and calls preprocessing for each"""
         for file in self.file_list:
+            self.logger.info(f'processing {file}')
             processed, empty, no_year = self.preprocess_file(file)
             self.logger.info(f'processed {file} ({processed:,} documents, ' +
                              f'skipped {empty:,} empty, skipped {no_year:,} ' +
