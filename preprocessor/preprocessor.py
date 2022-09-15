@@ -23,6 +23,7 @@ class Preprocessor:
         self.remove_non_alpha = False
         self.output_dir = None
         self.file_list = []
+        self.total_docs = {'processed': 0, 'empty': 0, 'no_year': 0}
 
     def initialize(
             self,
@@ -113,9 +114,16 @@ class Preprocessor:
             self.logger.info(f'processing {file}')
             processed, empty, no_year = self.preprocess_file(file)
             self.logger.info(f'processed {file} ({processed:,} documents, ' +
-                             f'skipped {empty:,} empty, skipped {no_year:,} ' +
-                             'w/o year)')
+                             f'skipped {empty:,} empty, {no_year:,} w/o year)')
+            self.total_docs['processed'] += processed
+            self.total_docs['empty'] += empty
+            self.total_docs['no_year'] += no_year
+
         self.logger.info("done")
+        self.logger.info(f"files: {len(self.file_list):,}")
+        self.logger.info(f"docs processed: {self.total_docs['processed']:,}")
+        self.logger.info(f"skipped empty docs: {self.total_docs['empty']:,}")
+        self.logger.info(f"skipped docs w/o year: {self.total_docs['no_year']:,}")
 
     @staticmethod
     def yield_document(file: str):
