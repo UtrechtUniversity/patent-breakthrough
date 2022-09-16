@@ -123,7 +123,8 @@ class Preprocessor:
         self.logger.info(f"files: {len(self.file_list):,}")
         self.logger.info(f"docs processed: {self.total_docs['processed']:,}")
         self.logger.info(f"skipped empty docs: {self.total_docs['empty']:,}")
-        self.logger.info(f"skipped docs w/o year: {self.total_docs['no_year']:,}")
+        self.logger.info("skipped docs w/o year: " +
+                         f"{self.total_docs['no_year']:,}")
 
     @staticmethod
     def yield_document(file: str):
@@ -143,12 +144,7 @@ class Preprocessor:
         skipped_empty = 0
         skipped_no_year = 0
         with open(new_file, "w") as new_file:
-            gen = self.yield_document(file)
-            while True:
-                patent = next(gen, False)
-                if not patent:
-                    break
-
+            for patent in self.yield_document(file):
                 if patent['year'] == 0 or patent['year'] is None:
                     self.logger.warning(f'Patent #{patent["patent"]} has ' +
                                         'no year')
