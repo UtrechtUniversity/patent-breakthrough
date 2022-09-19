@@ -45,7 +45,7 @@ class DOCSimilarity:
             embeddings = dill.load(file)
         return cls(embeddings)
 
-    def collect_blocks(self, patent_index, look_up_window):
+    def collect_blocks(self, patent_index):
         """
         Collect a block of patents for a window of n years regarding the year of the focus
         patent.
@@ -60,9 +60,9 @@ class DOCSimilarity:
 
         patent_year = self.df_patents.loc[patent_index]['year']
 
-        backward_years = patent_year - look_up_window
+        backward_years = patent_year - self.window_size
         backward_years = max(backward_years, min_year)
-        forward_years = patent_year + look_up_window
+        forward_years = patent_year + self.window_size
         forward_years = min(forward_years, max_year)
 
         forward_block_list = []
@@ -155,6 +155,6 @@ class DOCSimilarity:
         a window size of n-year using cosine similarity.
         """
         for patent_index in range(len(self.df_patents_embeddings)):
-            self.collect_blocks(patent_index, self.window_size)
+            self.collect_blocks(patent_index)
             self.compute_novelty(patent_index)
             self.compute_impact(patent_index)
