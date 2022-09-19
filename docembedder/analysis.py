@@ -47,7 +47,7 @@ class DOCSimilarity:
 
     def collect_blocks(self, patent_index):
         """
-        Collect a block of patents for a window of n years regarding the year of the focus
+        Collect a block of patents for an n-year window regarding the year of the focus
         patent.
 
         """
@@ -83,6 +83,15 @@ class DOCSimilarity:
             self.backward_block = pd.concat(backward_block_list)
 
     def compute_impact(self, patent_index):
+        """ Function to calculate the impact of the focused patent for the period of n-year.
+        Impact score is calculated as the average of the backward similarity / the average of
+        the forward similarity.
+        Arguments
+        ----------
+        patent_index: int
+            The index of focused patent
+
+        """
 
         backward_similarity = 0
         forward_similarity = 0
@@ -118,15 +127,16 @@ class DOCSimilarity:
             average_forward_similarity_number = None
 
         # Calculate influence. backwards/forwards
-        if (average_backward_similarity_number is not None) & (average_forward_similarity_number is not None):
+        if (average_backward_similarity_number is not None)\
+                & (average_forward_similarity_number is not None):
             self.df_patents_embeddings.loc[patent_index, 'impact'] = \
                 average_backward_similarity_number / average_forward_similarity_number
 
     def compute_novelty(self, patent_index):
         """
         Function for calculating the focused patent's novelty for the period of n-year.
-        Novelty score is calculated as the average of the cosine-similarity between Pi and
-        patents in the years < focus_year
+        Novelty score is calculated as the average of the 1- cosine-similarity between Pi and
+        patents in the n-backward years
 
         Arguments
         ----------
@@ -151,7 +161,7 @@ class DOCSimilarity:
 
     def compute_similarity(self):
         """
-        Function to compute the novelty score, impact score, and influence of the patents for
+        Function to compute the novelty score, and impact score of the patents for
         a window size of n-year using cosine similarity.
         """
         for patent_index in range(len(self.df_patents_embeddings)):
