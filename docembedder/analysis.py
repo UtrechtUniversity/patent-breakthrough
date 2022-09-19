@@ -158,9 +158,3 @@ class DOCSimilarity:
             self.collect_blocks(patent_index, self.window_size)
             self.compute_novelty(patent_index)
             self.compute_impact(patent_index)
-
-
-if __name__ =='__main__':
-    patent_analyser = DOCSimilarity.from_dill()
-    patent_analyser.compute_similarity()
-    patent_analyser.df_patents_embeddings
