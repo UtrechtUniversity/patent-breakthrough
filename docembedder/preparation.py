@@ -10,9 +10,6 @@ import pandas as pd
 class DOCPreparation:
     """Class for loading patent documents from multiple Jsonl files as pandas dataframe
 
-    Arguments
-    ---------
-    path: path to the *.jsol files
     """
     def __init__(self):
         self.all_files = glob.glob("./data/patents_cleaned_complete" + "/*.jsonl")
@@ -39,5 +36,6 @@ class DOCPreparation:
 
         return None
 
-    def preprocess_patent(self, patent_data):
-        """method for preprocessing patents data"""
+    def preprocess_patent(self, patent_df):
+        """Method for preprocessing patents data"""
+        pass
