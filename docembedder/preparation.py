@@ -38,4 +38,3 @@ class DOCPreparation:
 
     def preprocess_patent(self, patent_df):
         """Method for preprocessing patents data"""
-        pass
