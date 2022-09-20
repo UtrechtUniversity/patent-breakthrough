@@ -34,15 +34,15 @@ class BERTEmbedder(BaseDocEmbedder):
         self.model_path = model_path
 
     def fit(self, documents: Iterable[str]) -> None:
-        self.embedding_vectors = self._sbert_model.encode(documents)
+        pass
+        # self.embedding_vectors = self._sbert_model.encode(documents)
 
-        with open(self.model_path, 'wb') as dill_file:
-            dill.dump(self.embedding_vectors, dill_file)
+        # with open(self.model_path, 'wb') as dill_file:
+            # dill.dump(self.embedding_vectors, dill_file)
 
     def transform(self, documents: Union[str, Iterable[str]]) -> Union[
             scipy.sparse.base.spmatrix, npt.NDArray[np.float_]]:
-
-        pass
+        return self._sbert_model.encode(documents)
 
     @property
     def embedding_size(self) -> int:

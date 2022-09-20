@@ -7,6 +7,7 @@ import logging
 import json
 import re
 import os
+from typing import List
 
 
 class Preprocessor:
@@ -14,18 +15,7 @@ class Preprocessor:
     Preprocessor class
     """
 
-    def __init__(self):
-        self.logger = None
-        self.keep_empty_patents = False
-        self.keep_missing_years = False
-        self.keep_caps = False
-        self.keep_start_section = False
-        self.remove_non_alpha = False
-        self.output_dir = None
-        self.file_list = []
-        self.total_docs = {'processed': 0, 'empty': 0, 'no_year': 0}
-
-    def initialize(
+    def __init__(
             self,
             log_level: int = logging.INFO,
             log_file: str = None,
@@ -36,9 +26,7 @@ class Preprocessor:
             keep_start_section: bool = False,
             remove_non_alpha: bool = False,
             input_dir: str = None,
-            output_dir: str = None,
-            ):
-        """Initializes all vars"""
+            output_dir: str = None):
 
         self.logger = logging.getLogger('preprocessor')
         self.logger.setLevel(log_level)
@@ -59,11 +47,64 @@ class Preprocessor:
         self.keep_start_section = keep_start_section
         self.remove_non_alpha = remove_non_alpha
 
-        # self.input_dir = input_dir
+        self.input_dir = input_dir
         self.output_dir = output_dir
-        os.makedirs(self.output_dir, exist_ok=True)
-        self.logger.info(f'reading {input_dir}')
-        self.file_list = self.get_file_list(input_dir)
+        # if self.output_dir is not None:
+            # os.makedirs(self.output_dir, exist_ok=True)
+        # if 
+        # self.logger.info(f'reading {input_dir}')
+        # self.file_list = self.get_file_list(input_dir)
+
+        #
+        # self.logger = None
+        # self.keep_empty_patents = False
+        # self.keep_missing_years = False
+        # self.keep_caps = False
+        # self.keep_start_section = False
+        # self.remove_non_alpha = False
+        # self.output_dir = None
+        # self.file_list = []
+        # self.total_docs = {'processed': 0, 'empty': 0, 'no_year': 0}
+
+    # def initialize(
+    #         self,
+    #         log_level: int = logging.INFO,
+    #         log_file: str = None,
+    #         log_format: str = '%(asctime)s [%(levelname)s] %(message)s',
+    #         keep_empty_patents: bool = False,
+    #         keep_missing_years: bool = False,
+    #         keep_caps: bool = False,
+    #         keep_start_section: bool = False,
+    #         remove_non_alpha: bool = False,
+    #         input_dir: str = None,
+    #         output_dir: str = None,
+    #         ):
+    #     """Initializes all vars"""
+    #
+    #     self.logger = logging.getLogger('preprocessor')
+    #     self.logger.setLevel(log_level)
+    #     slog = logging.StreamHandler()
+    #     slog.setLevel(log_level)
+    #     slog.setFormatter(logging.Formatter(log_format))
+    #     self.logger.addHandler(slog)
+    #
+    #     if log_file:
+    #         flog = logging.FileHandler(log_file)
+    #         flog.setLevel(log_level)
+    #         flog.setFormatter(logging.Formatter(log_format))
+    #         self.logger.addHandler(flog)
+    #
+    #     self.keep_empty_patents = keep_empty_patents
+    #     self.keep_missing_years = keep_missing_years
+    #     self.keep_caps = keep_caps
+    #     self.keep_start_section = keep_start_section
+    #     self.remove_non_alpha = remove_non_alpha
+    #
+    #     # self.input_dir = input_dir
+    #     self.output_dir = output_dir
+    #     os.makedirs(self.output_dir, exist_ok=True)
+    #     self.logger.info(f'reading {input_dir}')
+    #     self.file_list = self.get_file_list(input_dir)
 
     def from_arguments(self):
         """Parses command line parameters and initiates class"""
@@ -139,38 +180,48 @@ class Preprocessor:
         """Iterates individual JSON-docs in JSONL-file and calls preprocsseing
         for each"""
         parts = os.path.splitext(os.path.basename(file))
-        new_file = os.path.join(self.output_dir, parts[0]+'_cleaned'+parts[1])
         processed = 0
         skipped_empty = 0
         skipped_no_year = 0
-        with open(new_file, "w") as new_file:
-            for patent in self.yield_document(file):
-                if patent['year'] == 0 or patent['year'] is None:
-                    self.logger.warning(f'Patent #{patent["patent"]} has ' +
-                                        'no year')
-                    if not self.keep_missing_years:
-                        skipped_no_year += 1
-                        continue
+        # with open(new_file, "w") as new_file:
+        processed_patents = []
+        for patent in self.yield_document(file):
+            if patent['year'] == 0 or patent['year'] is None:
+                self.logger.warning(f'Patent #{patent["patent"]} has ' +
+                                    'no year')
+                if not self.keep_missing_years:
+                    skipped_no_year += 1
+                    continue
 
-                body = patent['contents']
+            body = patent['contents']
 
-                if len(body) == 0:
-                    self.logger.warning(f'Patent #{patent["patent"]} has ' +
-                                        'no content')
-                    if not self.keep_empty_patents:
-                        skipped_empty += 1
-                        continue
+            if len(body) == 0:
+                self.logger.warning(f'Patent #{patent["patent"]} has ' +
+                                    'no content')
+                if not self.keep_empty_patents:
+                    skipped_empty += 1
+                    continue
 
-                body = self.remove_unprintable(body)
-                body = self.remove_start_section(body)
-                body = self.clean_document(body)
-                body = self.remove_remains(body)
+            body = self.remove_unprintable(body)
+            body = self.remove_start_section(body)
+            body = self.clean_document(body)
+            body = self.remove_remains(body)
 
-                patent['contents'] = body
-                self.write_document(new_file, patent)
-                processed += 1
+            patent['contents'] = body
+            processed += 1
+            processed_patents.append(patent)
 
-        return processed, skipped_empty, skipped_no_year
+        if self.output_dir is not None:
+            new_file = os.path.join(self.output_dir, parts[0]+'_cleaned'+parts[1])
+            self.write_document(new_file, processed_patents)
+
+        stats = {
+            "processed": processed,
+            "skipped_empty": skipped_empty,
+            "skipped_no_year": skipped_no_year,
+        }
+
+        return processed_patents, stats
 
     @staticmethod
     def remove_unprintable(content: str) -> str:
@@ -222,9 +273,10 @@ class Preprocessor:
         return word if self.keep_caps else lower_word
 
     @staticmethod
-    def write_document(file_handle, patent: dict):
+    def write_document(output_fp, all_patents: List[dict]):
         """Writes processed docs"""
-        file_handle.write(json.dumps(patent) + "\n")
+        with open(output_fp, "w") as f:
+            f.write("\n".join([json.dumps(patent) for patent in all_patents]))
 
     @staticmethod
     def count_upper_case_letters(str_obj: str) -> int:
@@ -240,7 +292,7 @@ class Preprocessor:
         """Returns a chunk of a list of strings"""
         return list(seq[pos:pos + size] for pos in range(0, len(seq), size))
 
-    def split_and_clean(self, content: str) -> str:
+    def split_and_clean(self, content: str) -> List[str]:
         """Split content into words and clean them"""
         raw_words = content.split()
         words = [x for x in raw_words if len(self.process_word(x)) > 0]
