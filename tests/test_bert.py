@@ -18,4 +18,4 @@ def test_bert():
     with open(embedder.model_path, 'rb') as file:
         embeddings = pickle.load(file)
         print(embeddings)
-        assert embeddings.shape == (2, 768)
+        assert embeddings.shape == (2, 64)
