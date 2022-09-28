@@ -14,8 +14,5 @@ def test_bert():
 
     embedder = BERTEmbedder(model_path="./models/test_document_embeddings.dill")
     embedder.fit(documents)
-
-    with open(embedder.model_path, 'rb') as file:
-        embeddings = pickle.load(file)
-        print(embeddings)
-        assert embeddings.shape == (2, 64)
+    embeddings = embedder.transform(documents)
+    assert embeddings.shape == (2, 64)

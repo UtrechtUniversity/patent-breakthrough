@@ -151,7 +151,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
         )
 
     @property
-    def file_list(self) -> list[str]:
+    def file_list(self) -> List[str]:
         """Reads files from input directory"""
         if self.input_dir is None:
             return []
@@ -310,7 +310,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
         return count
 
     @staticmethod
-    def chunker(seq, size) -> list[str]:
+    def chunker(seq, size) -> List[str]:
         """Returns a chunk of a list of strings"""
         return list(seq[pos:pos + size] for pos in range(0, len(seq), size))
 
@@ -339,8 +339,8 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
 
         return " ".join(words)[len(start_section):].strip()
 
-    def get_first_words(self, words: list[str],
-                        frac_threshold: float) -> list[str]:
+    def get_first_words(self, words: List[str],
+                        frac_threshold: float) -> List[str]:
         """Go through the first 1000 words, and break when the overall
         percentage of characters that are CAPS falls below the threshold"""
         tot_cap = 0
