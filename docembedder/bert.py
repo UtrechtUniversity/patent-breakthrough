@@ -5,7 +5,6 @@ from typing import Iterable, Union
 import numpy as np
 import numpy.typing as npt
 import scipy
-import dill
 
 from sentence_transformers import SentenceTransformer
 
@@ -35,10 +34,6 @@ class BERTEmbedder(BaseDocEmbedder):
 
     def fit(self, documents: Iterable[str]) -> None:
         pass
-        # self.embedding_vectors = self._sbert_model.encode(documents)
-
-        # with open(self.model_path, 'wb') as dill_file:
-            # dill.dump(self.embedding_vectors, dill_file)
 
     def transform(self, documents: Union[str, Iterable[str]]) -> Union[
             scipy.sparse.base.spmatrix, npt.NDArray[np.float_]]:

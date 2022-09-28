@@ -8,16 +8,16 @@ import json
 import re
 import os
 import lzma
-from typing import List
+from typing import List, Dict, Iterable
 from pathlib import Path
 
 
-class Preprocessor:
+class Preprocessor:  # pylint: disable=too-many-instance-attributes
     """
     Preprocessor class
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
             self,
             log_level: int = logging.INFO,
             log_file: str = None,
@@ -51,9 +51,12 @@ class Preprocessor:
 
         self.input_dir = input_dir
         self.output_dir = output_dir
+        self.total_docs = {'processed': 0, 'skipped_empty': 0,
+                           'skipped_no_year': 0}
+
         # if self.output_dir is not None:
-            # os.makedirs(self.output_dir, exist_ok=True)
-        # if 
+        # os.makedirs(self.output_dir, exist_ok=True)
+        # if
         # self.logger.info(f'reading {input_dir}')
         # self.file_list = self.get_file_list(input_dir)
 
@@ -108,7 +111,8 @@ class Preprocessor:
     #     self.logger.info(f'reading {input_dir}')
     #     self.file_list = self.get_file_list(input_dir)
 
-    def from_arguments(self):
+    @classmethod
+    def from_arguments(cls):
         """Parses command line parameters and initiates class"""
         parser = argparse.ArgumentParser(description="Cleans patents")
 
@@ -135,7 +139,7 @@ class Preprocessor:
         parser.add_argument('--log_file', type=str)
         args = vars(parser.parse_args())
 
-        self.initialize(
+        return cls(
             log_file=args['log_file'],
             keep_empty_patents=args['keep_empty_patents'],
             keep_missing_years=args['keep_missing_years'],
@@ -146,45 +150,51 @@ class Preprocessor:
             output_dir=args['output'],
         )
 
-    @staticmethod
-    def get_file_list(input_dir) -> list[str]:
+    @property
+    def file_list(self) -> list[str]:
         """Reads files from input directory"""
-        return sorted(glob.glob(input_dir))
+        if self.input_dir is None:
+            return []
+        return sorted(glob.glob(self.input_dir))
 
     def preprocess_files(self):
         """Iterates all input JSONL-files and calls preprocessing for each"""
         for file in self.file_list:
-            self.logger.info(f'processing {file}')
-            processed, empty, no_year = self.preprocess_file(file)
-            self.logger.info(f'processed {file} ({processed:,} documents, ' +
-                             f'skipped {empty:,} empty, {no_year:,} w/o year)')
-            self.total_docs['processed'] += processed
-            self.total_docs['empty'] += empty
-            self.total_docs['no_year'] += no_year
+            self.logger.info('processing %s', file)
+            processed_patents, stats = self.preprocess_file(file)
+            self.logger.info('processed %s (%s documents, skipped %s empty, %s w/o year)',
+                             file, str(stats["processed"]), str(stats["skipped_empty"]),
+                             str(stats["skipped_no_year"]))
+            self.total_docs['processed'] += processed_patents
+            self.total_docs['skipped_empty'] += stats["skipped_empty"]
+            self.total_docs['skipped_no_year'] += stats["skipped_no_year"]
 
         self.logger.info("done")
-        self.logger.info(f"files: {len(self.file_list):,}")
-        self.logger.info(f"docs processed: {self.total_docs['processed']:,}")
-        self.logger.info(f"skipped empty docs: {self.total_docs['empty']:,}")
-        self.logger.info("skipped docs w/o year: " +
-                         f"{self.total_docs['no_year']:,}")
+        self.logger.info("files: %s", str(len(self.file_list)))
+        self.logger.info("docs processed: %s", str(self.total_docs['processed']))
+        self.logger.info("skipped empty docs: %s", str(self.total_docs['skipped_empty']))
+        self.logger.info("skipped docs w/o year: %s", str(self.total_docs['skipped_no_year']))
 
     # @staticmethod
-    def yield_document(self, file: str):
+    def yield_document(self, file: str) -> Iterable[Dict]:
         """Generator yielding single JSON-doc from input file"""
-        if Path(file).suffix == ".json":
+        suffix = Path(file).suffix
+        if suffix == ".json":
             return self.patent_get_jsonl(file)
-        else:
+        if suffix == ".xz":
             return self.patent_gen_xz(file)
+        raise ValueError("Unsupported format for documents: {suffix}")
 
-    def patent_get_jsonl(self, file: str):
-        with open(file) as handle:
+    def patent_get_jsonl(self, file: str) -> Iterable[Dict]:
+        """Generate patents from a JSONL file"""
+        with open(file, encoding="utf-8") as handle:
             line = handle.readline()
             while line:
                 yield json.loads(line)
                 line = handle.readline()
 
-    def patent_gen_xz(self, file: str):
+    def patent_gen_xz(self, file: str) -> Iterable[Dict]:
+        """Generate patents from a compressed xz file"""
         with lzma.open(file, mode="rb") as comp_fp:
             patents = json.loads(comp_fp.read().decode(encoding="utf-8"))
         for pat in patents:
@@ -201,8 +211,7 @@ class Preprocessor:
         processed_patents = []
         for patent in self.yield_document(file):
             if patent['year'] == 0 or patent['year'] is None:
-                self.logger.warning(f'Patent #{patent["patent"]} has ' +
-                                    'no year')
+                self.logger.warning('Patent #%s has no year', str(patent["patent"]))
                 if not self.keep_missing_years:
                     skipped_no_year += 1
                     continue
@@ -210,8 +219,7 @@ class Preprocessor:
             body = patent['contents']
 
             if len(body) == 0:
-                self.logger.warning(f'Patent #{patent["patent"]} has ' +
-                                    'no content')
+                self.logger.warning('Patent #%s has no content', str(patent["patent"]))
                 if not self.keep_empty_patents:
                     skipped_empty += 1
                     continue
@@ -289,8 +297,8 @@ class Preprocessor:
     @staticmethod
     def write_document(output_fp, all_patents: List[dict]):
         """Writes processed docs"""
-        with open(output_fp, "w") as f:
-            f.write("\n".join([json.dumps(patent) for patent in all_patents]))
+        with open(output_fp, "w", encoding="utf-8") as handle:
+            handle.write("\n".join([json.dumps(patent) for patent in all_patents]))
 
     @staticmethod
     def count_upper_case_letters(str_obj: str) -> int:

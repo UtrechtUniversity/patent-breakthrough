@@ -1,13 +1,17 @@
 """Module containing patent similarity analysis"""
 
+from typing import Sequence, Dict, Union
 from pathlib import Path
 
 from scipy import stats
 from sklearn.metrics.pairwise import cosine_similarity
-from docembedder.classification import PatentClassification
 import numpy as np
 import dill
 import pandas as pd
+from numpy import typing as npt
+
+from docembedder.base import BaseDocEmbedder
+from docembedder.classification import PatentClassification
 
 
 class DOCSimilarity:
@@ -174,32 +178,71 @@ class DOCSimilarity:
             self.compute_impact(patent_index)
 
 
-def get_model_correlations(model, documents):
+def get_model_correlations(model: BaseDocEmbedder, documents: Sequence[str]
+                           ) -> npt.NDArray[np.float_]:
+    """Get all cross correlations of the embeddings for a model
+
+    Arguments
+    ---------
+    model:
+        Model to create the embeddings for.
+    documents:
+        Patents to encode.
+
+    Returns
+    -------
+    cross_cor:
+        Correlations between all the patents [len(documents, len(documents)].
+    """
     model.fit(documents)
     embeddings = model.transform(documents)
     cross_cor = embeddings.dot(embeddings.T)
     return cross_cor
 
 
-def sample_class_correlation(patents, cross_correlations,
-                             class_fp=Path("..", "data", "GPCPCs.txt"),
-                             n_sample=10000):
-    pc = PatentClassification(class_fp)
+def _sample_single_class(patents: Sequence[str], pat_class: PatentClassification):
+    # Somtimes we don't have patent classifications, so try a few times if that is the case.
+    n_try = 1000
+    for _ in range(n_try):
+        i_patent, j_patent = np.random.choice(len(patents), size=2, replace=False)
+        try:
+            class_cor = pat_class.get_similarity(
+                patents[i_patent]["patent"],
+                patents[j_patent]["patent"])
+            return i_patent, j_patent, class_cor
+        except ValueError:
+            pass
+
+    raise ValueError("Cannot find patents with classification.")
+
+
+def sample_class_correlation(patents: Sequence[str],
+                             cross_correlations: Dict[str, npt.NDArray[np.float_]],
+                             class_fp: Union[str, Path]=Path("..", "data", "GPCPCs.txt"),
+                             n_sample: int=10000) -> Dict[str, float]:
+    """Compute the performance of models using patent classifications
+
+    It does so by sampling the performance, since computing the full classification
+    correlations can be very time consuming.
+
+    Arguments
+    ---------
+    cross_correlations:
+        For each model, this contains a cross correlation/similarity matrix.
+    class_fp:
+        Filename for the patent classifications.
+    n_sample:
+        Number of samples for benchmarking purposes. Higher means longer running times
+        but better accuracy (at least up to sampling the whole matrix).
+    """
+    pat_class = PatentClassification(class_fp)
     sampled_correlations = {model_name: np.zeros(n_sample) for model_name in cross_correlations}
     class_correlations = np.zeros(n_sample)
     for i_sample in range(n_sample):
-        n_try = 1000
-        for i_try in range(n_try):
-            i_patent, j_patent = np.random.choice(len(patents), size=2, replace=False)
-            try:
-                class_cor = pc.get_similarity(patents[i_patent]["patent"], patents[j_patent]["patent"])
-                break
-            except ValueError:
-                if i_try == n_try-1:
-                    raise ValueError("Cannot find patents with classification.")
-            i_try += 1
+        i_patent, j_patent, class_cor = _sample_single_class(patents, pat_class)
         for model_name in cross_correlations:
-            sampled_correlations[model_name][i_sample] = cross_correlations[model_name][i_patent, j_patent]
+            sampled_correlations[model_name][i_sample] = cross_correlations[
+                model_name][i_patent, j_patent]
         class_correlations[i_sample] = class_cor
 
     model_correlations = {model_name: stats.spearmanr(class_correlations, model_cor).correlation

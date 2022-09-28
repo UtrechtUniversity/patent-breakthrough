@@ -1,3 +1,5 @@
+"""Functions to read and convert different patent files"""
+
 import re
 from pathlib import Path
 from collections import Counter, defaultdict
@@ -12,9 +14,22 @@ PATENT_FILE_PATTERN = re.compile(r'^\/Volumes\/(.*)?\d+\-\d+\/US\d+\.txt')
 WHITESPACE = re.compile(r'\s+')
 
 
-def parse_file_contents(contents: str):
+def _parse_file_contents(contents: str) -> List[Dict]:
+    """Parse the contents of the raw file
+
+    Arguments
+    ---------
+    contents:
+        String containing a set of patents.
+
+    Returns
+    -------
+    patents: List[Dict]
+        A list of dictionaries, where each item is one patent.
+
+    """
     split_contents = contents.split('\n')
-    patents: List[str] = []
+    patents: List[Dict] = []
 
     # this is for the current patent text
     current_patent = None
@@ -56,33 +71,80 @@ def parse_file_contents(contents: str):
     return patents
 
 
-def parse_raw(patent_input_fp: Union[Path, str], year_lookup: Counter):
-    with open(patent_input_fp, mode='r', encoding='latin-1') as f:
-        contents = f.read()
+def parse_raw(patent_input_fp: Union[Path, str], year_lookup: Counter) -> List[Dict]:
+    """Parse a raw patent file into a structured list
 
-        # parse contents
-        parsed = parse_file_contents(contents)
-        # add year
-        parsed = [
-            {**patent, **{'year': year_lookup[patent['patent']]}}
-            for patent in parsed
-        ]
+    Arguments
+    ---------
+    patent_input_fp:
+        Input file to process.
+    year_lookup:
+        Dictionary to lookup the year for each patent ID.
+
+    Returns
+    -------
+    patents: List[Dict]
+        A list of dictionaries, where each item is for one patent and includes
+        the year of publication.
+    """
+    with open(patent_input_fp, mode='r', encoding='latin-1') as handle:
+        contents = handle.read()
+
+    # parse contents
+    parsed = _parse_file_contents(contents)
+    # add year
+    parsed = [
+        {**patent, **{'year': year_lookup[patent['patent']]}}
+        for patent in parsed
+    ]
     return parsed
 
 
-def read_xz(fp: Union[Path, str]):
-    with lzma.open(fp, mode="rb") as comp_fp:
-        patents = json.loads(comp_fp.read().decode(encoding="utf-8"))
+def read_xz(compressed_fp: Union[Path, str]) -> List[Dict]:
+    """Read an .xz file containing patents
+
+    Arguments
+    ---------
+    compressed_fp:
+        File to read the patents from.
+
+    Results
+    -------
+    patents: List[Dict]
+        Patents in the file.
+    """
+    with lzma.open(compressed_fp, mode="rb") as handle:
+        patents = json.loads(handle.read().decode(encoding="utf-8"))
     return patents
 
 
-def write_xz(fp: Union[Path, str], patents: List[Dict]):
-    with lzma.open(fp, mode="wb", preset=9) as comp_fp:
-        comp_fp.write(str.encode(json.dumps(patents), encoding="utf-8"))
+def write_xz(compressed_fp: Union[Path, str], patents: List[Dict]) -> None:
+    """Write a set of patents to a compressed file
+
+    Arguments
+    ---------
+    fp:
+        File to write to.
+    patents:
+        Patents to store.
+    """
+    with lzma.open(compressed_fp, mode="wb", preset=9) as handle:
+        handle.write(str.encode(json.dumps(patents), encoding="utf-8"))
 
 
 def compress_raw(patent_input_fp: Union[Path, str], year_fp: Union[Path, str],
-                 output_dir: Union[Path, str]):
+                 output_dir: Union[Path, str]) -> None:
+    """Compress a raw file into multiple compressed files by year
+
+    Arguments
+    ---------
+    patent_input_fp:
+        Raw file with patents.
+    year_fp:
+        CSV file with publication year for each patent.
+    output_dir:
+        Directory to write the compressed files to.
+    """
     output_dir = Path(output_dir)
     output_dir.mkdir(exist_ok=True)
 
@@ -111,12 +173,28 @@ def compress_raw(patent_input_fp: Union[Path, str], year_fp: Union[Path, str],
 
 
 def compress_raw_dir(patent_input_dir: Union[Path, str], year_fp: Union[Path, str],
-                     output_dir: Union[Path, str]):
+                     output_dir: Union[Path, str]) -> None:
+    """Compress all raw files in a directory.
+
+    For efficiency, it stores which files have already been processed in
+    a file called 'processed_files.txt' in the output directory.
+    If somehow there is corruption, or re-runs are required, simply
+    delete this file.
+
+    Arguments
+    ---------
+    patent_input_dir:
+        Directory containing all raw files with patents.
+    year_fp:
+        CSV file with publication year for each patent.
+    output_dir:
+        Directory to write the compressed files to.
+    """
     patent_input_dir = Path(patent_input_dir)
     processed_fp = Path(output_dir) / "processed_files.txt"
     try:
-        with open(processed_fp, "r") as fp:
-            processed = fp.read().split("\n")
+        with open(processed_fp, "r", encoding="utf-8") as handle:
+            processed = handle.read().split("\n")
     except FileNotFoundError:
         processed = []
 
@@ -127,5 +205,5 @@ def compress_raw_dir(patent_input_dir: Union[Path, str], year_fp: Union[Path, st
         compress_raw(patent_fp, year_fp, output_dir)
         processed.append(patent_fp.name)
 
-    with open(processed_fp, "w") as fp:
-        fp.write("\n".join(processed))
+    with open(processed_fp, "w", encoding="utf-8") as handle:
+        handle.write("\n".join(processed))

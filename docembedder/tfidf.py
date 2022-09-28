@@ -2,8 +2,6 @@
 
 from typing import Iterable, Union
 
-import numpy as np
-import numpy.typing as npt
 import scipy
 from sklearn.feature_extraction.text import TfidfVectorizer
 
@@ -22,7 +20,7 @@ class TfidfEmbedder(BaseDocEmbedder):
         self._model.fit(documents)
 
     def transform(self, documents: Union[str, Iterable[str]]) -> Union[
-            scipy.sparse.base.spmatrix, npt.NDArray[np.float_]]:
+            scipy.sparse.base.spmatrix]:
         return self._model.transform(documents).tocsr()
 
     @property
