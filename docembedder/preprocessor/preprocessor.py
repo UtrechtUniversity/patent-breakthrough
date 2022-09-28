@@ -7,7 +7,9 @@ import logging
 import json
 import re
 import os
+import lzma
 from typing import List
+from pathlib import Path
 
 
 class Preprocessor:
@@ -167,14 +169,26 @@ class Preprocessor:
         self.logger.info("skipped docs w/o year: " +
                          f"{self.total_docs['no_year']:,}")
 
-    @staticmethod
-    def yield_document(file: str):
+    # @staticmethod
+    def yield_document(self, file: str):
         """Generator yielding single JSON-doc from input file"""
+        if Path(file).suffix == ".json":
+            return self.patent_get_jsonl(file)
+        else:
+            return self.patent_gen_xz(file)
+
+    def patent_get_jsonl(self, file: str):
         with open(file) as handle:
             line = handle.readline()
             while line:
                 yield json.loads(line)
                 line = handle.readline()
+
+    def patent_gen_xz(self, file: str):
+        with lzma.open(file, mode="rb") as comp_fp:
+            patents = json.loads(comp_fp.read().decode(encoding="utf-8"))
+        for pat in patents:
+            yield pat
 
     def preprocess_file(self, file: str):
         """Iterates individual JSON-docs in JSONL-file and calls preprocsseing

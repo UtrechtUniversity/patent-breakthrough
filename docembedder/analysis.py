@@ -1,6 +1,10 @@
 """Module containing patent similarity analysis"""
 
+from pathlib import Path
+
+from scipy import stats
 from sklearn.metrics.pairwise import cosine_similarity
+from docembedder.classification import PatentClassification
 import numpy as np
 import dill
 import pandas as pd
@@ -168,3 +172,36 @@ class DOCSimilarity:
             self.collect_blocks(patent_index)
             self.compute_novelty(patent_index)
             self.compute_impact(patent_index)
+
+
+def get_model_correlations(model, documents):
+    model.fit(documents)
+    embeddings = model.transform(documents)
+    cross_cor = embeddings.dot(embeddings.T)
+    return cross_cor
+
+
+def sample_class_correlation(patents, cross_correlations,
+                             class_fp=Path("..", "data", "GPCPCs.txt"),
+                             n_sample=10000):
+    pc = PatentClassification(class_fp)
+    sampled_correlations = {model_name: np.zeros(n_sample) for model_name in cross_correlations}
+    class_correlations = np.zeros(n_sample)
+    for i_sample in range(n_sample):
+        n_try = 1000
+        for i_try in range(n_try):
+            i_patent, j_patent = np.random.choice(len(patents), size=2, replace=False)
+            try:
+                class_cor = pc.get_similarity(patents[i_patent]["patent"], patents[j_patent]["patent"])
+                break
+            except ValueError:
+                if i_try == n_try-1:
+                    raise ValueError("Cannot find patents with classification.")
+            i_try += 1
+        for model_name in cross_correlations:
+            sampled_correlations[model_name][i_sample] = cross_correlations[model_name][i_patent, j_patent]
+        class_correlations[i_sample] = class_cor
+
+    model_correlations = {model_name: stats.spearmanr(class_correlations, model_cor).correlation
+                          for model_name, model_cor in sampled_correlations.items()}
+    return model_correlations
