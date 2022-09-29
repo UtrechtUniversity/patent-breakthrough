@@ -54,63 +54,6 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
         self.total_docs = {'processed': 0, 'skipped_empty': 0,
                            'skipped_no_year': 0}
 
-        # if self.output_dir is not None:
-        # os.makedirs(self.output_dir, exist_ok=True)
-        # if
-        # self.logger.info(f'reading {input_dir}')
-        # self.file_list = self.get_file_list(input_dir)
-
-        #
-        # self.logger = None
-        # self.keep_empty_patents = False
-        # self.keep_missing_years = False
-        # self.keep_caps = False
-        # self.keep_start_section = False
-        # self.remove_non_alpha = False
-        # self.output_dir = None
-        # self.file_list = []
-        # self.total_docs = {'processed': 0, 'empty': 0, 'no_year': 0}
-
-    # def initialize(
-    #         self,
-    #         log_level: int = logging.INFO,
-    #         log_file: str = None,
-    #         log_format: str = '%(asctime)s [%(levelname)s] %(message)s',
-    #         keep_empty_patents: bool = False,
-    #         keep_missing_years: bool = False,
-    #         keep_caps: bool = False,
-    #         keep_start_section: bool = False,
-    #         remove_non_alpha: bool = False,
-    #         input_dir: str = None,
-    #         output_dir: str = None,
-    #         ):
-    #     """Initializes all vars"""
-    #
-    #     self.logger = logging.getLogger('preprocessor')
-    #     self.logger.setLevel(log_level)
-    #     slog = logging.StreamHandler()
-    #     slog.setLevel(log_level)
-    #     slog.setFormatter(logging.Formatter(log_format))
-    #     self.logger.addHandler(slog)
-    #
-    #     if log_file:
-    #         flog = logging.FileHandler(log_file)
-    #         flog.setLevel(log_level)
-    #         flog.setFormatter(logging.Formatter(log_format))
-    #         self.logger.addHandler(flog)
-    #
-    #     self.keep_empty_patents = keep_empty_patents
-    #     self.keep_missing_years = keep_missing_years
-    #     self.keep_caps = keep_caps
-    #     self.keep_start_section = keep_start_section
-    #     self.remove_non_alpha = remove_non_alpha
-    #
-    #     # self.input_dir = input_dir
-    #     self.output_dir = output_dir
-    #     os.makedirs(self.output_dir, exist_ok=True)
-    #     self.logger.info(f'reading {input_dir}')
-    #     self.file_list = self.get_file_list(input_dir)
-
     @classmethod
     def from_arguments(cls):
         """Parses command line parameters and initiates class"""
@@ -365,6 +308,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
             return ""
 
         idx = 0
+        chunk = ""
         for idx, chunk in enumerate(chunks):
             c_upper = sum(map(self.count_upper_case_letters, chunk))
             c_all = sum(map(len, chunk))
