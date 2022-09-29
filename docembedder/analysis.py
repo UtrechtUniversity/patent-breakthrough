@@ -1,6 +1,6 @@
 """Module containing patent similarity analysis"""
 
-from typing import Sequence, Dict, Union
+from typing import Sequence, Dict, Union, Tuple
 from pathlib import Path
 
 from scipy import stats
@@ -200,8 +200,9 @@ def get_model_correlations(model: BaseDocEmbedder, documents: Sequence[str]
     return cross_cor
 
 
-def _sample_single_class(patents: Sequence[str], pat_class: PatentClassification):
-    # Somtimes we don't have patent classifications, so try a few times if that is the case.
+def _sample_class_similarity(patents: Sequence[str],
+                             pat_class: PatentClassification) -> Tuple[int, int, float]:
+    # Sometimes we are missing patent classifications, resample if this is the case.
     n_try = 1000
     for _ in range(n_try):
         i_patent, j_patent = np.random.choice(len(patents), size=2, replace=False)
@@ -216,18 +217,25 @@ def _sample_single_class(patents: Sequence[str], pat_class: PatentClassification
     raise ValueError("Cannot find patents with classification.")
 
 
-def sample_class_correlation(patents: Sequence[str],
-                             cross_correlations: Dict[str, npt.NDArray[np.float_]],
+def classification_benchmark(patents: Sequence[str],
+                             similarity_matrices: Dict[str, npt.NDArray[np.float_]],
                              class_fp: Union[str, Path]=Path("..", "data", "GPCPCs.txt"),
                              n_sample: int=10000) -> Dict[str, float]:
-    """Compute the performance of models using patent classifications
+    """Compute the performance of models by comparing patent similarities with patent classifications
 
-    It does so by sampling the performance, since computing the full classification
-    correlations can be very time consuming.
+    It samples combinations of patents, say patent i and j. For each model it retrieves
+    the similarity between patent i and j. It also retrieves the similariry of GPCPC classifications
+    i and j. The details for this can be found in the PatentClassification class. After sampling
+    n_sample of these classifications, a performance indicator is created by computing the
+    spearman-r correlation between the model similarities and the classification similarities;
+    if two patents have very similar patent classifications, we expect that a good model will
+    indicate high(er) similarities between those two classifications as well.
 
     Arguments
     ---------
-    cross_correlations:
+    patents:
+        Patents to sample the correlations from.
+    similarity_matrices:
         For each model, this contains a cross correlation/similarity matrix.
     class_fp:
         Filename for the patent classifications.
@@ -236,15 +244,19 @@ def sample_class_correlation(patents: Sequence[str],
         but better accuracy (at least up to sampling the whole matrix).
     """
     pat_class = PatentClassification(class_fp)
-    sampled_correlations = {model_name: np.zeros(n_sample) for model_name in cross_correlations}
+
+    # Create empty arrays for the model correlations for each model.
+    sampled_correlations = {model_name: np.zeros(n_sample) for model_name in similarity_matrices}
     class_correlations = np.zeros(n_sample)
     for i_sample in range(n_sample):
-        i_patent, j_patent, class_cor = _sample_single_class(patents, pat_class)
-        for model_name in cross_correlations:
-            sampled_correlations[model_name][i_sample] = cross_correlations[
-                model_name][i_patent, j_patent]
+        i_patent, j_patent, class_cor = _sample_class_similarity(patents, pat_class)
+
+        # Fill the model correlation arrays.
+        for model_name, sim_mat in similarity_matrices.items():
+            sampled_correlations[model_name][i_sample] = sim_mat[i_patent, j_patent]
         class_correlations[i_sample] = class_cor
 
-    model_correlations = {model_name: stats.spearmanr(class_correlations, model_cor).correlation
+    # Compute the performance of each model with the spearman-r correlation.
+    model_performances = {model_name: stats.spearmanr(class_correlations, model_cor).correlation
                           for model_name, model_cor in sampled_correlations.items()}
-    return model_correlations
+    return model_performances

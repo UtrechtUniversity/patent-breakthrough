@@ -1,10 +1,10 @@
 """Functions to read and convert different patent files"""
 
-import re
-from pathlib import Path
-from collections import Counter, defaultdict
-import lzma
 import json
+import lzma
+import re
+from collections import Counter, defaultdict
+from pathlib import Path
 from typing import List, Union, Dict
 
 import pandas as pd
@@ -148,21 +148,29 @@ def compress_raw(patent_input_fp: Union[Path, str], year_fp: Union[Path, str],
     output_dir = Path(output_dir)
     output_dir.mkdir(exist_ok=True)
 
+    # Create the year lookup so that we can add the year to the patents.
     year_df = pd.read_csv(year_fp, sep='\t')
     year_lookup = Counter(dict(zip(year_df["pat"], year_df["year"])))
 
+    # Read the patent data from the raw files and sort them by patent id.
     parsed_data = parse_raw(patent_input_fp, year_lookup)
     sorted_patents = sorted(parsed_data, key=lambda x: x["patent"])
-    cat_patents = defaultdict(lambda: [])
 
+    # Split the patents by year.
+    cat_patents = defaultdict(lambda: [])
     for pat in sorted_patents:
         cat_patents[pat["year"]].append(pat)
 
+    # Write the patents to a files, numbered by year.
     for year, patents in cat_patents.items():
         compressed_fp = output_dir / Path(str(year) + ".xz")
+
+        # If the patent year already exists read the existing patents.
         if compressed_fp.is_file():
             old_patents = read_xz(compressed_fp)
             old_patent_id = [pat["patent"] for pat in old_patents]
+
+            # Prevent adding duplicates.
             added_patents = [pat for pat in patents if pat["patent"] not in old_patent_id]
             if len(added_patents) == 0:
                 continue
@@ -181,6 +189,8 @@ def compress_raw_dir(patent_input_dir: Union[Path, str], year_fp: Union[Path, st
     If somehow there is corruption, or re-runs are required, simply
     delete this file.
 
+    This function is not thread-safe.
+
     Arguments
     ---------
     patent_input_dir:
@@ -191,6 +201,8 @@ def compress_raw_dir(patent_input_dir: Union[Path, str], year_fp: Union[Path, st
         Directory to write the compressed files to.
     """
     patent_input_dir = Path(patent_input_dir)
+
+    # Keep track of all processed files so that we can skip them next time
     processed_fp = Path(output_dir) / "processed_files.txt"
     try:
         with open(processed_fp, "r", encoding="utf-8") as handle:
@@ -198,6 +210,7 @@ def compress_raw_dir(patent_input_dir: Union[Path, str], year_fp: Union[Path, st
     except FileNotFoundError:
         processed = []
 
+    # Compress all files in the patent_input_dir.
     for patent_fp in patent_input_dir.glob("*.txt"):
         if patent_fp.name in processed:
             continue
@@ -205,5 +218,6 @@ def compress_raw_dir(patent_input_dir: Union[Path, str], year_fp: Union[Path, st
         compress_raw(patent_fp, year_fp, output_dir)
         processed.append(patent_fp.name)
 
+    # Save the processed file.
     with open(processed_fp, "w", encoding="utf-8") as handle:
         handle.write("\n".join(processed))

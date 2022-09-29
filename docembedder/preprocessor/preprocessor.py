@@ -8,7 +8,7 @@ import json
 import re
 import os
 import lzma
-from typing import List, Dict, Iterable
+from typing import List, Dict, Iterable, Tuple
 from pathlib import Path
 
 
@@ -118,7 +118,6 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
         self.logger.info("skipped empty docs: %s", str(self.total_docs['skipped_empty']))
         self.logger.info("skipped docs w/o year: %s", str(self.total_docs['skipped_no_year']))
 
-    # @staticmethod
     def yield_document(self, file: str) -> Iterable[Dict]:
         """Generator yielding single JSON-doc from input file"""
         suffix = Path(file).suffix
@@ -143,14 +142,13 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
         for pat in patents:
             yield pat
 
-    def preprocess_file(self, file: str):
+    def preprocess_file(self, file: str) -> Tuple[List[Dict], Dict[str, int]]:
         """Iterates individual JSON-docs in JSONL-file and calls preprocsseing
         for each"""
         parts = os.path.splitext(os.path.basename(file))
         processed = 0
         skipped_empty = 0
         skipped_no_year = 0
-        # with open(new_file, "w") as new_file:
         processed_patents = []
         for patent in self.yield_document(file):
             if patent['year'] == 0 or patent['year'] is None:
@@ -345,6 +343,5 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
 
 
 if __name__ == '__main__':
-    p = Preprocessor()
-    p.from_arguments()
+    p = Preprocessor.from_arguments()
     p.preprocess_files()
