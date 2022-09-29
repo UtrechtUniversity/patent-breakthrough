@@ -20,5 +20,7 @@ setup(
         "sentence-transformers",
         "pandas",
         "dill",
+        "nltk",
+        "gensim",
     ]
 )
