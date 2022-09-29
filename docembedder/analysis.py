@@ -221,7 +221,7 @@ def classification_benchmark(patents: Sequence[str],
                              similarity_matrices: Dict[str, npt.NDArray[np.float_]],
                              class_fp: Union[str, Path]=Path("..", "data", "GPCPCs.txt"),
                              n_sample: int=10000) -> Dict[str, float]:
-    """Compute the performance of models by comparing patent similarities with patent classifications
+    """Compute the performance of models by comparing patent similarities with classifications
 
     It samples combinations of patents, say patent i and j. For each model it retrieves
     the similarity between patent i and j. It also retrieves the similariry of GPCPC classifications
