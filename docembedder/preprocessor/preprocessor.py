@@ -354,7 +354,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
 
         return words[0:idx]
 
-    def get_start_section(self, first_words: list, frac_threshold: float):
+    def get_start_section(self, first_words: List[str], frac_threshold: float):
         """Go through the remaining words in chunks of three words at a time,
         and again calculate the percentage of CAPS-characters per chunk, and
         stop after it falls below the threshold. the first three chunks are
@@ -365,7 +365,6 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
             return ""
 
         idx = 0
-        chunk = []
         for idx, chunk in enumerate(chunks):
             c_upper = sum(map(self.count_upper_case_letters, chunk))
             c_all = sum(map(len, chunk))
@@ -374,7 +373,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
                 break
 
         # join the chunks
-        first_part = []
+        first_part: List[str] = []
         for item in list(chunks)[:idx]:
             first_part += item
 
@@ -397,8 +396,8 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
             start_section = start_section[0:len(start_section)-idx]
 
         # reassemble start section, and chop it from the original body
-        start_section = " ".join(start_section)
-        return start_section
+        joined_start_section = " ".join(start_section)
+        return joined_start_section
 
 
 if __name__ == '__main__':
