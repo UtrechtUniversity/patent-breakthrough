@@ -20,17 +20,10 @@ class BERTEmbedder(BaseDocEmbedder):
      """
 
     def __init__(self,
-
                  pretrained_model: str = "prithivida/bert-for-patents-64d",
-                 text_column: str = "contents",
-                 embedding_vectors: np.ndarray = None,
-                 model_path: str = "./models/document_embeddings_tst.dill"
                  ):
         self.pretrained_model = pretrained_model
-        self.text_column = text_column
-        self.embedding_vectors = embedding_vectors
         self._sbert_model = SentenceTransformer(pretrained_model)
-        self.model_path = model_path
 
     def fit(self, documents: Iterable[str]) -> None:
         pass
