@@ -33,7 +33,7 @@ logging.basicConfig(format="%(levelname)s - %(asctime)s: %(message)s",
 class D2VEmbedder(BaseDocEmbedder):
     """ class for calculating Document vectors
     """
-    def __init__(self, vector_size=30, min_count=2, epoch=10, workers=4):
+    def __init__(self, vector_size=100, min_count=2, epoch=10, workers=4):
         self.vector_size = vector_size
         self.min_count = min_count
         self.epoch = epoch
