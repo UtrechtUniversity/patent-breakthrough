@@ -63,14 +63,13 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
         parser.add_argument(
             "--input",
             type=str,
-            required=True,
+            default=None,
             help="path to input plus extension e.g. './input/*.jsonl'"
         )
         # Path to output directory
         parser.add_argument(
             '--output',
             type=str,
-            required=True,
             default=None,
             help='output directory string e.g. "../cleaned/"'
         )
