@@ -5,7 +5,6 @@ from typing import Iterable, Union
 import numpy as np
 import numpy.typing as npt
 import scipy
-import dill
 
 from sentence_transformers import SentenceTransformer
 
@@ -21,28 +20,17 @@ class BERTEmbedder(BaseDocEmbedder):
      """
 
     def __init__(self,
-
                  pretrained_model: str = "prithivida/bert-for-patents-64d",
-                 text_column: str = "contents",
-                 embedding_vectors: np.ndarray = None,
-                 model_path: str = "./models/document_embeddings_tst.dill"
                  ):
         self.pretrained_model = pretrained_model
-        self.text_column = text_column
-        self.embedding_vectors = embedding_vectors
         self._sbert_model = SentenceTransformer(pretrained_model)
-        self.model_path = model_path
 
     def fit(self, documents: Iterable[str]) -> None:
-        self.embedding_vectors = self._sbert_model.encode(documents)
-
-        with open(self.model_path, 'wb') as dill_file:
-            dill.dump(self.embedding_vectors, dill_file)
+        pass
 
     def transform(self, documents: Union[str, Iterable[str]]) -> Union[
             scipy.sparse.base.spmatrix, npt.NDArray[np.float_]]:
-
-        pass
+        return self._sbert_model.encode(documents)
 
     @property
     def embedding_size(self) -> int:
