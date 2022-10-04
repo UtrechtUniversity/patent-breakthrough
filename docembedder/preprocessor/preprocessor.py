@@ -124,7 +124,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
             return self.patent_get_jsonl(file)
         if suffix == ".xz":
             return self.patent_get_xz(file)
-        raise ValueError("Unsupported format for documents: {suffix}")
+        raise ValueError(f"Unsupported format for documents: {suffix}")
 
     def patent_get_jsonl(self, file: str) -> Iterable[Dict]:
         """Generate patents from a JSONL file"""
