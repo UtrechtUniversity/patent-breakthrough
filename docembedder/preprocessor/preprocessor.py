@@ -120,7 +120,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
     def yield_document(self, file: str) -> Iterable[Dict]:
         """Generator yielding single JSON-doc from input file"""
         suffix = Path(file).suffix
-        if suffix == ".json":
+        if suffix == ".jsonl":
             return self.patent_get_jsonl(file)
         if suffix == ".xz":
             return self.patent_get_xz(file)
