@@ -123,7 +123,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
         if suffix == ".json":
             return self.patent_get_jsonl(file)
         if suffix == ".xz":
-            return self.patent_gen_xz(file)
+            return self.patent_get_xz(file)
         raise ValueError("Unsupported format for documents: {suffix}")
 
     def patent_get_jsonl(self, file: str) -> Iterable[Dict]:
@@ -134,7 +134,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
                 yield json.loads(line)
                 line = handle.readline()
 
-    def patent_gen_xz(self, file: str) -> Iterable[Dict]:
+    def patent_get_xz(self, file: str) -> Iterable[Dict]:
         """Generate patents from a compressed xz file"""
         with lzma.open(file, mode="rb") as comp_fp:
             patents = json.loads(comp_fp.read().decode(encoding="utf-8"))
