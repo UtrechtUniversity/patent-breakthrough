@@ -28,8 +28,7 @@ class BERTEmbedder(BaseDocEmbedder):
     def fit(self, documents: Iterable[str]) -> None:
         pass
 
-    def transform(self, documents: Union[str, Iterable[str]]) -> Union[
-            scipy.sparse.base.spmatrix, npt.NDArray[np.float_]]:
+    def transform(self, documents: Union[str, Iterable[str]]) -> npt.NDArray[np.float_]:
         return self._sbert_model.encode(documents)
 
     @property
