@@ -4,7 +4,6 @@ from typing import Iterable, Union
 
 import numpy as np
 import numpy.typing as npt
-import scipy
 
 from sentence_transformers import SentenceTransformer
 

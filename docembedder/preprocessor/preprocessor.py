@@ -10,6 +10,7 @@ import os
 import lzma
 from typing import List, Dict, Iterable, Tuple
 from pathlib import Path
+from docembedder.preprocessor.parser import read_xz
 
 
 class Preprocessor:  # pylint: disable=too-many-instance-attributes
@@ -136,9 +137,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
 
     def patent_get_xz(self, file: str) -> Iterable[Dict]:
         """Generate patents from a compressed xz file"""
-        with lzma.open(file, mode="rb") as comp_fp:
-            patents = json.loads(comp_fp.read().decode(encoding="utf-8"))
-        for pat in patents:
+        for pat in read_xz(file):
             yield pat
 
     def preprocess_file(self, file: str) -> Tuple[List[Dict], Dict[str, int]]:
