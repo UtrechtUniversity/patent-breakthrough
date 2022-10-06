@@ -54,7 +54,7 @@ grouping of documents in JSONL-files as the input. Filenames are retained,
 while adding a '_cleaned' suffix. Cleaned documents have the same format and
 properties as the input.
 When the output folder is omitted, the script does not write output to file.
-Instead, call `preprocess_file()` directly to access processed patents.
+Instead, call `preprocess_file()` directly to access preprocessed patents.
 
 ### Usage
 ```
@@ -70,3 +70,31 @@ python preprocessor.py \
 
 `--log_file`: if specified, all log information that is written to std out is
 also written to file.
+
+
+## Word reassembly
+As the patent texts were obtained using OCR, they occasionally contain errors
+typical to the OCR-process. One of the most common is the introduction of
+extraneous spaces in words, splitting them in two. The script `reassembler.py`
+attempts to put them back together. It uses an (external) lexicon containing
+valid words.
+
+
+### Usage
+```
+python reassembler.py \
+  --input_path INPUT \
+  --output_dir OUTPUT \
+  --lexicon LEXICON_PATH \
+  [--min_assembly_length LENGTH] \
+  [--save_replacements] \
+  [--log_file LOG_FILE]
+```
+`--input_path`: can be file or folder containing the texts to be processed. The
+script can handle JSON(L) and CSV. Patent body text is expected to be in a
+field called 'contents'.
+
+`--lexicon`: CSV or text file with lexicon (list of correct words).
+
+`--min_assembly_length`: minimum length for reassembled words (min. 3,
+  default 5).

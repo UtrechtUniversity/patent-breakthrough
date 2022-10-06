@@ -97,7 +97,7 @@ class SplitWordReassembler:
         parser.add_argument("--input_path", "-i", type=str, required=True,
                             help="input folder or file (script reads json, \
                                  jsonl and csv)")
-        parser.add_argument("--output_dir", "-o", type=str,
+        parser.add_argument("--output_dir", "-o", type=str, required=True,
                             help="output directory")
         parser.add_argument("--lexicon", "-l", type=str,
                             help="csv or text file with lexicon")
@@ -106,11 +106,13 @@ class SplitWordReassembler:
                                  (min. 3, default 5)")
         parser.add_argument("--save_replacements", "-s", action="store_true",
                             help="save replacement details (to seperate file)")
+        parser.add_argument('--log_file', type=str)
         parser.add_argument("--debug", action="store_true")
         args = parser.parse_args()
 
         return cls(
             lexicon=args.lexicon,
+            log_file=args.log_file,
             log_level=logging.DEBUG if args.debug else logging.INFO,
             input_path=args.input_path,
             output_dir=args.output_dir,
