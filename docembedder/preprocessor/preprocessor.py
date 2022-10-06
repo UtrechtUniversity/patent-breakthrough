@@ -7,7 +7,6 @@ import logging
 import json
 import re
 import os
-import lzma
 from typing import List, Dict, Iterable, Tuple
 from pathlib import Path
 from docembedder.preprocessor.parser import read_xz
