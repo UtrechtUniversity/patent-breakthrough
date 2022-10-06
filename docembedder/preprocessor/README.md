@@ -1,13 +1,24 @@
 # Patents Preprocessor
 
-This program cleans US patent texts in order to make them more suitable for
-training and analysis with NLP machine learning models, such as BERT.
+This collection of scripts converts and cleans  US patent texts in order to make
+them more suitable for training and analysis with NLP machine learning models,
+such as BERT.
 
 
-## Cleaning actions
-The program performs the following cleaning actions, some of which are specific
-to use on historical US patent texts, while others are are more generally
-applicable:
+## Conversion of text-files to JSONL
+Use `conversion.py` to convert raw text files containing US patent texts to
+structured JSONL-files. Call the function `parse_raw()` with a file pointer to
+a text file with patents, and a dictionary containing the years each patent was
+published (`{ patent# : year }`). It will return a list of  dictionaries, one
+for each patent. Depending on the data, it might be necessary to alter the
+regular expression `PATENT_FILE_PATTERN` to make it correctly recognize the
+start of each pattern.
+
+
+## Preprocessor
+The `preprocessor.py` script performs the following cleaning actions. Some are
+specific to use on historical US patent texts, while others are are more
+generally applicable:
 
 - Removal of unprintable characters (\u0080-\uffff)
 - Removal of start section with 'boilerplate' text. Many patents start with
@@ -28,7 +39,7 @@ such errors.
 
 Optionally, the program converts all text to lowercase (optional; default True).
 
-## Input
+### Input
 The program expects a JSONL-file, or a folder with JSONL-file(s) as input. Each
 line in the input files is expected to contain a JSON-document describing a
 single patent. Each is expected to have a property 'contents' containing the
@@ -37,17 +48,19 @@ patent text, and a property 'patent' containing the patents registration number
 `doc_property_patent_number()`). Other properties are copied to the output
 _as is_.
 
-## Output
+### Output
 Cleaned patents are written to the specified output folder, maintaining the
 grouping of documents in JSONL-files as the input. Filenames are retained,
 while adding a '_cleaned' suffix. Cleaned documents have the same format and
 properties as the input.
+When the output folder is omitted, the script does not write output to file.
+Instead, call `preprocess_file()` directly to access processed patents.
 
-## Usage
+### Usage
 ```
 python preprocessor.py \
   --input INPUT \
-  --output OUTPUT \
+  [--output OUTPUT] \
   [--remove_non_alpha] \
   [--keep_caps] \
   [--keep_start_section] \
@@ -55,11 +68,5 @@ python preprocessor.py \
 ```
 `--input`: expects a path to input plus extension e.g. './input/*.jsonl'.
 
-`--output`: expects a folder, which is created if it doesn't exist.
-
-`--log_file`: if you specify a log file, all log information that is written to
-std out is also written to file.
-
-## Converting text-files to JSONL
-For the conversion of original text-files to JSONL, code from the earlier [patent impact](https://github.com/UtrechtUniversity/patent-impact)
-&#128274; project was used, specifically the [parser](https://github.com/UtrechtUniversity/patent-impact/blob/main/production/01_parse.py).
+`--log_file`: if specified, all log information that is written to std out is
+also written to file.
