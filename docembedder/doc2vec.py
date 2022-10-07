@@ -10,9 +10,8 @@ import numpy as np
 from nltk.tokenize import word_tokenize
 from gensim.models.doc2vec import TaggedDocument
 import gensim
-import pandas as pd
-from docembedder.base import BaseDocEmbedder
 import scipy
+from docembedder.base import BaseDocEmbedder
 
 try:
     _create_unverified_https_context = ssl._create_unverified_context # pylint: disable=W0212
