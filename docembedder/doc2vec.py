@@ -38,20 +38,22 @@ class D2VEmbedder(BaseDocEmbedder):
         self.min_count = min_count
         self.epoch = epoch
         self.workers = 4
+        self._tagged_data = []
+
         self._d2v_model = gensim.models.doc2vec.Doc2Vec(
             vector_size=vector_size, min_count=min_count, epochs=epoch, workers=workers)
 
     def fit(self, documents: Iterable[str]) -> None:
-        pass
+        self._tagged_data = [
+            TaggedDocument(words=word_tokenize(_d.lower()),
+                           tags=[str(i)]) for i, _d in enumerate(documents)]
+        self._d2v_model.build_vocab(self._tagged_data)
 
     def transform(self, documents: Union[str, Iterable[str]]) -> Union[
             scipy.sparse.base.spmatrix, npt.NDArray[np.float_]]:
-        tagged_data = [
-            TaggedDocument(words=word_tokenize(_d.lower()),
-                           tags=[str(i)]) for i, _d in enumerate(documents)]
-        self._d2v_model.build_vocab(tagged_data)
+
         self._d2v_model.train(
-            tagged_data, total_examples=self._d2v_model.corpus_count, epochs=self.epoch)
+            self._tagged_data, total_examples=self._d2v_model.corpus_count, epochs=self.epoch)
         return self._d2v_model
 
     @property
@@ -65,4 +67,4 @@ if __name__ == "__main__":
     patent_df = pd.read_csv('../data/tst_sample.csv')
     doc = patent_df['contents'].tolist()
     vectors = a.transform(doc)
-    print(vectors[0])
+    print(vectors)
