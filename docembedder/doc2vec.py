@@ -52,17 +52,13 @@ class D2VEmbedder(BaseDocEmbedder):
             TaggedDocument(words=word_tokenize(_d.lower()),
                            tags=[str(i)]) for i, _d in enumerate(documents)]
         self._d2v_model.build_vocab(self._tagged_data)
+        self._d2v_model.train(
+            self._tagged_data, total_examples=self._d2v_model.corpus_count, epochs=self.epoch)
 
     def transform(self, documents: Union[str, Iterable[str]]) -> Union[
             scipy.sparse.base.spmatrix, npt.NDArray[np.float_]]:
 
         pass
-
-    def train(self) -> None:
-        """ Train on tagged_documents"""
-        logging.info("Training Doc2Vec model:")
-        self._d2v_model.train(
-            self._tagged_data, total_examples=self._d2v_model.corpus_count, epochs=self.epoch)
 
     def get_vectors(self, corpus_size: int) -> npt.NDArray:
         """
