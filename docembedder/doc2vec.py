@@ -5,7 +5,6 @@ import logging
 from typing import Iterable, Union
 
 import nltk
-import pandas as pd
 import numpy.typing as npt
 import numpy as np
 from nltk.tokenize import word_tokenize
