@@ -90,17 +90,4 @@ class D2VEmbedder(BaseDocEmbedder):
 
     @property
     def embedding_size(self) -> int:
-        pass
-
-
-if __name__ == "__main__":
-    a = D2VEmbedder()
-
-    patent_df = pd.read_csv('../data/tst_sample.csv')
-    doc = patent_df['contents'].tolist()
-    b = a.fit(doc)
-    a.transform(b)
-    # a.train()
-    vec = a.get_vectors(len(doc))
-    print(vec)
-    # print(vectors[0])
+        return self.vector_size
