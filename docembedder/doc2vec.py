@@ -2,7 +2,7 @@
 
 import ssl
 import logging
-from typing import Iterable, Union
+from typing import Iterable, Union, List
 
 import nltk
 import numpy.typing as npt
@@ -10,9 +10,9 @@ import numpy as np
 from nltk.tokenize import word_tokenize
 from gensim.models.doc2vec import TaggedDocument
 import gensim
-
+import pandas as pd
 from docembedder.base import BaseDocEmbedder
-
+import scipy
 
 try:
     _create_unverified_https_context = ssl._create_unverified_context # pylint: disable=W0212
@@ -53,22 +53,28 @@ class D2VEmbedder(BaseDocEmbedder):
         self.min_count = min_count
         self.epoch = epoch
         self.workers = 4
+        self._tagged_data: List = []
 
         self._d2v_model = gensim.models.doc2vec.Doc2Vec(
             vector_size=vector_size, min_count=min_count, epochs=epoch, workers=workers)
 
-    def fit(self, documents: Iterable[str]) -> list:
+    def fit(self, documents: Iterable[str]) -> None:
         logging.info("Building Doc2Vec vocabulary:")
-        tagged_data = [
+        self._tagged_data = [
             TaggedDocument(words=word_tokenize(_d.lower()),
                            tags=[str(i)]) for i, _d in enumerate(documents)]
-        self._d2v_model.build_vocab(tagged_data)
-        return tagged_data
+        self._d2v_model.build_vocab(self._tagged_data)
 
-    def transform(self, documents: Union[str, Iterable[str]]) -> npt.NDArray[np.float_]:
+    def transform(self, documents: Union[str, Iterable[str]]) -> Union[
+            scipy.sparse.base.spmatrix, npt.NDArray[np.float_]]:
+
+        pass
+
+    def train(self) -> None:
+        """ Train on tagged_documents"""
         logging.info("Training Doc2Vec model:")
         self._d2v_model.train(
-            documents, total_examples=self._d2v_model.corpus_count, epochs=self.epoch)
+            self._tagged_data, total_examples=self._d2v_model.corpus_count, epochs=self.epoch)
 
     def get_vectors(self, corpus_size: int) -> npt.NDArray:
         """
