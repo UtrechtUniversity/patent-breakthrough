@@ -49,12 +49,26 @@ class D2VEmbedder(BaseDocEmbedder):
                            tags=[str(i)]) for i, _d in enumerate(documents)]
         self._d2v_model.build_vocab(self._tagged_data)
 
-    def transform(self, documents: Union[str, Iterable[str]]) -> Union[
-            scipy.sparse.base.spmatrix, npt.NDArray[np.float_]]:
-
+    def transform(self) -> npt.NDArray[np.float_]:
         self._d2v_model.train(
             self._tagged_data, total_examples=self._d2v_model.corpus_count, epochs=self.epoch)
-        return self._d2v_model
+
+    def get_vectors(self, corpus_size: int) -> npt.NDArray:
+        """
+        Get vectors from trained doc2vec model
+
+        arguments
+        ---------
+        corpus_size: Size of the documents
+
+        return
+        ------
+         Document vectors
+        """
+        vectors = np.zeros((corpus_size, self.vector_size))
+        for i in range(0, corpus_size):
+            vectors[i] = self._d2v_model.dv[i]
+        return vectors
 
     @property
     def embedding_size(self) -> int:
@@ -66,5 +80,8 @@ if __name__ == "__main__":
 
     patent_df = pd.read_csv('../data/tst_sample.csv')
     doc = patent_df['contents'].tolist()
-    vectors = a.transform(doc)
-    print(vectors)
+    a.fit(doc)
+    a.transform()
+    vec = a.get_vectors(len(doc))
+    print(vec)
+    # print(vectors[0])
