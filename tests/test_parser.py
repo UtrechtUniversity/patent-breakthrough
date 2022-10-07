@@ -3,7 +3,7 @@ from pathlib import Path
 from docembedder.preprocessor.parser import parse_raw, write_xz, read_xz, compress_raw,\
     compress_raw_dir
 
-data_dir = Path("tests", "data", )
+data_dir = Path("tests", "data")
 raw_fp = data_dir / "raw_test.txt"
 raw_fp_2 = data_dir / "raw_test_2.txt"
 raw_fp_combined = data_dir / "raw_test_combined.txt"
