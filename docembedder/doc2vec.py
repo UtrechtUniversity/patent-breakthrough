@@ -1,10 +1,8 @@
 """ Gensim Doc2vec class."""
 
-import ssl
 import logging
 from typing import Iterable, Union, List
 
-import nltk
 import numpy.typing as npt
 import numpy as np
 from nltk.tokenize import word_tokenize
@@ -13,15 +11,6 @@ import gensim
 import scipy
 from docembedder.base import BaseDocEmbedder
 
-try:
-    _create_unverified_https_context = ssl._create_unverified_context # pylint: disable=W0212
-except AttributeError:
-    pass
-else:
-    ssl._create_default_https_context = _create_unverified_https_context # pylint: disable=W0212
-
-nltk.download('punkt')
-SENT_DETECTOR = nltk.data.load('tokenizers/punkt/english.pickle')
 
 logging.basicConfig(format="%(levelname)s - %(asctime)s: %(message)s",
                     datefmt='%H:%M:%S', level=logging.INFO)
