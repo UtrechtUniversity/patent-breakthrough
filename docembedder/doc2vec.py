@@ -6,7 +6,6 @@ from typing import Iterable, Union
 
 import nltk
 import pandas as pd
-import scipy
 import numpy.typing as npt
 import numpy as np
 from nltk.tokenize import word_tokenize
@@ -46,7 +45,11 @@ class D2VEmbedder(BaseDocEmbedder):
     epoch: Number of iterations (epochs) over the corpus
     workers: Number of worker threads to train the model (faster training with multicore machines)
     """
-    def __init__(self, vector_size: int = 100, min_count: int = 2, epoch: int = 10, workers: int = 4):
+    def __init__(self,
+                 vector_size: int = 100,
+                 min_count: int = 2,
+                 epoch: int = 10,
+                 workers: int = 4):
         self.vector_size = vector_size
         self.min_count = min_count
         self.epoch = epoch
@@ -55,15 +58,18 @@ class D2VEmbedder(BaseDocEmbedder):
         self._d2v_model = gensim.models.doc2vec.Doc2Vec(
             vector_size=vector_size, min_count=min_count, epochs=epoch, workers=workers)
 
-    def fit(self, documents: Iterable[str]) -> None:
-        self._tagged_data = [
+    def fit(self, documents: Iterable[str]) -> list:
+        logging.info("Building Doc2Vec vocabulary:")
+        tagged_data = [
             TaggedDocument(words=word_tokenize(_d.lower()),
                            tags=[str(i)]) for i, _d in enumerate(documents)]
-        self._d2v_model.build_vocab(self._tagged_data)
+        self._d2v_model.build_vocab(tagged_data)
+        return tagged_data
 
-    def transform(self) -> npt.NDArray[np.float_]:
+    def transform(self, documents: Union[str, Iterable[str]]) -> npt.NDArray[np.float_]:
+        logging.info("Training Doc2Vec model:")
         self._d2v_model.train(
-            self._tagged_data, total_examples=self._d2v_model.corpus_count, epochs=self.epoch)
+            documents, total_examples=self._d2v_model.corpus_count, epochs=self.epoch)
 
     def get_vectors(self, corpus_size: int) -> npt.NDArray:
         """
@@ -92,8 +98,9 @@ if __name__ == "__main__":
 
     patent_df = pd.read_csv('../data/tst_sample.csv')
     doc = patent_df['contents'].tolist()
-    a.fit(doc)
-    a.transform()
+    b = a.fit(doc)
+    a.transform(b)
+    # a.train()
     vec = a.get_vectors(len(doc))
     print(vec)
     # print(vectors[0])
