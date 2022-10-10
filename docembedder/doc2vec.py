@@ -23,7 +23,7 @@ class D2VEmbedder(BaseDocEmbedder):
 
 
     Arguments
-    ----------
+    ---------
     vector_size: Dimensionality of the feature vectors
     min_count: Ignores all words with total frequency lower than this
     epoch: Number of iterations (epochs) over the corpus
@@ -40,7 +40,6 @@ class D2VEmbedder(BaseDocEmbedder):
         self.workers = 4
         self._tagged_data: List = []
         nltk.download('punkt')
-        # SENT_DETECTOR = nltk.data.load('tokenizers/punkt/english.pickle')
 
         logging.basicConfig(format="%(levelname)s - %(asctime)s: %(message)s",
                             datefmt='%H:%M:%S', level=logging.INFO)
@@ -58,17 +57,7 @@ class D2VEmbedder(BaseDocEmbedder):
             self._tagged_data, total_examples=self._d2v_model.corpus_count, epochs=self.epoch)
 
     def transform(self, documents: Union[str, Iterable[str]]) -> npt.NDArray[np.float_]:
-        """
-                Get vectors from trained doc2vec model
-
-                arguments
-                ---------
-                corpus_size: Size of the documents
-
-                return
-                ------
-                 Document vectors
-                """
+        logging.info("Extracting Document vectors:")
         vectors = np.zeros((len(documents), self.vector_size))
         for i in range(0, len(documents)):
             vectors[i] = self._d2v_model.dv[i]
