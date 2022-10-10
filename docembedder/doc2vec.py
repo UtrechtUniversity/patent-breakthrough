@@ -64,7 +64,7 @@ class D2VEmbedder(BaseDocEmbedder):
         """
         Get vectors from trained doc2vec model
 
-        arguments
+        Arguments
         ---------
         corpus_size: Size of the documents
 
