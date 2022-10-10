@@ -10,10 +10,7 @@ from gensim.models.doc2vec import TaggedDocument
 import gensim
 import scipy
 from docembedder.base import BaseDocEmbedder
-
-
-logging.basicConfig(format="%(levelname)s - %(asctime)s: %(message)s",
-                    datefmt='%H:%M:%S', level=logging.INFO)
+import nltk
 
 
 class D2VEmbedder(BaseDocEmbedder):
@@ -42,6 +39,11 @@ class D2VEmbedder(BaseDocEmbedder):
         self.epoch = epoch
         self.workers = 4
         self._tagged_data: List = []
+        nltk.download('punkt')
+        # SENT_DETECTOR = nltk.data.load('tokenizers/punkt/english.pickle')
+
+        logging.basicConfig(format="%(levelname)s - %(asctime)s: %(message)s",
+                            datefmt='%H:%M:%S', level=logging.INFO)
 
         self._d2v_model = gensim.models.doc2vec.Doc2Vec(
             vector_size=vector_size, min_count=min_count, epochs=epoch, workers=workers)
@@ -55,28 +57,34 @@ class D2VEmbedder(BaseDocEmbedder):
         self._d2v_model.train(
             self._tagged_data, total_examples=self._d2v_model.corpus_count, epochs=self.epoch)
 
-    def transform(self, documents: Union[str, Iterable[str]]) -> Union[
-            scipy.sparse.base.spmatrix, npt.NDArray[np.float_]]:
-
-        pass
-
-    def get_vectors(self, corpus_size: int) -> npt.NDArray:
+    def transform(self, documents: Union[str, Iterable[str]]) -> npt.NDArray[np.float_]:
         """
-        Get vectors from trained doc2vec model
+                Get vectors from trained doc2vec model
 
-        arguments
-        ---------
-        corpus_size: Size of the documents
+                arguments
+                ---------
+                corpus_size: Size of the documents
 
-        return
-        ------
-         Document vectors
-        """
-        vectors = np.zeros((corpus_size, self.vector_size))
-        for i in range(0, corpus_size):
+                return
+                ------
+                 Document vectors
+                """
+        vectors = np.zeros((len(documents), self.vector_size))
+        for i in range(0, len(documents)):
             vectors[i] = self._d2v_model.dv[i]
         return vectors
 
     @property
     def embedding_size(self) -> int:
         return self.vector_size
+
+
+import pandas as pd
+if __name__ == "__main__":
+     a = D2VEmbedder()
+
+     patent_df = pd.read_csv('../data/tst_sample.csv')
+     doc = patent_df['contents'].tolist()
+     a.fit(doc)
+     vec = a.get_vectors(len(doc))
+     print(vec)
