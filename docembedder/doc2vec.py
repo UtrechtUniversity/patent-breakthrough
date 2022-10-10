@@ -26,7 +26,7 @@ class D2VEmbedder(BaseDocEmbedder):
 
 
     Arguments
-    ----------
+    ---------
     vector_size: Dimensionality of the feature vectors
     min_count: Ignores all words with total frequency lower than this
     epoch: Number of iterations (epochs) over the corpus
