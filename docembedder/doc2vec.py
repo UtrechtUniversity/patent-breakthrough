@@ -3,7 +3,6 @@
 import logging
 from typing import Iterable, Union, List
 
-import numpy.typing as npt
 import numpy as np
 from nltk.tokenize import word_tokenize
 from gensim.models.doc2vec import TaggedDocument
@@ -56,7 +55,7 @@ class D2VEmbedder(BaseDocEmbedder):
         self._d2v_model.train(
             self._tagged_data, total_examples=self._d2v_model.corpus_count, epochs=self.epoch)
 
-    def transform(self, documents: Union[str, Iterable[str]]) -> npt.NDArray[np.float_]:
+    def transform(self, documents: Union[str, Iterable[str]]) -> List[np.float_]:
         logging.info("Extracting Document vectors:")
         vectors = [
             self._d2v_model.infer_vector(
