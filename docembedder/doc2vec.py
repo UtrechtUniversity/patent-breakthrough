@@ -8,7 +8,6 @@ import numpy as np
 from nltk.tokenize import word_tokenize
 from gensim.models.doc2vec import TaggedDocument
 import gensim
-import scipy
 from docembedder.base import BaseDocEmbedder
 import nltk
 
@@ -66,14 +65,3 @@ class D2VEmbedder(BaseDocEmbedder):
     @property
     def embedding_size(self) -> int:
         return self.vector_size
-
-
-import pandas as pd
-if __name__ == "__main__":
-     a = D2VEmbedder()
-
-     patent_df = pd.read_csv('../data/tst_sample.csv')
-     doc = patent_df['contents'].tolist()
-     a.fit(doc)
-     vec = a.get_vectors(len(doc))
-     print(vec)
