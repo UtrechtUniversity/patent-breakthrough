@@ -69,7 +69,7 @@ class D2VEmbedder(BaseDocEmbedder):
         corpus_size: Size of the documents
 
         Returns
-        ------
+        -------
          Document vectors
         """
         vectors = np.zeros((corpus_size, self.vector_size))
