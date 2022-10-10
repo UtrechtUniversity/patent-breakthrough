@@ -68,7 +68,7 @@ class D2VEmbedder(BaseDocEmbedder):
         ---------
         corpus_size: Size of the documents
 
-        return
+        Returns
         ------
          Document vectors
         """
