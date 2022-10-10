@@ -8,8 +8,9 @@ import numpy as np
 from nltk.tokenize import word_tokenize
 from gensim.models.doc2vec import TaggedDocument
 import gensim
-from docembedder.base import BaseDocEmbedder
 import nltk
+
+from docembedder.base import BaseDocEmbedder
 
 
 class D2VEmbedder(BaseDocEmbedder):
@@ -58,21 +59,12 @@ class D2VEmbedder(BaseDocEmbedder):
     def transform(self, documents: Union[str, Iterable[str]]) -> npt.NDArray[np.float_]:
         logging.info("Extracting Document vectors:")
         vectors = np.zeros((len(documents), self.vector_size))
-        for i in range(0, len(documents)):
-            vectors[i] = self._d2v_model.infer_vector(doc_words=word_tokenize(documents[i]))
+        vectors = [
+            self._d2v_model.infer_vector(
+                doc_words=word_tokenize(_d.lower())) for i, _d in enumerate(documents)]
+
         return vectors
 
     @property
     def embedding_size(self) -> int:
         return self.vector_size
-
-
-import pandas as pd
-if __name__ == "__main__":
-     a = D2VEmbedder()
-
-     patent_df = pd.read_csv('../data/tst_sample.csv')
-     doc = patent_df['contents'].tolist()
-     a.fit(doc)
-     vec = a.transform(doc)
-     print(vec)
