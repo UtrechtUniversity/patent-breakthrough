@@ -71,7 +71,8 @@ def _parse_file_contents(contents: str) -> List[Dict]:
             # add line to contents
             current_contents += line
 
-    if len(current_contents) > 10:
+    # Add the last patent if it has content.
+    if len(current_contents) > 0:
         swap_patents()
 
     return patents
