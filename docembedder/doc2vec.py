@@ -58,7 +58,6 @@ class D2VEmbedder(BaseDocEmbedder):
 
     def transform(self, documents: Union[str, Iterable[str]]) -> npt.NDArray[np.float_]:
         logging.info("Extracting Document vectors:")
-        vectors = np.zeros((len(documents), self.vector_size))
         vectors = [
             self._d2v_model.infer_vector(
                 doc_words=word_tokenize(_d.lower())) for i, _d in enumerate(documents)]
