@@ -1,6 +1,4 @@
 """ pytest file for bert.py"""
-import dill as pickle
-
 from docembedder import BERTEmbedder
 
 
@@ -12,10 +10,7 @@ def test_bert():
         "And here is another one"
     ]
 
-    embedder = BERTEmbedder(model_path="./models/test_document_embeddings.dill")
+    embedder = BERTEmbedder()
     embedder.fit(documents)
-
-    with open(embedder.model_path, 'rb') as file:
-        embeddings = pickle.load(file)
-        print(embeddings)
-        assert embeddings.shape == (2, 64)
+    embeddings = embedder.transform(documents)
+    assert embeddings.shape == (2, 64)

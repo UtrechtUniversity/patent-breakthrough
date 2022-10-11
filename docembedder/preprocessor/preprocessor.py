@@ -7,25 +7,17 @@ import logging
 import json
 import re
 import os
+from typing import List, Dict, Iterable, Tuple
+from pathlib import Path
+from docembedder.preprocessor.parser import read_xz
 
 
-class Preprocessor:
+class Preprocessor:  # pylint: disable=too-many-instance-attributes
     """
     Preprocessor class
     """
 
-    def __init__(self):
-        self.logger = None
-        self.keep_empty_patents = False
-        self.keep_missing_years = False
-        self.keep_caps = False
-        self.keep_start_section = False
-        self.remove_non_alpha = False
-        self.output_dir = None
-        self.file_list = []
-        self.total_docs = {'processed': 0, 'empty': 0, 'no_year': 0}
-
-    def initialize(
+    def __init__(  # pylint: disable=too-many-arguments
             self,
             log_level: int = logging.INFO,
             log_file: str = None,
@@ -36,9 +28,7 @@ class Preprocessor:
             keep_start_section: bool = False,
             remove_non_alpha: bool = False,
             input_dir: str = None,
-            output_dir: str = None,
-            ):
-        """Initializes all vars"""
+            output_dir: str = None):
 
         self.logger = logging.getLogger('preprocessor')
         self.logger.setLevel(log_level)
@@ -59,13 +49,13 @@ class Preprocessor:
         self.keep_start_section = keep_start_section
         self.remove_non_alpha = remove_non_alpha
 
-        # self.input_dir = input_dir
+        self.input_dir = input_dir
         self.output_dir = output_dir
-        os.makedirs(self.output_dir, exist_ok=True)
-        self.logger.info(f'reading {input_dir}')
-        self.file_list = self.get_file_list(input_dir)
+        self.total_docs = {'processed': 0, 'skipped_empty': 0,
+                           'skipped_no_year': 0}
 
-    def from_arguments(self):
+    @classmethod
+    def from_arguments(cls):
         """Parses command line parameters and initiates class"""
         parser = argparse.ArgumentParser(description="Cleans patents")
 
@@ -73,14 +63,13 @@ class Preprocessor:
         parser.add_argument(
             "--input",
             type=str,
-            required=True,
+            default=None,
             help="path to input plus extension e.g. './input/*.jsonl'"
         )
         # Path to output directory
         parser.add_argument(
             '--output',
             type=str,
-            required=True,
             default=None,
             help='output directory string e.g. "../cleaned/"'
         )
@@ -92,7 +81,7 @@ class Preprocessor:
         parser.add_argument('--log_file', type=str)
         args = vars(parser.parse_args())
 
-        self.initialize(
+        return cls(
             log_file=args['log_file'],
             keep_empty_patents=args['keep_empty_patents'],
             keep_missing_years=args['keep_missing_years'],
@@ -103,74 +92,96 @@ class Preprocessor:
             output_dir=args['output'],
         )
 
-    @staticmethod
-    def get_file_list(input_dir) -> list[str]:
+    @property
+    def file_list(self) -> List[str]:
         """Reads files from input directory"""
-        return sorted(glob.glob(input_dir))
+        if self.input_dir is None:
+            return []
+        return sorted(glob.glob(self.input_dir))
 
     def preprocess_files(self):
         """Iterates all input JSONL-files and calls preprocessing for each"""
         for file in self.file_list:
-            self.logger.info(f'processing {file}')
-            processed, empty, no_year = self.preprocess_file(file)
-            self.logger.info(f'processed {file} ({processed:,} documents, ' +
-                             f'skipped {empty:,} empty, {no_year:,} w/o year)')
-            self.total_docs['processed'] += processed
-            self.total_docs['empty'] += empty
-            self.total_docs['no_year'] += no_year
+            self.logger.info('processing %s', file)
+            processed_patents, stats = self.preprocess_file(file)
+            self.logger.info('processed %s (%s documents, skipped %s empty, %s w/o year)',
+                             file, str(stats["processed"]), str(stats["skipped_empty"]),
+                             str(stats["skipped_no_year"]))
+            self.total_docs['processed'] += processed_patents
+            self.total_docs['skipped_empty'] += stats["skipped_empty"]
+            self.total_docs['skipped_no_year'] += stats["skipped_no_year"]
 
         self.logger.info("done")
-        self.logger.info(f"files: {len(self.file_list):,}")
-        self.logger.info(f"docs processed: {self.total_docs['processed']:,}")
-        self.logger.info(f"skipped empty docs: {self.total_docs['empty']:,}")
-        self.logger.info("skipped docs w/o year: " +
-                         f"{self.total_docs['no_year']:,}")
+        self.logger.info("files: %s", str(len(self.file_list)))
+        self.logger.info("docs processed: %s", str(self.total_docs['processed']))
+        self.logger.info("skipped empty docs: %s", str(self.total_docs['skipped_empty']))
+        self.logger.info("skipped docs w/o year: %s", str(self.total_docs['skipped_no_year']))
 
-    @staticmethod
-    def yield_document(file: str):
+    def yield_document(self, file: str) -> Iterable[Dict]:
         """Generator yielding single JSON-doc from input file"""
-        with open(file) as handle:
+        suffix = Path(file).suffix
+        if suffix == ".jsonl":
+            return self.patent_get_jsonl(file)
+        if suffix == ".xz":
+            return self.patent_get_xz(file)
+        raise ValueError(f"Unsupported format for documents: {suffix}")
+
+    def patent_get_jsonl(self, file: str) -> Iterable[Dict]:
+        """Generate patents from a JSONL file"""
+        with open(file, encoding="utf-8") as handle:
             line = handle.readline()
             while line:
                 yield json.loads(line)
                 line = handle.readline()
 
-    def preprocess_file(self, file: str):
+    def patent_get_xz(self, file: str) -> Iterable[Dict]:
+        """Generate patents from a compressed xz file"""
+        for pat in read_xz(file):
+            yield pat
+
+    def preprocess_file(self, file: str) -> Tuple[List[Dict], Dict[str, int]]:
         """Iterates individual JSON-docs in JSONL-file and calls preprocsseing
         for each"""
         parts = os.path.splitext(os.path.basename(file))
-        new_file = os.path.join(self.output_dir, parts[0]+'_cleaned'+parts[1])
         processed = 0
         skipped_empty = 0
         skipped_no_year = 0
-        with open(new_file, "w") as new_file:
-            for patent in self.yield_document(file):
-                if patent['year'] == 0 or patent['year'] is None:
-                    self.logger.warning(f'Patent #{patent["patent"]} has ' +
-                                        'no year')
-                    if not self.keep_missing_years:
-                        skipped_no_year += 1
-                        continue
+        processed_patents = []
+        for patent in self.yield_document(file):
+            if patent['year'] == 0 or patent['year'] is None:
+                self.logger.warning('Patent #%s has no year', str(patent["patent"]))
+                if not self.keep_missing_years:
+                    skipped_no_year += 1
+                    continue
 
-                body = patent['contents']
+            body = patent['contents']
 
-                if len(body) == 0:
-                    self.logger.warning(f'Patent #{patent["patent"]} has ' +
-                                        'no content')
-                    if not self.keep_empty_patents:
-                        skipped_empty += 1
-                        continue
+            if len(body) == 0:
+                self.logger.warning('Patent #%s has no content', str(patent["patent"]))
+                if not self.keep_empty_patents:
+                    skipped_empty += 1
+                    continue
 
-                body = self.remove_unprintable(body)
-                body = self.remove_start_section(body)
-                body = self.clean_document(body)
-                body = self.remove_remains(body)
+            body = self.remove_unprintable(body)
+            body = self.remove_start_section(body)
+            body = self.clean_document(body)
+            body = self.remove_remains(body)
 
-                patent['contents'] = body
-                self.write_document(new_file, patent)
-                processed += 1
+            patent['contents'] = body
+            processed += 1
+            processed_patents.append(patent)
 
-        return processed, skipped_empty, skipped_no_year
+        if self.output_dir is not None:
+            new_file = os.path.join(self.output_dir, parts[0]+'_cleaned'+parts[1])
+            self.write_document(new_file, processed_patents)
+
+        stats = {
+            "processed": processed,
+            "skipped_empty": skipped_empty,
+            "skipped_no_year": skipped_no_year,
+        }
+
+        return processed_patents, stats
 
     @staticmethod
     def remove_unprintable(content: str) -> str:
@@ -222,9 +233,10 @@ class Preprocessor:
         return word if self.keep_caps else lower_word
 
     @staticmethod
-    def write_document(file_handle, patent: dict):
+    def write_document(output_fp, all_patents: List[dict]):
         """Writes processed docs"""
-        file_handle.write(json.dumps(patent) + "\n")
+        with open(output_fp, "w", encoding="utf-8") as handle:
+            handle.write("\n".join([json.dumps(patent) for patent in all_patents]))
 
     @staticmethod
     def count_upper_case_letters(str_obj: str) -> int:
@@ -236,11 +248,11 @@ class Preprocessor:
         return count
 
     @staticmethod
-    def chunker(seq, size) -> list[str]:
+    def chunker(seq, size) -> List[str]:
         """Returns a chunk of a list of strings"""
         return list(seq[pos:pos + size] for pos in range(0, len(seq), size))
 
-    def split_and_clean(self, content: str) -> str:
+    def split_and_clean(self, content: str) -> List[str]:
         """Split content into words and clean them"""
         raw_words = content.split()
         words = [x for x in raw_words if len(self.process_word(x)) > 0]
@@ -265,8 +277,8 @@ class Preprocessor:
 
         return " ".join(words)[len(start_section):].strip()
 
-    def get_first_words(self, words: list[str],
-                        frac_threshold: float) -> list[str]:
+    def get_first_words(self, words: List[str],
+                        frac_threshold: float) -> List[str]:
         """Go through the first 1000 words, and break when the overall
         percentage of characters that are CAPS falls below the threshold"""
         tot_cap = 0
@@ -280,7 +292,7 @@ class Preprocessor:
 
         return words[0:idx]
 
-    def get_start_section(self, first_words: list, frac_threshold: float):
+    def get_start_section(self, first_words: List[str], frac_threshold: float):
         """Go through the remaining words in chunks of three words at a time,
         and again calculate the percentage of CAPS-characters per chunk, and
         stop after it falls below the threshold. the first three chunks are
@@ -291,7 +303,7 @@ class Preprocessor:
             return ""
 
         idx = 0
-        chunk = []
+        chunk = ""
         for idx, chunk in enumerate(chunks):
             c_upper = sum(map(self.count_upper_case_letters, chunk))
             c_all = sum(map(len, chunk))
@@ -300,7 +312,7 @@ class Preprocessor:
                 break
 
         # join the chunks
-        first_part = []
+        first_part: List[str] = []
         for item in list(chunks)[:idx]:
             first_part += item
 
@@ -323,11 +335,10 @@ class Preprocessor:
             start_section = start_section[0:len(start_section)-idx]
 
         # reassemble start section, and chop it from the original body
-        start_section = " ".join(start_section)
-        return start_section
+        joined_start_section = " ".join(start_section)
+        return joined_start_section
 
 
 if __name__ == '__main__':
-    p = Preprocessor()
-    p.from_arguments()
+    p = Preprocessor.from_arguments()
     p.preprocess_files()
