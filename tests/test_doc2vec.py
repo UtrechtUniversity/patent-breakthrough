@@ -16,7 +16,3 @@ def test_doc2vec():
     assert len(embeddings) == 2
     assert len(embeddings[0]) == 100
     assert len(embeddings[1]) == 100
-
-
-if __name__ == '__main__':
-    test_doc2vec()
