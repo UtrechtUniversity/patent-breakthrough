@@ -3,6 +3,8 @@
 import logging
 from typing import Iterable, Union, List
 
+import ssl
+
 import numpy as np
 from nltk.tokenize import word_tokenize
 from gensim.models.doc2vec import TaggedDocument
@@ -38,10 +40,18 @@ class D2VEmbedder(BaseDocEmbedder):
         self.epoch = epoch
         self.workers = 4
         self._tagged_data: List = []
-        nltk.download('punkt')
+
+        # Solving CERTIFICATE_VERIFY_FAILED while loading punk
+        try:
+            _create_unverified_https_context = ssl._create_unverified_context  # pylint: disable=W0212
+        except AttributeError:
+            pass
+        else:
+            ssl._create_default_https_context = _create_unverified_https_context  # pylint: disable=W0212
 
         logging.basicConfig(format="%(levelname)s - %(asctime)s: %(message)s",
                             datefmt='%H:%M:%S', level=logging.INFO)
+        nltk.download('punkt')
 
         self._d2v_model = gensim.models.doc2vec.Doc2Vec(
             vector_size=vector_size, min_count=min_count, epochs=epoch, workers=workers)
