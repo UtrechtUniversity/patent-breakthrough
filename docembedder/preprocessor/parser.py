@@ -36,28 +36,31 @@ def _parse_file_contents(contents: str) -> List[Dict]:
     current_file = None
     current_contents = ''
 
+    def swap_patents():
+        """Swap out patents, storing them."""
+        if current_patent is None:
+            return
+        patent_number = current_patent.upper()
+        patent_verification = Path(current_file).stem
+        if patent_number == patent_verification:
+            patent = int(patent_number.replace('US', ''))
+        else:
+            raise f'Patent {patent_number} can\'t be verified'
+
+        contents = current_contents or ''
+        patents.append({
+            'patent': patent,
+            'file': current_file,
+            'contents': WHITESPACE.sub(' ', contents).strip()
+        })
+
     # iterate over contents
     for line in split_contents:
         # check if current line is the start of a new patent
         head = PATENT_FILE_PATTERN.search(line)
         if head is not None:
             # add previous patent to data bucket
-            if current_patent is not None:
-                # transform patent name (remove US part) and verify with
-                # filename
-                patent_number = current_patent.upper()
-                patent_verification = Path(current_file).stem
-                if patent_number == patent_verification:
-                    patent = int(patent_number.replace('US', ''))
-                else:
-                    raise f'Patent {patent_number} can\'t be verified'
-
-                contents = current_contents or ''
-                patents.append({
-                    'patent': patent,
-                    'file': current_file,
-                    'contents': WHITESPACE.sub(' ', contents).strip()
-                })
+            swap_patents()
             # get the file
             current_file = head.group(0)
             # get the patent from the filepath
@@ -68,10 +71,14 @@ def _parse_file_contents(contents: str) -> List[Dict]:
             # add line to contents
             current_contents += line
 
+    # Add the last patent if it has content.
+    if len(current_contents) > 0:
+        swap_patents()
+
     return patents
 
 
-def parse_raw(patent_input_fp: Union[Path, str], year_lookup: Counter) -> List[Dict]:
+def parse_raw(patent_input_fp: Union[Path, str], year_lookup: Union[Counter, Dict]) -> List[Dict]:
     """Parse a raw patent file into a structured list
 
     Arguments
@@ -132,7 +139,7 @@ def write_xz(compressed_fp: Union[Path, str], patents: List[Dict]) -> None:
         handle.write(str.encode(json.dumps(patents), encoding="utf-8"))
 
 
-def compress_raw(patent_input_fp: Union[Path, str], year_fp: Union[Path, str],
+def compress_raw(patent_input_fp: Union[Path, str], year_fp: Union[Path, str, Dict],
                  output_dir: Union[Path, str]) -> None:
     """Compress a raw file into multiple compressed files by year
 
@@ -149,8 +156,11 @@ def compress_raw(patent_input_fp: Union[Path, str], year_fp: Union[Path, str],
     output_dir.mkdir(exist_ok=True)
 
     # Create the year lookup so that we can add the year to the patents.
-    year_df = pd.read_csv(year_fp, sep='\t')
-    year_lookup = Counter(dict(zip(year_df["pat"], year_df["year"])))
+    if isinstance(year_fp, dict):
+        year_lookup = year_fp
+    else:
+        year_df = pd.read_csv(year_fp, sep='\t')
+        year_lookup = Counter(dict(zip(year_df["pat"], year_df["year"])))
 
     # Read the patent data from the raw files and sort them by patent id.
     parsed_data = parse_raw(patent_input_fp, year_lookup)
@@ -180,7 +190,7 @@ def compress_raw(patent_input_fp: Union[Path, str], year_fp: Union[Path, str],
         write_xz(compressed_fp, patents)
 
 
-def compress_raw_dir(patent_input_dir: Union[Path, str], year_fp: Union[Path, str],
+def compress_raw_dir(patent_input_dir: Union[Path, str], year_fp: Union[Path, str, dict],
                      output_dir: Union[Path, str]) -> None:
     """Compress all raw files in a directory.
 

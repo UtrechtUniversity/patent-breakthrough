@@ -16,7 +16,7 @@ class BaseDocEmbedder(ABC):
 
     @abstractmethod
     def transform(self, documents: Union[str, Iterable[str]]) -> Union[
-            scipy.sparse.base.spmatrix, npt.NDArray[np.float_]]:
+            scipy.sparse.spmatrix, npt.NDArray[np.float_]]:
         """Get the embedding for a document."""
 
     @property

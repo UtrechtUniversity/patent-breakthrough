@@ -20,7 +20,7 @@ class TfidfEmbedder(BaseDocEmbedder):
         self._model.fit(documents)
 
     def transform(self, documents: Union[str, Iterable[str]]) -> Union[
-            scipy.sparse.base.spmatrix]:
+            scipy.sparse.spmatrix]:
         return self._model.transform(documents).tocsr()
 
     @property
