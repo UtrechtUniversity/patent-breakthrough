@@ -14,8 +14,8 @@ def test_doc2vec():
     embedder.fit(documents)
     embeddings = embedder.transform(documents)
     assert len(embeddings) == 2
-    assert len(embeddings[0]) == embedder.vector_size
-    assert len(embeddings[1]) == embedder.vector_size
+    assert len(embeddings[0]) == 100
+    assert len(embeddings[1]) == 100
 
 
 if __name__ == '__main__':
