@@ -35,6 +35,3 @@ class DOCPreparation:
             return patent_df[self.columns]
 
         return None
-
-    def preprocess_patent(self, patent_df):
-        """Method for preprocessing patents data"""
