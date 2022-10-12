@@ -1,6 +1,6 @@
 """Module containing patent similarity analysis"""
 
-from typing import Sequence, Dict, Union, Tuple
+from typing import Sequence, Dict, Union, Tuple, Any
 from pathlib import Path
 
 from scipy import stats
@@ -178,7 +178,9 @@ class DOCSimilarity:
             self.compute_impact(patent_index)
 
 
-def get_model_correlations(model: BaseDocEmbedder, documents: Sequence[str]
+def get_model_correlations(model: BaseDocEmbedder,
+                           train_documents: Sequence[str],
+                           test_documents: Sequence[str]=None,
                            ) -> npt.NDArray[np.float_]:
     """Get all cross correlations of the embeddings for a model
 
@@ -194,13 +196,15 @@ def get_model_correlations(model: BaseDocEmbedder, documents: Sequence[str]
     cross_cor:
         Correlations between all the patents [len(documents, len(documents)].
     """
-    model.fit(documents)
-    embeddings = model.transform(documents)
+    if test_documents is None:
+        test_documents = train_documents
+    model.fit(train_documents)
+    embeddings = model.transform(test_documents)
     cross_cor = embeddings.dot(embeddings.T)
     return cross_cor
 
 
-def _sample_class_similarity(patents: Sequence[str],
+def _sample_class_similarity(patents: Sequence[Dict],
                              pat_class: PatentClassification) -> Tuple[int, int, float]:
     # Sometimes we are missing patent classifications, resample if this is the case.
     n_try = 1000
@@ -217,10 +221,53 @@ def _sample_class_similarity(patents: Sequence[str],
     raise ValueError("Cannot find patents with classification.")
 
 
-def classification_benchmark(patents: Sequence[str],
-                             similarity_matrices: Dict[str, npt.NDArray[np.float_]],
-                             class_fp: Union[str, Path]=Path("..", "data", "GPCPCs.txt"),
-                             n_sample: int=10000) -> Dict[str, float]:
+def classification_benchmark(
+        patents: Sequence[Dict],
+        models: Dict[str, BaseDocEmbedder],
+        n_patents: int=1000,
+        n_class_sample: int=500,
+        class_fp: Union[str, Path]=Path("..", "data", "GPCPCs.txt"),
+        ) -> Dict[str, float]:
+    """Benchmark different models with the GPCPC classifications.
+
+    See `compare_classification_similarity` function for more details.
+
+    Arguments
+    ---------
+    patents:
+        Patents to sample the correlations from.
+    models:
+        Dictionary with name: model.
+    class_fp:
+        Filename for the patent classifications.
+    n_patents:
+        Number of patents selected.
+    n_class_sample:
+        Number of samples (i_patent vs j_patent) for benchmarking purposes. Higher means longer
+        running times but better accuracy (at least up to sampling the whole matrix).
+
+    """
+    if n_patents is None or n_patents > len(patents):
+        n_patents = len(patents)
+    documents = [p["contents"] for p in patents]
+    sampled_idx = np.random.choice(len(patents), size=n_patents, replace=False)
+    sampled_patents = [patents[i] for i in sampled_idx]
+    sampled_documents = [documents[i] for i in sampled_idx]
+    model_cor: Dict[str, Any] = {}
+    for model_name, model in models.items():
+        model_cor[model_name] = get_model_correlations(model, documents, sampled_documents)
+
+    results = compare_classification_similarity(sampled_patents, model_cor, class_fp=class_fp,
+                                                n_sample=n_class_sample)
+
+    return results
+
+
+def compare_classification_similarity(
+        patents: Sequence[Dict],
+        similarity_matrices: Dict[str, npt.NDArray[np.float_]],
+        class_fp: Union[str, Path]=Path("..", "data", "GPCPCs.txt"),
+        n_sample: int=10000) -> Dict[str, float]:
     """Compute the performance of models by comparing patent similarities with classifications
 
     It samples combinations of patents, say patent i and j. For each model it retrieves
@@ -239,9 +286,11 @@ def classification_benchmark(patents: Sequence[str],
         For each model, this contains a cross correlation/similarity matrix.
     class_fp:
         Filename for the patent classifications.
+    n_patents:
+        Number of patents selected.
     n_sample:
-        Number of samples for benchmarking purposes. Higher means longer running times
-        but better accuracy (at least up to sampling the whole matrix).
+        Number of samples (i_patent vs j_patent) for benchmarking purposes. Higher means longer
+        running times but better accuracy (at least up to sampling the whole matrix).
     """
     pat_class = PatentClassification(class_fp)
 
