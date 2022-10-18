@@ -1,7 +1,9 @@
 """Module containing Byte pair embeddings."""
 
+from __future__ import annotations
+
 from collections import defaultdict
-from typing import Iterable, Union, Dict, Optional
+from typing import Iterable, Union, Dict, Optional, Sequence
 
 from bpemb import BPEmb
 import numpy as np
@@ -10,16 +12,29 @@ from numpy import typing as npt
 from docembedder.base import BaseDocEmbedder
 
 
-def _get_prefac(model, documents):
-    counts = defaultdict(lambda: 0)
+def _get_prefac(model: BPEmb, documents: Union[Iterable[str], Sequence[str]]) -> Dict[str, float]:
+    """Compute the prefactor for each (sub)word.
+
+    See: https://radix.ai/blog/2021/3/a-guide-to-building-document-embeddings-part-1/
+
+    The prefactor is equal to 1/(1+1e3*p[word]), where p[word]:= the probability
+    of the word occuring in a document.
+    """
+
+    # First count the number of occurences of each subword
+    counts: defaultdict = defaultdict(lambda: 0)
+    n_documents = 0
     for pat in documents:
         tokens = model.encode(pat)
         unq_tokens = set(tokens)
         for token in unq_tokens:
             counts[token] += 1
+        n_documents += 1
+
+    # Create a dictionary of prefactors of each subword.
     prefacs = {}
     for token, count in counts.items():
-        pre_fac = 1/(1+1e3*count/len(documents))
+        pre_fac = 1/(1+1e3*count/n_documents)
         prefacs[token] = pre_fac
     return prefacs
 
@@ -45,7 +60,7 @@ class BPembEmbedder(BaseDocEmbedder):
         self._prefacs: Optional[Dict[str, float]] = None
         self._model = BPEmb(lang="en", vs=self.vocab_size, dim=self.vector_size)
 
-    def fit(self, documents: Iterable[str]) -> None:
+    def fit(self, documents: Union[Iterable[str], Sequence[str]]) -> None:
         # Compute the prefactors for each word. Similar to TF-IDF
         self._prefacs = _get_prefac(self._model, documents)
 
