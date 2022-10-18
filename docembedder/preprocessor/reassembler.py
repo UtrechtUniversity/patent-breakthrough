@@ -12,8 +12,9 @@ from typing import List, Dict, Iterable, Tuple
 class SplitWordReassembler:
     """
     Split Word Reassembler class
-
     """
+
+    # pylint: disable=too-many-instance-attributes
     def __init__(self,
                  lexicon: str,
                  input_path: str,
@@ -27,6 +28,11 @@ class SplitWordReassembler:
                  log_file: str = None,
                  log_format: str = '%(asctime)s [%(levelname)s] %(message)s',
                  ):
+
+
+        # pylint: disable=too-many-arguments
+        # pylint: disable=too-many-locals
+
         """Initializes vars"""
 
         self.min_assembly_length = min_assembly_length
