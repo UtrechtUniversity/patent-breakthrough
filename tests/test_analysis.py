@@ -57,6 +57,11 @@ def test_compute_impact():
     assert round(sim.df_patents_embeddings.loc[PATENT_INDEX, 'impact'], 5) == round(1.0000048, 5)
 
 
+def test_compute_novelty():
+    sim = process_data()
+    sim.collect_blocks(PATENT_INDEX)
+    sim.compute_impact(PATENT_INDEX)
+    sim.compute_novelty(PATENT_INDEX)
 
-if __name__ == '__main__':
-    test_compute_impact()
+    assert round(sim.df_patents_embeddings.loc[PATENT_INDEX, 'novelty'], 5) == round(1e-05, 5)
+
