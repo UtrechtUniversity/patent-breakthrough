@@ -1,11 +1,12 @@
 """ Gensim Doc2vec class."""
 
 import logging
-from typing import Iterable, Union, List
+from typing import Iterable, Union, List, Optional
 
 import ssl
 
 import numpy as np
+from numpy import typing as npt
 from nltk.tokenize import word_tokenize
 from gensim.models.doc2vec import TaggedDocument
 import gensim
@@ -38,9 +39,9 @@ class D2VEmbedder(BaseDocEmbedder):
         self.vector_size = vector_size
         self.min_count = min_count
         self.epoch = epoch
-        self.workers = 4
+        self.workers = workers
         self._tagged_data: List = []
-
+        self._d2v_model: Optional[gensim.models.doc2vec.Doc2Vec] = None
         # Solving CERTIFICATE_VERIFY_FAILED while loading punk
         try:
             _create_unverified_https_context = ssl._create_unverified_context  # pylint: disable=W0212
@@ -50,14 +51,15 @@ class D2VEmbedder(BaseDocEmbedder):
             ssl._create_default_https_context = _create_unverified_https_context  # pylint: disable=W0212
 
         logging.basicConfig(format="%(levelname)s - %(asctime)s: %(message)s",
-                            datefmt='%H:%M:%S', level=logging.INFO)
+                            datefmt='%H:%M:%S')
         nltk.download('punkt')
-
-        self._d2v_model = gensim.models.doc2vec.Doc2Vec(
-            vector_size=vector_size, min_count=min_count, epochs=epoch, workers=workers)
 
     def fit(self, documents: Iterable[str]) -> None:
         logging.info("Building Doc2Vec vocabulary:")
+        self._d2v_model = gensim.models.doc2vec.Doc2Vec(
+            vector_size=self.vector_size, min_count=self.min_count, epochs=self.epoch,
+            workers=self.workers)
+
         self._tagged_data = [
             TaggedDocument(words=word_tokenize(_d.lower()),
                            tags=[str(i)]) for i, _d in enumerate(documents)]
@@ -65,13 +67,15 @@ class D2VEmbedder(BaseDocEmbedder):
         self._d2v_model.train(
             self._tagged_data, total_examples=self._d2v_model.corpus_count, epochs=self.epoch)
 
-    def transform(self, documents: Union[str, Iterable[str]]) -> List[np.float_]:
+    def transform(self, documents: Union[str, Iterable[str]]) -> npt.NDArray[np.float_]:
+        if self._d2v_model is None:
+            raise ValueError("Error: Doc2Vec model not yet trained.")
         logging.info("Extracting Document vectors:")
         vectors = [
             self._d2v_model.infer_vector(
                 doc_words=word_tokenize(_d.lower())) for i, _d in enumerate(documents)]
 
-        return vectors
+        return np.array(vectors)
 
     @property
     def embedding_size(self) -> int:
