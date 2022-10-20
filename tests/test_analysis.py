@@ -47,9 +47,11 @@ def test_collect_blocks():
     sim = process_data()
 
     sim.collect_blocks(PATENT_INDEX)
+
     assert_frame_equal(
         sim.backward_block[['index', 'patent', 'contents', 'year']].reset_index(drop=True),
         BACKWARD_BLOCK_EXPECTED.reset_index(drop=True))
+
     assert_frame_equal(
         sim.forward_block[['index', 'patent', 'contents', 'year']].reset_index(drop=True),
         FORWARD_BLOCK_EXPECTED.reset_index(drop=True))
@@ -61,7 +63,7 @@ def test_compute_impact():
     sim.collect_blocks(PATENT_INDEX)
     sim.compute_impact(PATENT_INDEX)
 
-    assert round(sim.df_patents_embeddings.loc[PATENT_INDEX, 'impact'], 5) == round(1.0000048, 5)
+    assert int(sim.df_patents_embeddings.loc[PATENT_INDEX, 'impact']) == 1
 
 
 def test_compute_novelty():
@@ -71,4 +73,4 @@ def test_compute_novelty():
     sim.compute_impact(PATENT_INDEX)
     sim.compute_novelty(PATENT_INDEX)
 
-    assert round(sim.df_patents_embeddings.loc[PATENT_INDEX, 'novelty'], 5) == round(1e-05, 5)
+    assert int(sim.df_patents_embeddings.loc[PATENT_INDEX, 'novelty']) == 0
