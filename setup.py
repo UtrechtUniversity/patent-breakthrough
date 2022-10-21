@@ -22,6 +22,7 @@ setup(
         "dill",
         "nltk",
         "gensim",
+        "bpemb",
         "pytest"
     ]
 )
