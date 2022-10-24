@@ -1,7 +1,6 @@
 """Test analysis.py functionality"""
 from pandas.testing import assert_frame_equal
 import pandas as pd
-import pytest
 
 from docembedder import DOCSimilarity
 from docembedder import D2VEmbedder
@@ -38,7 +37,6 @@ def process_data():
     model = D2VEmbedder()
     model.fit(documents)
     embeddings = model.transform(documents)
-    embeddings = pd.Series(embeddings)
     sim = DOCSimilarity(embeddings=embeddings, window_size=3, df_patent=df_patents)
     return sim
 
@@ -58,22 +56,21 @@ def test_collect_blocks():
         FORWARD_BLOCK_EXPECTED.reset_index(drop=True))
 
 
-@pytest.mark.parametrize("patent_index", [3, 4])
-def test_compute_impact(patent_index):
+# @pytest.mark.parametrize("patent_index", [3, 4])
+def test_compute_impact():
     """Function to test compute_impact() functionality"""
     sim = process_data()
-    sim.collect_blocks(patent_index)
-    sim.compute_impact(patent_index)
+    sim.collect_blocks(PATENT_INDEX)
+    sim.compute_impact(PATENT_INDEX)
 
-    assert int(sim.df_patents_embeddings.loc[patent_index, 'impact']) == 1
+    assert int(sim.df_patents_embeddings.loc[PATENT_INDEX, 'impact']) == 1
 
 
-@pytest.mark.parametrize("patent_index", [3, 4])
-def test_compute_novelty(patent_index):
+def test_compute_novelty():
     """Function to test compute_novelty functionality"""
     sim = process_data()
-    sim.collect_blocks(patent_index)
-    sim.compute_impact(patent_index)
-    sim.compute_novelty(patent_index)
+    sim.collect_blocks(PATENT_INDEX)
+    sim.compute_impact(PATENT_INDEX)
+    sim.compute_novelty(PATENT_INDEX)
 
-    assert int(sim.df_patents_embeddings.loc[patent_index, 'novelty']) == 0
+    assert int(sim.df_patents_embeddings.loc[PATENT_INDEX, 'novelty']) == 0
