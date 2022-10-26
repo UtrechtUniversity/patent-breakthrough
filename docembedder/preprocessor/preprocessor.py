@@ -9,7 +9,7 @@ import re
 import os
 from typing import List, Dict, Iterable, Tuple, Set
 from pathlib import Path
-from docembedder.preprocessor.parser import read_xz
+# from docembedder.preprocessor.parser import read_xz
 
 
 class Preprocessor:  # pylint: disable=too-many-instance-attributes
@@ -58,16 +58,6 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
 
         self.valid_single_letter_words = ['a', 'i']
         self.min_assembly_length = 5
-
-        if lexicon_path:
-            assert os.path.exists(lexicon_path), \
-                f"lexicon file '{lexicon_path}' does not exist"
-            lexicon_extension = os.path.splitext(lexicon_path)[1].lower()
-            lexicon_extensions = ['.txt', '.csv']
-            assert lexicon_extension in lexicon_extensions, \
-                "lexicon should be one of: " + \
-                f"[{', '.join(lexicon_extensions)}] (got {lexicon_extension})"
-
         self.dictionary = self.read_dictionary(lexicon_path)
 
     @classmethod
@@ -127,8 +117,18 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
         """Reads words from dictionary file"""
         if lexicon_path is None:
             return set([])
+
+        assert os.path.exists(lexicon_path), \
+            f"lexicon file '{lexicon_path}' does not exist"
+        lexicon_extension = os.path.splitext(lexicon_path)[1].lower()
+        lexicon_extensions = ['.txt', '.csv']
+        assert lexicon_extension in lexicon_extensions, \
+            "lexicon should be one of: " + \
+            f"[{', '.join(lexicon_extensions)}] (got {lexicon_extension})"
+
         with open(lexicon_path, encoding="utf-8") as file:
             dictionary = file.readlines()
+
         dictionary = [line.strip() for line in dictionary]
         return set(list(set(dictionary)))
 
@@ -425,7 +425,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
         return " ".join(new_word_list)
 
 
-# if __name__ == '__main__':
-#     # no longer works due to package import
-#     p = Preprocessor.from_arguments()
-#     p.preprocess_files()
+if __name__ == '__main__':
+    # no longer works due to package import
+    p = Preprocessor.from_arguments()
+    p.preprocess_files()
