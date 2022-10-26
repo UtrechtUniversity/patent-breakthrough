@@ -6,7 +6,6 @@ import glob
 import logging
 import json
 import re
-import os
 from typing import List, Dict, Iterable, Tuple, Set
 from pathlib import Path
 # from docembedder.preprocessor.parser import read_xz
@@ -118,9 +117,10 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
         if lexicon_path is None:
             return set([])
 
-        assert os.path.exists(lexicon_path), \
+        path = Path(lexicon_path)
+        assert path.is_file(), \
             f"lexicon file '{lexicon_path}' does not exist"
-        lexicon_extension = os.path.splitext(lexicon_path)[1].lower()
+        lexicon_extension = path.suffix.lower()
         lexicon_extensions = ['.txt', '.csv']
         assert lexicon_extension in lexicon_extensions, \
             "lexicon should be one of: " + \
@@ -177,11 +177,12 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
     def preprocess_file(self, file: str) -> Tuple[List[Dict], Dict[str, int]]:
         """Iterates individual JSON-docs in JSONL-file and calls preprocsseing
         for each"""
-        parts = os.path.splitext(os.path.basename(file))
+
         processed = 0
         skipped_empty = 0
         skipped_no_year = 0
         processed_patents = []
+
         for patent in self.yield_document(file):
             if patent['year'] == 0 or patent['year'] is None:
                 self.logger.warning('Patent #%s has no year', str(patent["patent"]))
@@ -208,7 +209,9 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
             processed_patents.append(patent)
 
         if self.output_dir is not None:
-            new_file = os.path.join(self.output_dir, parts[0]+'_cleaned'+parts[1])
+            path = Path(file)
+            new_file = Path(self.output_dir,
+                            path.stem + '_cleaned' + path.suffix)
             self.write_document(new_file, processed_patents)
 
         stats = {
