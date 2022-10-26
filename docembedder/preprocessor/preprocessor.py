@@ -138,9 +138,8 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
         for file in self.file_list:
             self.logger.info('processing %s', file)
             processed_patents, stats = self.preprocess_file(file)
-            self.logger.info('processed %s (%s documents, skipped %s empty, ' +
-                             '%s w/o year)',
-                             file, str(stats["processed"]),
+            self.logger.info("processed %s (%s documents, skipped %s empty, "
+                             "%s w/o year)", file, str(stats["processed"]),
                              str(stats["skipped_empty"]),
                              str(stats["skipped_no_year"]))
             self.total_docs['processed'] += len(processed_patents)
