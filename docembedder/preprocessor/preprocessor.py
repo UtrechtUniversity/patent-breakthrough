@@ -129,8 +129,9 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
         with open(lexicon_path, encoding="utf-8") as file:
             dictionary = file.readlines()
 
+        print(len(dictionary))
         dictionary = [line.strip() for line in dictionary]
-        return set(list(set(dictionary)))
+        return set(dictionary)
 
     def preprocess_files(self):
         """Iterates all input JSONL-files and calls preprocessing for each"""
