@@ -138,8 +138,10 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
         for file in self.file_list:
             self.logger.info('processing %s', file)
             processed_patents, stats = self.preprocess_file(file)
-            self.logger.info('processed %s (%s documents, skipped %s empty, %s w/o year)',
-                             file, str(stats["processed"]), str(stats["skipped_empty"]),
+            self.logger.info('processed %s (%s documents, skipped %s empty, ' +
+                             '%s w/o year)',
+                             file, str(stats["processed"]),
+                             str(stats["skipped_empty"]),
                              str(stats["skipped_no_year"]))
             self.total_docs['processed'] += len(processed_patents)
             self.total_docs['skipped_empty'] += stats["skipped_empty"]
@@ -147,11 +149,14 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
 
         self.logger.info("done")
         self.logger.info("files: %s", str(len(self.file_list)))
-        self.logger.info("docs processed: %s", str(self.total_docs['processed']))
-        self.logger.info("skipped empty docs: %s", str(self.total_docs['skipped_empty']))
-        self.logger.info("skipped docs w/o year: %s", str(self.total_docs['skipped_no_year']))
-        self.logger.info("words reassembled: %s", str(self.total_docs['words_reassembled']))
-
+        self.logger.info("docs processed: %s",
+                         str(self.total_docs['processed']))
+        self.logger.info("skipped empty docs: %s",
+                         str(self.total_docs['skipped_empty']))
+        self.logger.info("skipped docs w/o year: %s",
+                         str(self.total_docs['skipped_no_year']))
+        self.logger.info("words reassembled: %s",
+                         str(self.total_docs['words_reassembled']))
 
     def yield_document(self, file: str) -> Iterable[Dict]:
         """Generator yielding single JSON-doc from input file"""
@@ -186,7 +191,8 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
 
         for patent in self.yield_document(file):
             if patent['year'] == 0 or patent['year'] is None:
-                self.logger.warning('Patent #%s has no year', str(patent["patent"]))
+                self.logger.warning('Patent #%s has no year',
+                                    str(patent["patent"]))
                 if not self.keep_missing_years:
                     skipped_no_year += 1
                     continue
@@ -194,7 +200,8 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
             body = patent['contents']
 
             if len(body) == 0:
-                self.logger.warning('Patent #%s has no content', str(patent["patent"]))
+                self.logger.warning('Patent #%s has no content',
+                                    str(patent["patent"]))
                 if not self.keep_empty_patents:
                     skipped_empty += 1
                     continue
@@ -270,7 +277,8 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
     def write_document(output_fp, all_patents: List[dict]):
         """Writes processed docs"""
         with open(output_fp, "w", encoding="utf-8") as handle:
-            handle.write("\n".join([json.dumps(patent) for patent in all_patents]))
+            handle.write("\n".join([json.dumps(patent) for patent
+                                    in all_patents]))
 
     @staticmethod
     def count_upper_case_letters(str_obj: str) -> int:
