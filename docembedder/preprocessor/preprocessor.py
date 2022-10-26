@@ -253,22 +253,17 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
 
         if (len(lower_word) < 2 and
                 lower_word not in self.valid_single_letter_words):
-            # print(f"x [single]: {word}")
             return ''
 
         if (self.remove_non_alpha and not lower_word.isalpha()):
-            # print(f"x [non-alpha]: {word}")
             return ''
 
         if bool(contains_only_ident_chars.search(lower_word)):
-            # print(f"x [ident]: {word}")
             return ''
 
         if bool(contains_multiple_ident_chars.search(lower_word)):
-            # print(f"x [multi]: {word}")
             return ''
 
-        # print(f"v: {word}")
         return word if self.keep_caps else lower_word
 
     @staticmethod
@@ -427,9 +422,3 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
                 new_word_list.append(token)
 
         return " ".join(new_word_list)
-
-
-if __name__ == '__main__':
-    # no longer works due to package import
-    p = Preprocessor.from_arguments()
-    p.preprocess_files()
