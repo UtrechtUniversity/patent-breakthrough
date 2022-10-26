@@ -8,7 +8,7 @@ import json
 import re
 from typing import List, Dict, Iterable, Tuple, Set
 from pathlib import Path
-# from docembedder.preprocessor.parser import read_xz
+from docembedder.preprocessor.parser import read_xz
 
 
 class Preprocessor:  # pylint: disable=too-many-instance-attributes
