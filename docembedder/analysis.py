@@ -11,6 +11,7 @@ from numpy import typing as npt
 
 from docembedder.base import BaseDocEmbedder
 from docembedder.classification import PatentClassification
+from docembedder import D2VEmbedder
 
 
 class DOCSimilarity:
@@ -157,134 +158,156 @@ class DOCSimilarity:
             self.compute_impact(patent_index)
 
 
-def get_model_correlations(model: BaseDocEmbedder,
-                           train_documents: Sequence[str],
-                           test_documents: Sequence[str]=None,
-                           ) -> npt.NDArray[np.float_]:
-    """Get all cross correlations of the embeddings for a model
+# def get_model_correlations(model: BaseDocEmbedder,
+#                            train_documents: Sequence[str],
+#                            test_documents: Sequence[str]=None,
+#                            ) -> npt.NDArray[np.float_]:
+#     """Get all cross correlations of the embeddings for a model
+#
+#     Arguments
+#     ---------
+#     model:
+#         Model to create the embeddings for.
+#     documents:
+#         Patents to encode.
+#
+#     Returns
+#     -------
+#     cross_cor:
+#         Correlations between all the patents [len(documents, len(documents)].
+#     """
+#     if test_documents is None:
+#         test_documents = train_documents
+#     model.fit(train_documents)
+#     embeddings = model.transform(test_documents)
+#     cross_cor = embeddings.dot(embeddings.T)
+#     return cross_cor
+#
+#
+# def _sample_class_similarity(patents: Sequence[Dict],
+#                              pat_class: PatentClassification) -> Tuple[int, int, float]:
+#     # Sometimes we are missing patent classifications, resample if this is the case.
+#     n_try = 1000
+#     for _ in range(n_try):
+#         i_patent, j_patent = np.random.choice(len(patents), size=2, replace=False)
+#         try:
+#             class_cor = pat_class.get_similarity(
+#                 patents[i_patent]["patent"],
+#                 patents[j_patent]["patent"])
+#             return i_patent, j_patent, class_cor
+#         except ValueError:
+#             pass
+#
+#     raise ValueError("Cannot find patents with classification.")
+#
+#
+# def classification_benchmark(
+#         patents: Sequence[Dict],
+#         models: Dict[str, BaseDocEmbedder],
+#         n_patents: int=1000,
+#         n_class_sample: int=500,
+#         class_fp: Union[str, Path]=Path("..", "data", "GPCPCs.txt"),
+#         ) -> Dict[str, float]:
+#     """Benchmark different models with the GPCPC classifications.
+#
+#     See `compare_classification_similarity` function for more details.
+#
+#     Arguments
+#     ---------
+#     patents:
+#         Patents to sample the correlations from.
+#     models:
+#         Dictionary with name: model.
+#     class_fp:
+#         Filename for the patent classifications.
+#     n_patents:
+#         Number of patents selected.
+#     n_class_sample:
+#         Number of samples (i_patent vs j_patent) for benchmarking purposes. Higher means longer
+#         running times but better accuracy (at least up to sampling the whole matrix).
+#
+#     """
+#     if n_patents is None or n_patents > len(patents):
+#         n_patents = len(patents)
+#     documents = [p["contents"] for p in patents]
+#     sampled_idx = np.random.choice(len(patents), size=n_patents, replace=False)
+#     sampled_patents = [patents[i] for i in sampled_idx]
+#     sampled_documents = [documents[i] for i in sampled_idx]
+#     model_cor: Dict[str, Any] = {}
+#     for model_name, model in models.items():
+#         model_cor[model_name] = get_model_correlations(model, documents, sampled_documents)
+#
+#     results = compare_classification_similarity(sampled_patents, model_cor, class_fp=class_fp,
+#                                                 n_sample=n_class_sample)
+#
+#     return results
+#
+#
+# def compare_classification_similarity(
+#         patents: Sequence[Dict],
+#         similarity_matrices: Dict[str, npt.NDArray[np.float_]],
+#         class_fp: Union[str, Path]=Path("..", "data", "GPCPCs.txt"),
+#         n_sample: int=10000) -> Dict[str, float]:
+#     """Compute the performance of models by comparing patent similarities with classifications
+#
+#     It samples combinations of patents, say patent i and j. For each model it retrieves
+#     the similarity between patent i and j. It also retrieves the similariry of GPCPC classifications
+#     i and j. The details for this can be found in the PatentClassification class. After sampling
+#     n_sample of these classifications, a performance indicator is created by computing the
+#     spearman-r correlation between the model similarities and the classification similarities;
+#     if two patents have very similar patent classifications, we expect that a good model will
+#     indicate high(er) similarities between those two classifications as well.
+#
+#     Arguments
+#     ---------
+#     patents:
+#         Patents to sample the correlations from.
+#     similarity_matrices:
+#         For each model, this contains a cross correlation/similarity matrix.
+#     class_fp:
+#         Filename for the patent classifications.
+#     n_patents:
+#         Number of patents selected.
+#     n_sample:
+#         Number of samples (i_patent vs j_patent) for benchmarking purposes. Higher means longer
+#         running times but better accuracy (at least up to sampling the whole matrix).
+#     """
+#     pat_class = PatentClassification(class_fp)
+#
+#     # Create empty arrays for the model correlations for each model.
+#     sampled_correlations = {model_name: np.zeros(n_sample) for model_name in similarity_matrices}
+#     class_correlations = np.zeros(n_sample)
+#     for i_sample in range(n_sample):
+#         i_patent, j_patent, class_cor = _sample_class_similarity(patents, pat_class)
+#
+#         # Fill the model correlation arrays.
+#         for model_name, sim_mat in similarity_matrices.items():
+#             sampled_correlations[model_name][i_sample] = sim_mat[i_patent, j_patent]
+#         class_correlations[i_sample] = class_cor
+#
+#     # Compute the performance of each model with the spearman-r correlation.
+#     model_performances = {model_name: stats.spearmanr(class_correlations, model_cor).correlation
+#                           for model_name, model_cor in sampled_correlations.items()}
+#     return model_performances
 
-    Arguments
-    ---------
-    model:
-        Model to create the embeddings for.
-    documents:
-        Patents to encode.
 
-    Returns
-    -------
-    cross_cor:
-        Correlations between all the patents [len(documents, len(documents)].
-    """
-    if test_documents is None:
-        test_documents = train_documents
-    model.fit(train_documents)
-    embeddings = model.transform(test_documents)
-    cross_cor = embeddings.dot(embeddings.T)
-    return cross_cor
+if __name__ == '__main__':
+    PATENTS = {'index': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+               'patent': [100, 202, 250, 320, 370, 385, 415, 440, 500, 550],
+               'contents': ['test sentence', 'test sentence', 'test sentence', 'test sentence',
+                            'test sentence', 'test sentence', 'test sentence', 'test sentence',
+                            'test sentence', 'test sentence'],
+               'year': [1996, 1997, 1998, 1999, 2000, 2001, 2001, 2002, 2003, 2003]
+               }
+    df_patents = pd.DataFrame(data=PATENTS)
+    documents = df_patents['contents']
 
+    model = D2VEmbedder()
+    model.fit(documents)
+    embeddings = model.transform(documents)
 
-def _sample_class_similarity(patents: Sequence[Dict],
-                             pat_class: PatentClassification) -> Tuple[int, int, float]:
-    # Sometimes we are missing patent classifications, resample if this is the case.
-    n_try = 1000
-    for _ in range(n_try):
-        i_patent, j_patent = np.random.choice(len(patents), size=2, replace=False)
-        try:
-            class_cor = pat_class.get_similarity(
-                patents[i_patent]["patent"],
-                patents[j_patent]["patent"])
-            return i_patent, j_patent, class_cor
-        except ValueError:
-            pass
+    sim = DOCSimilarity(embeddings=embeddings, window_size=3, df_patent=df_patents)
+    sim.collect_blocks(3)
+    sim.compute_novelty(3)
+    print(int(sim.df_patents_embeddings.loc[3, 'novelty']))
 
-    raise ValueError("Cannot find patents with classification.")
-
-
-def classification_benchmark(
-        patents: Sequence[Dict],
-        models: Dict[str, BaseDocEmbedder],
-        n_patents: int=1000,
-        n_class_sample: int=500,
-        class_fp: Union[str, Path]=Path("..", "data", "GPCPCs.txt"),
-        ) -> Dict[str, float]:
-    """Benchmark different models with the GPCPC classifications.
-
-    See `compare_classification_similarity` function for more details.
-
-    Arguments
-    ---------
-    patents:
-        Patents to sample the correlations from.
-    models:
-        Dictionary with name: model.
-    class_fp:
-        Filename for the patent classifications.
-    n_patents:
-        Number of patents selected.
-    n_class_sample:
-        Number of samples (i_patent vs j_patent) for benchmarking purposes. Higher means longer
-        running times but better accuracy (at least up to sampling the whole matrix).
-
-    """
-    if n_patents is None or n_patents > len(patents):
-        n_patents = len(patents)
-    documents = [p["contents"] for p in patents]
-    sampled_idx = np.random.choice(len(patents), size=n_patents, replace=False)
-    sampled_patents = [patents[i] for i in sampled_idx]
-    sampled_documents = [documents[i] for i in sampled_idx]
-    model_cor: Dict[str, Any] = {}
-    for model_name, model in models.items():
-        model_cor[model_name] = get_model_correlations(model, documents, sampled_documents)
-
-    results = compare_classification_similarity(sampled_patents, model_cor, class_fp=class_fp,
-                                                n_sample=n_class_sample)
-
-    return results
-
-
-def compare_classification_similarity(
-        patents: Sequence[Dict],
-        similarity_matrices: Dict[str, npt.NDArray[np.float_]],
-        class_fp: Union[str, Path]=Path("..", "data", "GPCPCs.txt"),
-        n_sample: int=10000) -> Dict[str, float]:
-    """Compute the performance of models by comparing patent similarities with classifications
-
-    It samples combinations of patents, say patent i and j. For each model it retrieves
-    the similarity between patent i and j. It also retrieves the similariry of GPCPC classifications
-    i and j. The details for this can be found in the PatentClassification class. After sampling
-    n_sample of these classifications, a performance indicator is created by computing the
-    spearman-r correlation between the model similarities and the classification similarities;
-    if two patents have very similar patent classifications, we expect that a good model will
-    indicate high(er) similarities between those two classifications as well.
-
-    Arguments
-    ---------
-    patents:
-        Patents to sample the correlations from.
-    similarity_matrices:
-        For each model, this contains a cross correlation/similarity matrix.
-    class_fp:
-        Filename for the patent classifications.
-    n_patents:
-        Number of patents selected.
-    n_sample:
-        Number of samples (i_patent vs j_patent) for benchmarking purposes. Higher means longer
-        running times but better accuracy (at least up to sampling the whole matrix).
-    """
-    pat_class = PatentClassification(class_fp)
-
-    # Create empty arrays for the model correlations for each model.
-    sampled_correlations = {model_name: np.zeros(n_sample) for model_name in similarity_matrices}
-    class_correlations = np.zeros(n_sample)
-    for i_sample in range(n_sample):
-        i_patent, j_patent, class_cor = _sample_class_similarity(patents, pat_class)
-
-        # Fill the model correlation arrays.
-        for model_name, sim_mat in similarity_matrices.items():
-            sampled_correlations[model_name][i_sample] = sim_mat[i_patent, j_patent]
-        class_correlations[i_sample] = class_cor
-
-    # Compute the performance of each model with the spearman-r correlation.
-    model_performances = {model_name: stats.spearmanr(class_correlations, model_cor).correlation
-                          for model_name, model_cor in sampled_correlations.items()}
-    return model_performances
