@@ -14,7 +14,7 @@ with open(doc_test, 'r') as file1:
     original_doc = json.load(file1)
 
 
-def test_preprocessor():
+def test_reassemble_words():
     with open(doc_test_reassembled, 'r') as file:
         reassembled = json.load(file)
     preprocessor = Preprocessor(lexicon_path=lexicon_file)
