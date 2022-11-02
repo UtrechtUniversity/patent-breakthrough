@@ -204,8 +204,8 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
                     skipped_empty += 1
                     continue
 
-            body = self.reassemble_words(body)
             body = self.remove_unprintable(body)
+            body = self.reassemble_words(body)
             body = self.remove_start_section(body)
             body = self.clean_document(body)
             body = self.remove_remains(body)
