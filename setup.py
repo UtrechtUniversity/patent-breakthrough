@@ -22,6 +22,6 @@ setup(
         "dill",
         "nltk",
         "gensim",
-        "bpemb",
+        "bpemb"
     ]
 )

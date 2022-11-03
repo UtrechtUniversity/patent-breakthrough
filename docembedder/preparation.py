@@ -6,6 +6,8 @@ import json
 
 import pandas as pd
 
+# pylint: disable=R0903
+
 
 class DOCPreparation:
     """Class for loading patent documents from multiple Jsonl files as pandas dataframe
@@ -35,6 +37,3 @@ class DOCPreparation:
             return patent_df[self.columns]
 
         return None
-
-    def preprocess_patent(self, patent_df):
-        """Method for preprocessing patents data"""
