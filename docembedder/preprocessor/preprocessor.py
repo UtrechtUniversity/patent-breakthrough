@@ -6,8 +6,7 @@ import glob
 import logging
 import json
 import re
-import os
-from typing import List, Dict, Iterable, Tuple
+from typing import List, Dict, Iterable, Tuple, Set
 from pathlib import Path
 from docembedder.preprocessor.parser import read_xz
 
@@ -17,7 +16,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
     Preprocessor class
     """
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(  # pylint: disable=too-many-arguments too-many-locals
             self,
             log_level: int = logging.INFO,
             log_file: str = None,
@@ -28,7 +27,9 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
             keep_start_section: bool = False,
             remove_non_alpha: bool = False,
             input_dir: str = None,
-            output_dir: str = None):
+            output_dir: str = None,
+            lexicon_path: str = None
+            ):
 
         self.logger = logging.getLogger('preprocessor')
         self.logger.setLevel(log_level)
@@ -52,7 +53,11 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
         self.input_dir = input_dir
         self.output_dir = output_dir
         self.total_docs = {'processed': 0, 'skipped_empty': 0,
-                           'skipped_no_year': 0}
+                           'skipped_no_year': 0, 'words_reassembled': 0}
+
+        self.valid_single_letter_words = ['a', 'i']
+        self.min_assembly_length = 5
+        self.dictionary = self.read_dictionary(lexicon_path)
 
     @classmethod
     def from_arguments(cls):
@@ -73,6 +78,12 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
             default=None,
             help='output directory string e.g. "../cleaned/"'
         )
+        parser.add_argument(
+            '--lexicon',
+            type=str,
+            default=None,
+            help='csv or text file with lexicon'
+        )
         parser.add_argument('--remove_non_alpha', action='store_true')
         parser.add_argument('--keep_caps', action='store_true')
         parser.add_argument('--keep_start_section', action='store_true')
@@ -90,6 +101,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
             remove_non_alpha=args['remove_non_alpha'],
             input_dir=args['input'],
             output_dir=args['output'],
+            lexicon_path=args['lexicon']
         )
 
     @property
@@ -99,23 +111,50 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
             return []
         return sorted(glob.glob(self.input_dir))
 
+    @staticmethod
+    def read_dictionary(lexicon_path) -> Set[str]:
+        """Reads words from dictionary file"""
+        if lexicon_path is None:
+            return set([])
+
+        path = Path(lexicon_path)
+        assert path.is_file(), \
+            f"lexicon file '{lexicon_path}' does not exist"
+        lexicon_extension = path.suffix.lower()
+        lexicon_extensions = ['.txt', '.csv']
+        assert lexicon_extension in lexicon_extensions, \
+            "lexicon should be one of: " + \
+            f"[{', '.join(lexicon_extensions)}] (got {lexicon_extension})"
+
+        with open(lexicon_path, encoding="utf-8") as file:
+            dictionary = file.readlines()
+
+        dictionary = [line.strip() for line in dictionary]
+        return set(dictionary)
+
     def preprocess_files(self):
         """Iterates all input JSONL-files and calls preprocessing for each"""
         for file in self.file_list:
             self.logger.info('processing %s', file)
             processed_patents, stats = self.preprocess_file(file)
-            self.logger.info('processed %s (%s documents, skipped %s empty, %s w/o year)',
-                             file, str(stats["processed"]), str(stats["skipped_empty"]),
+            self.logger.info("processed %s (%s documents, skipped %s empty, "
+                             "%s w/o year)", file, str(stats["processed"]),
+                             str(stats["skipped_empty"]),
                              str(stats["skipped_no_year"]))
-            self.total_docs['processed'] += processed_patents
+            self.total_docs['processed'] += len(processed_patents)
             self.total_docs['skipped_empty'] += stats["skipped_empty"]
             self.total_docs['skipped_no_year'] += stats["skipped_no_year"]
 
         self.logger.info("done")
         self.logger.info("files: %s", str(len(self.file_list)))
-        self.logger.info("docs processed: %s", str(self.total_docs['processed']))
-        self.logger.info("skipped empty docs: %s", str(self.total_docs['skipped_empty']))
-        self.logger.info("skipped docs w/o year: %s", str(self.total_docs['skipped_no_year']))
+        self.logger.info("docs processed: %s",
+                         str(self.total_docs['processed']))
+        self.logger.info("skipped empty docs: %s",
+                         str(self.total_docs['skipped_empty']))
+        self.logger.info("skipped docs w/o year: %s",
+                         str(self.total_docs['skipped_no_year']))
+        self.logger.info("words reassembled: %s",
+                         str(self.total_docs['words_reassembled']))
 
     def yield_document(self, file: str) -> Iterable[Dict]:
         """Generator yielding single JSON-doc from input file"""
@@ -142,14 +181,16 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
     def preprocess_file(self, file: str) -> Tuple[List[Dict], Dict[str, int]]:
         """Iterates individual JSON-docs in JSONL-file and calls preprocsseing
         for each"""
-        parts = os.path.splitext(os.path.basename(file))
+
         processed = 0
         skipped_empty = 0
         skipped_no_year = 0
         processed_patents = []
+
         for patent in self.yield_document(file):
             if patent['year'] == 0 or patent['year'] is None:
-                self.logger.warning('Patent #%s has no year', str(patent["patent"]))
+                self.logger.warning('Patent #%s has no year',
+                                    str(patent["patent"]))
                 if not self.keep_missing_years:
                     skipped_no_year += 1
                     continue
@@ -157,12 +198,14 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
             body = patent['contents']
 
             if len(body) == 0:
-                self.logger.warning('Patent #%s has no content', str(patent["patent"]))
+                self.logger.warning('Patent #%s has no content',
+                                    str(patent["patent"]))
                 if not self.keep_empty_patents:
                     skipped_empty += 1
                     continue
 
             body = self.remove_unprintable(body)
+            body = self.reassemble_words(body)
             body = self.remove_start_section(body)
             body = self.clean_document(body)
             body = self.remove_remains(body)
@@ -172,7 +215,9 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
             processed_patents.append(patent)
 
         if self.output_dir is not None:
-            new_file = os.path.join(self.output_dir, parts[0]+'_cleaned'+parts[1])
+            path = Path(file)
+            new_file = Path(self.output_dir,
+                            path.stem + '_cleaned' + path.suffix)
             self.write_document(new_file, processed_patents)
 
         stats = {
@@ -210,33 +255,28 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
         contains_only_ident_chars = re.compile(r'\b([a-z])\1{1,}\b')
         contains_multiple_ident_chars = \
             re.compile(r'([a-z])\1{2,}')
-        valid_single_letter_words = ['a', 'i']
 
         if (len(lower_word) < 2 and
-                lower_word not in valid_single_letter_words):
-            # print(f"x [single]: {word}")
+                lower_word not in self.valid_single_letter_words):
             return ''
 
         if (self.remove_non_alpha and not lower_word.isalpha()):
-            # print(f"x [non-alpha]: {word}")
             return ''
 
         if bool(contains_only_ident_chars.search(lower_word)):
-            # print(f"x [ident]: {word}")
             return ''
 
         if bool(contains_multiple_ident_chars.search(lower_word)):
-            # print(f"x [multi]: {word}")
             return ''
 
-        # print(f"v: {word}")
         return word if self.keep_caps else lower_word
 
     @staticmethod
     def write_document(output_fp, all_patents: List[dict]):
         """Writes processed docs"""
         with open(output_fp, "w", encoding="utf-8") as handle:
-            handle.write("\n".join([json.dumps(patent) for patent in all_patents]))
+            handle.write("\n".join([json.dumps(patent) for patent
+                                    in all_patents]))
 
     @staticmethod
     def count_upper_case_letters(str_obj: str) -> int:
@@ -338,7 +378,53 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
         joined_start_section = " ".join(start_section)
         return joined_start_section
 
+    def reassemble_words(self, body: str) -> str:
+        """Tokenize, walk through tokens and attempts to reassemble split
+        words"""
+        if len(self.dictionary) == 0:
+            return body
 
-if __name__ == '__main__':
-    p = Preprocessor.from_arguments()
-    p.preprocess_files()
+        word_list = body.split()
+        new_word_list = []
+        skip = False
+
+        for key, token in enumerate(word_list):
+            if skip:
+                skip = False
+                continue
+
+            if token in self.dictionary or not token.isalpha():
+                # word exist as it is or is not just letters
+                new_word_list.append(token)
+                continue
+
+            if key >= len(word_list)-1:
+                # last in list, no next token to attempt reassembly
+                new_word_list.append(token)
+                continue
+
+            # get the next token
+            next_token = word_list[key+1]
+
+            if next_token not in self.dictionary or (len(next_token) == 1
+               and next_token not in self.valid_single_letter_words):
+                # if it's not a word in itself, combine with current token
+                assembly = token+next_token
+                if len(assembly) >= self.min_assembly_length \
+                   and assembly in self.dictionary:
+                    # we reassembled a word!
+                    new_word_list.append(assembly)
+                    self.logger.debug("%s + %s -> %s", token, next_token,
+                                      assembly)
+
+                    self.total_docs['words_reassembled'] += 1
+
+                    # make sure to skip over the next token, which is now
+                    # part of the newly reassembled word
+                    skip = True
+                else:
+                    new_word_list.append(token)
+            else:
+                new_word_list.append(token)
+
+        return " ".join(new_word_list)
