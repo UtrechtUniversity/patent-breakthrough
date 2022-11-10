@@ -19,7 +19,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
     def __init__(  # pylint: disable=too-many-arguments too-many-locals
             self,
             log_level: int = logging.INFO,
-            log_file: str = "",
+            log_file: Optional[str] = None,
             log_format: str = '%(asctime)s [%(levelname)s] %(message)s',
             keep_empty_patents: bool = False,
             keep_missing_years: bool = False,
