@@ -6,7 +6,7 @@ import glob
 import logging
 import json
 import re
-from typing import List, Dict, Iterable, Tuple, Set
+from typing import List, Dict, Iterable, Tuple, Set, Optional
 from pathlib import Path
 from docembedder.preprocessor.parser import read_xz
 
@@ -26,9 +26,9 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
             keep_caps: bool = False,
             keep_start_section: bool = False,
             remove_non_alpha: bool = False,
-            input_dir: str = "",
-            output_dir: str = "",
-            lexicon_path: str = ""
+            input_dir: Optional[str] = None,
+            output_dir: Optional[str] = None,
+            lexicon_path: Optional[str] = None
             ):
 
         self.logger = logging.getLogger('preprocessor')
@@ -114,7 +114,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
     @staticmethod
     def read_dictionary(lexicon_path) -> Set[str]:
         """Reads words from dictionary file"""
-        if len(str(lexicon_path)) == 0:
+        if lexicon_path is None:
             return set([])
 
         path = Path(lexicon_path)
