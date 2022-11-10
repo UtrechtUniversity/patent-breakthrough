@@ -159,7 +159,7 @@ class DOCSimilarity:
 
 def get_model_correlations(model: BaseDocEmbedder,
                            train_documents: Sequence[str],
-                           test_documents: Sequence[str]=None,
+                           test_documents: Sequence[str]=[],
                            ) -> npt.NDArray[np.float_]:
     """Get all cross correlations of the embeddings for a model
 
