@@ -114,7 +114,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
     @staticmethod
     def read_dictionary(lexicon_path) -> Set[str]:
         """Reads words from dictionary file"""
-        if lexicon_path is None:
+        if len(str(lexicon_path)) == 0:
             return set([])
 
         path = Path(lexicon_path)
