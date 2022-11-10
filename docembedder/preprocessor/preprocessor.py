@@ -19,16 +19,16 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
     def __init__(  # pylint: disable=too-many-arguments too-many-locals
             self,
             log_level: int = logging.INFO,
-            log_file: str = None,
+            log_file: str = "",
             log_format: str = '%(asctime)s [%(levelname)s] %(message)s',
             keep_empty_patents: bool = False,
             keep_missing_years: bool = False,
             keep_caps: bool = False,
             keep_start_section: bool = False,
             remove_non_alpha: bool = False,
-            input_dir: str = None,
-            output_dir: str = None,
-            lexicon_path: str = None
+            input_dir: str = "",
+            output_dir: str = "",
+            lexicon_path: str = ""
             ):
 
         self.logger = logging.getLogger('preprocessor')
