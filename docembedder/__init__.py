@@ -6,3 +6,4 @@ from docembedder.preprocessor.preprocessor import Preprocessor
 from docembedder.doc2vec import D2VEmbedder
 from docembedder.bpemb import BPembEmbedder
 from docembedder.analysis import DOCSimilarity
+from docembedder.countvec import CountVecEmbedder
