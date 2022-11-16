@@ -1,6 +1,6 @@
 """Module containing patent similarity analysis"""
 
-from typing import Sequence, Dict, Union, Tuple, Any
+from typing import Sequence, Dict, Union, Tuple, Any, Optional
 from pathlib import Path
 
 from scipy import stats
@@ -156,10 +156,9 @@ class DOCSimilarity:
             self.compute_novelty(patent_index)
             self.compute_impact(patent_index)
 
-
 def get_model_correlations(model: BaseDocEmbedder,
                            train_documents: Sequence[str],
-                           test_documents: Sequence[str]=None,
+                           test_documents: Optional[Sequence[str]]=None
                            ) -> npt.NDArray[np.float_]:
     """Get all cross correlations of the embeddings for a model
 

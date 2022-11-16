@@ -6,7 +6,7 @@ import glob
 import logging
 import json
 import re
-from typing import List, Dict, Iterable, Tuple, Set
+from typing import List, Dict, Iterable, Tuple, Set, Optional
 from pathlib import Path
 from docembedder.preprocessor.parser import read_xz
 
@@ -19,16 +19,16 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
     def __init__(  # pylint: disable=too-many-arguments too-many-locals
             self,
             log_level: int = logging.INFO,
-            log_file: str = None,
+            log_file: Optional[str] = None,
             log_format: str = '%(asctime)s [%(levelname)s] %(message)s',
             keep_empty_patents: bool = False,
             keep_missing_years: bool = False,
             keep_caps: bool = False,
             keep_start_section: bool = False,
             remove_non_alpha: bool = False,
-            input_dir: str = None,
-            output_dir: str = None,
-            lexicon_path: str = None
+            input_dir: Optional[str] = None,
+            output_dir: Optional[str] = None,
+            lexicon_path: Optional[str] = None
             ):
 
         self.logger = logging.getLogger('preprocessor')

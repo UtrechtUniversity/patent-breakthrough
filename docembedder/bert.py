@@ -32,4 +32,4 @@ class BERTEmbedder(BaseDocEmbedder):
 
     @property
     def embedding_size(self) -> int:
-        pass
+        return 0
