@@ -156,6 +156,7 @@ class DOCSimilarity:
             self.compute_novelty(patent_index)
             self.compute_impact(patent_index)
 
+
 def get_model_correlations(model: BaseDocEmbedder,
                            train_documents: Sequence[str],
                            test_documents: Optional[Sequence[str]]=None

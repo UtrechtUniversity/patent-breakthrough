@@ -1,14 +1,13 @@
 """Module containing patent classifications"""
 
-from typing import Union
+from typing import Union, Sequence, Dict, List
 from pathlib import Path
 
-import pandas as pd
 import polars as pl
 import numpy as np
 
 
-class PandasPatentClassification():
+class PatentClassification():
     """Class to find similarities between patents from classifications.
 
     Arguments
@@ -19,9 +18,9 @@ class PandasPatentClassification():
         coarse levels. Should be between 0 and 1.
     """
     def __init__(self, classification_file: Union[str, Path], similarity_exponent=2./3.):
-        self.class_df = pd.read_csv(classification_file, delimiter="\t")
-        self.by_patent = self.class_df.groupby("pat")
+        self.class_df = pl.read_csv(classification_file, sep="\t")
         self.similarity_exponent = similarity_exponent
+        self.lookup: Dict[str, List[int]] = {}
 
     def get_similarity(self, i_patent_id: int, j_patent_id: int) -> float:
         """Get the similarity between two patents.
@@ -38,8 +37,8 @@ class PandasPatentClassification():
         if i_patent_id == j_patent_id:
             return 1.0
 
-        i_patent_class = self.get_pat_classifications(i_patent_id)
-        j_patent_class = self.get_pat_classifications(j_patent_id)
+        i_patent_class = self._get_pat_classifications(i_patent_id)
+        j_patent_class = self._get_pat_classifications(j_patent_id)
         corr_matrix = np.zeros((len(i_patent_class), len(j_patent_class)))
 
         for iter_class, class_i in enumerate(i_patent_class):
@@ -50,12 +49,11 @@ class PandasPatentClassification():
                                                                                          class_j)
         return np.mean(np.append(np.max(corr_matrix, axis=0), np.max(corr_matrix, axis=1)))
 
-    def get_pat_classifications(self, patent_id) -> list:
+    def _get_pat_classifications(self, patent_id) -> List:
         try:
-            patent_df = self.by_patent.get_group(patent_id)
+            return self.lookup[patent_id]
         except KeyError as exc:
-            raise ValueError(f"Cannot find patent with id '{patent_id}'") from exc
-        return patent_df["CPC"].values.tolist()
+            raise ValueError("Cannot find patent with id '{patent_id}'") from exc
 
     def get_classification_similarity(self, class_a: str, class_b: str) -> float:
         """Get the similarity between two classifications.
@@ -86,17 +84,13 @@ class PandasPatentClassification():
             return 1-dissimilarity
         return 1
 
-    def set_patent_ids(self, patent_ids):
-        pass
+    def set_patent_ids(self, patent_ids: Sequence[int]):
+        """Initialize the look-up table for a subset of the patent_ids.
 
-
-class PatentClassification(PandasPatentClassification):
-    def __init__(self, classification_file: Union[str, Path], similarity_exponent=2./3.):
-        self.class_df = pl.read_csv(classification_file, sep="\t")
-        self.similarity_exponent = similarity_exponent
-        self.lookup = {}
-
-    def set_patent_ids(self, patent_ids):
+        Arguments
+        ---------
+        patent_ids: Patent ID's to initialize the lookup table for.
+        """
         pat_df = pl.DataFrame({"pat": patent_ids})
         df_filtered = (
             self.class_df.lazy()
@@ -109,10 +103,4 @@ class PatentClassification(PandasPatentClassification):
             .join(pat_df.lazy(), on="pat")
             .collect()
         )
-        self.lookup = dict(zip(df_filtered["pat"], df_filtered["CPC"].to_list()))
-
-    def get_pat_classifications(self, patent_id) -> list:
-        try:
-            return self.lookup[patent_id]
-        except KeyError as exc:
-            raise ValueError("Cannot find patent with id '{patent_id}'") from exc
+        self.lookup = dict(zip(df_filtered["pat"], df_filtered["CPC"].to_list()))  # type: ignore

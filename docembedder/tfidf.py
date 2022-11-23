@@ -10,7 +10,7 @@ from nltk.stem import SnowballStemmer
 from docembedder.base import BaseDocEmbedder
 
 
-def tokenizer(text):
+def _tokenizer(text):
     tokens = nltk.word_tokenize(text)
     stemmer = SnowballStemmer("english")
     return [stemmer.stem(item) for item in tokens]
@@ -18,8 +18,9 @@ def tokenizer(text):
 
 class TfidfEmbedder(BaseDocEmbedder):
     """Sklearn TF-IDF class."""
-    def __init__(self, ngram_max: int=1, stop_words: str="english", stem=False, min_df=1,
-                 norm="l2", sublinear_tf=False, max_df=1.0):
+    def __init__(  # pylint: disable=too-many-arguments
+            self, ngram_max: int=1, stop_words: str="english", stem=False, min_df=3,
+            norm="l1", sublinear_tf=False, max_df=1.0):
         self.ngram_max = ngram_max
         self.stop_words = stop_words
         self.min_df = min_df
@@ -27,7 +28,7 @@ class TfidfEmbedder(BaseDocEmbedder):
         self.sublinear_tf = sublinear_tf
         self.max_df = max_df
         if stem:
-            stem_tokenizer = tokenizer
+            stem_tokenizer = _tokenizer
         else:
             stem_tokenizer = None
         self._model = TfidfVectorizer(ngram_range=(1, ngram_max),
