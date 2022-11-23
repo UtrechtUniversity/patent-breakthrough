@@ -223,7 +223,6 @@ def classification_benchmark(
     n_class_sample:
         Number of samples (i_patent vs j_patent) for benchmarking purposes. Higher means longer
         running times but better accuracy (at least up to sampling the whole matrix).
-
     """
     if n_patents is None or n_patents > len(patents):
         n_patents = len(patents)
