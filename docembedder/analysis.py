@@ -270,6 +270,7 @@ def compare_classification_similarity(
         running times but better accuracy (at least up to sampling the whole matrix).
     """
     pat_class = PatentClassification(class_fp)
+    pat_class.set_patent_ids([pat["patent"] for pat in patents])
 
     # Create empty arrays for the model correlations for each model.
     sampled_correlations = {model_name: np.zeros(n_sample) for model_name in similarity_matrices}

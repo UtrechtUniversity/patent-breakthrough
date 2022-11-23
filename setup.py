@@ -22,6 +22,8 @@ setup(
         "dill",
         "nltk",
         "gensim",
-        "bpemb"
+        "bpemb",
+        "polars",
+        "pyarrow"
     ]
 )
