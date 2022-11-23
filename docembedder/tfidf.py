@@ -28,17 +28,20 @@ class TfidfEmbedder(BaseDocEmbedder):
         self.sublinear_tf = sublinear_tf
         self.max_df = max_df
         if stem:
-            stem_tokenizer = _tokenizer
+            self.stem_tokenizer = _tokenizer
         else:
-            stem_tokenizer = None
-        self._model = TfidfVectorizer(ngram_range=(1, ngram_max),
-                                      stop_words=stop_words, tokenizer=stem_tokenizer,
-                                      min_df=self.min_df,
-                                      norm=self.norm,
-                                      sublinear_tf=self.sublinear_tf,
-                                      max_df=self.max_df)
+            self.stem_tokenizer = None
 
     def fit(self, documents: Iterable[str]) -> None:
+        min_df = min(self.min_df, len(documents))
+        self._model = TfidfVectorizer(
+            ngram_range=(1, self.ngram_max),
+            stop_words=self.stop_words,
+            tokenizer=self.stem_tokenizer,
+            min_df=min_df,
+            norm=self.norm,
+            sublinear_tf=self.sublinear_tf,
+            max_df=self.max_df)
         self._model.fit(documents)
 
     def transform(self, documents: Union[str, Iterable[str]]) -> Union[

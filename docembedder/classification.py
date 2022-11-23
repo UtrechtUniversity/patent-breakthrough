@@ -1,6 +1,6 @@
 """Module containing patent classifications"""
 
-from typing import Union, Sequence, Dict, List
+from typing import Union, Sequence, Dict, List, Optional
 from pathlib import Path
 
 import polars as pl
@@ -20,7 +20,7 @@ class PatentClassification():
     def __init__(self, classification_file: Union[str, Path], similarity_exponent=2./3.):
         self.class_df = pl.read_csv(classification_file, sep="\t")
         self.similarity_exponent = similarity_exponent
-        self.lookup: Dict[str, List[int]] = {}
+        self.lookup: Dict[str, List[int]] = None
 
     def get_similarity(self, i_patent_id: int, j_patent_id: int) -> float:
         """Get the similarity between two patents.
@@ -50,6 +50,8 @@ class PatentClassification():
         return np.mean(np.append(np.max(corr_matrix, axis=0), np.max(corr_matrix, axis=1)))
 
     def _get_pat_classifications(self, patent_id) -> List:
+        if self.lookup is None:
+            self.set_patent_ids()
         try:
             return self.lookup[patent_id]
         except KeyError as exc:
@@ -84,7 +86,7 @@ class PatentClassification():
             return 1-dissimilarity
         return 1
 
-    def set_patent_ids(self, patent_ids: Sequence[int]):
+    def set_patent_ids(self, patent_ids: Optional[Sequence[int]]=None):
         """Initialize the look-up table for a subset of the patent_ids.
 
         Arguments
@@ -92,7 +94,7 @@ class PatentClassification():
         patent_ids: Patent ID's to initialize the lookup table for.
         """
         pat_df = pl.DataFrame({"pat": patent_ids})
-        df_filtered = (
+        query = (
             self.class_df.lazy()
             .groupby("pat")
             .agg(
@@ -100,7 +102,8 @@ class PatentClassification():
                     pl.col("CPC").list()
                 ]
             )
-            .join(pat_df.lazy(), on="pat")
-            .collect()
         )
+        if patent_ids is not None:
+            query = query.join(pat_df.lazy(), on="pat")
+        df_filtered = query.collect()
         self.lookup = dict(zip(df_filtered["pat"], df_filtered["CPC"].to_list()))  # type: ignore

@@ -15,6 +15,7 @@ year_lookup = {100001: 1960, 100002: 1961, 100003: 1962,
 
 def test_classification():
     pc = PatentClassification(class_fp)
+    print(pc.class_df)
     assert pc.get_similarity(100001, 100001) == 1
     assert pc.get_similarity(100001, 100002) == 0
     assert pc.get_similarity(100001, 100002) < 1
@@ -22,4 +23,4 @@ def test_classification():
     assert pc.get_similarity(100002, 100001) == pc.get_similarity(100001, 100002)
 
     with pytest.raises(ValueError):
-        print(pc.get_similarity(0, 1)) 
+        print(pc.get_similarity(0, 1))

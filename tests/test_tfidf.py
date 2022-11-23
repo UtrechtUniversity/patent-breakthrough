@@ -7,7 +7,7 @@ def test_tfidf():
         "And here is another one",
     ]
 
-    embedder = TfidfEmbedder(stop_words=None)
+    embedder = TfidfEmbedder(stop_words=None, min_df=1)
     embedder.fit(documents)
     X = embedder.transform(documents)
     assert X.shape == (2, 9)
