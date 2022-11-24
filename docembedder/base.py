@@ -1,7 +1,7 @@
 """Base class for document embeddings."""
 
 from abc import ABC, abstractmethod
-from typing import Iterable, Union, Sequence
+from typing import Union, Sequence
 
 import scipy
 from numpy import typing as npt
