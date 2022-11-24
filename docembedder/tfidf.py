@@ -1,6 +1,6 @@
 """Sklearn TF-IDF class."""
 
-from typing import Iterable, Union, Optional
+from typing import Sequence, Union, Optional, Callable
 
 import scipy
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -27,14 +27,13 @@ class TfidfEmbedder(BaseDocEmbedder):  # pylint: disable=too-many-instance-attri
         self.norm = norm
         self.sublinear_tf = sublinear_tf
         self.max_df = max_df
+        self.stem_tokenizer: Optional[Callable] = None
         if stem:
             self.stem_tokenizer = _tokenizer
-        else:
-            self.stem_tokenizer = None
 
         self._model: Optional[TfidfVectorizer] = None
 
-    def fit(self, documents: Iterable[str]) -> None:
+    def fit(self, documents: Sequence[str]) -> None:
         min_df = min(self.min_df, len(documents))
         self._model = TfidfVectorizer(
             ngram_range=(1, self.ngram_max),
@@ -46,10 +45,14 @@ class TfidfEmbedder(BaseDocEmbedder):  # pylint: disable=too-many-instance-attri
             max_df=self.max_df)
         self._model.fit(documents)
 
-    def transform(self, documents: Union[str, Iterable[str]]) -> Union[
+    def transform(self, documents: Union[str, Sequence[str]]) -> Union[
             scipy.sparse.spmatrix]:
+        if self._model is None:
+            raise ValueError("Fit TF-IDF model before transforming data.")
         return self._model.transform(documents).tocsr()
 
     @property
     def embedding_size(self) -> int:
+        if self._model is None:
+            return 0
         return len(self._model.vocabulary_)
