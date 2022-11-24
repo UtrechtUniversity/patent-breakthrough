@@ -1,6 +1,6 @@
 """Sklearn TF-IDF class."""
 
-from typing import Iterable, Union
+from typing import Iterable, Union, Optional
 
 import scipy
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -16,7 +16,7 @@ def _tokenizer(text):
     return [stemmer.stem(item) for item in tokens]
 
 
-class TfidfEmbedder(BaseDocEmbedder):
+class TfidfEmbedder(BaseDocEmbedder):  # pylint: disable=too-many-instance-attributes
     """Sklearn TF-IDF class."""
     def __init__(  # pylint: disable=too-many-arguments
             self, ngram_max: int=1, stop_words: str="english", stem=False, min_df=3,
@@ -31,6 +31,8 @@ class TfidfEmbedder(BaseDocEmbedder):
             self.stem_tokenizer = _tokenizer
         else:
             self.stem_tokenizer = None
+
+        self._model: Optional[TfidfVectorizer] = None
 
     def fit(self, documents: Iterable[str]) -> None:
         min_df = min(self.min_df, len(documents))
