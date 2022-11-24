@@ -2,8 +2,7 @@
 
 import logging
 from typing import Iterable, Union, List, Optional
-
-import ssl
+from urllib.error import URLError
 
 import numpy as np
 from numpy import typing as npt
@@ -13,7 +12,6 @@ import gensim
 import nltk
 
 from docembedder.base import BaseDocEmbedder
-from urllib.error import URLError
 
 
 class D2VEmbedder(BaseDocEmbedder):
@@ -48,7 +46,7 @@ class D2VEmbedder(BaseDocEmbedder):
                             datefmt='%H:%M:%S')
         try:
             nltk.download('punkt')
-        except URLError:
+        except URLError as exc:
             raise ValueError(
                 """
                 You need to install Python certificates to download files needed for
@@ -61,7 +59,7 @@ class D2VEmbedder(BaseDocEmbedder):
 
                 However, this is not safe, so instead you are advised to install the certifi package
                 and install the certificates for you Python system."""
-            )
+            ) from exc
 
     def fit(self, documents: Iterable[str]) -> None:
         logging.info("Building Doc2Vec vocabulary:")
