@@ -20,7 +20,7 @@ class PatentClassification():
     def __init__(self, classification_file: Union[str, Path], similarity_exponent=2./3.):
         self.class_df = pl.read_csv(classification_file, sep="\t")
         self.similarity_exponent = similarity_exponent
-        self.lookup: Dict[str, List[int]] = None
+        self.lookup: Optional[Dict[int, List[str]]] = None
 
     def get_similarity(self, i_patent_id: int, j_patent_id: int) -> float:
         """Get the similarity between two patents.
@@ -42,9 +42,7 @@ class PatentClassification():
         corr_matrix = np.zeros((len(i_patent_class), len(j_patent_class)))
 
         for iter_class, class_i in enumerate(i_patent_class):
-            # class_i = i_patent_df["CPC"].iloc[iter_class]
             for jter_class, class_j in enumerate(j_patent_class):
-                # class_j = j_patent_df["CPC"].iloc[jter_class]
                 corr_matrix[iter_class, jter_class] = self.get_classification_similarity(class_i,
                                                                                          class_j)
         return np.mean(np.append(np.max(corr_matrix, axis=0), np.max(corr_matrix, axis=1)))
@@ -53,7 +51,7 @@ class PatentClassification():
         if self.lookup is None:
             self.set_patent_ids()
         try:
-            return self.lookup[patent_id]
+            return self.lookup[patent_id]  # type: ignore
         except KeyError as exc:
             raise ValueError("Cannot find patent with id '{patent_id}'") from exc
 
@@ -86,7 +84,7 @@ class PatentClassification():
             return 1-dissimilarity
         return 1
 
-    def set_patent_ids(self, patent_ids: Optional[Sequence[int]]=None):
+    def set_patent_ids(self, patent_ids: Optional[Sequence[int]]=None) -> None:
         """Initialize the look-up table for a subset of the patent_ids.
 
         Arguments
