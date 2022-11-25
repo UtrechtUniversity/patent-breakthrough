@@ -105,3 +105,11 @@ class PatentClassification():
             query = query.join(pat_df.lazy(), on="pat")
         df_filtered = query.collect()
         self.lookup = dict(zip(df_filtered["pat"], df_filtered["CPC"].to_list()))  # type: ignore
+
+    def sample_cpc_correlations(self, patent_ids, samples_per_patent=None):
+        
+        if samples_per_patent is None:
+            i_patents, j_patents = np.triu(len(patent_ids), k=1)
+        else:
+            
+

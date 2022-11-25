@@ -18,7 +18,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
 
     def __init__(  # pylint: disable=too-many-arguments too-many-locals
             self,
-            log_level: int = logging.INFO,
+            log_level: int = logging.ERROR,
             log_file: Optional[str] = None,
             log_format: str = '%(asctime)s [%(levelname)s] %(message)s',
             keep_empty_patents: bool = False,
@@ -178,7 +178,8 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
         for pat in read_xz(file):
             yield pat
 
-    def preprocess_file(self, file: str) -> Tuple[List[Dict], Dict[str, int]]:
+    def preprocess_file(self, file: str, max_patents: Optional[int]=None
+                        ) -> Tuple[List[Dict], Dict[str, int]]:
         """Iterates individual JSON-docs in JSONL-file and calls preprocsseing
         for each"""
 
@@ -188,6 +189,9 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
         processed_patents = []
 
         for patent in self.yield_document(file):
+            if max_patents is not None and len(processed_patents) >= max_patents:
+                break
+
             if patent['year'] == 0 or patent['year'] is None:
                 self.logger.warning('Patent #%s has no year',
                                     str(patent["patent"]))

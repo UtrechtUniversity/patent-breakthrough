@@ -1,7 +1,7 @@
 """ Gensim Doc2vec class."""
 
 import logging
-from typing import Iterable, Union, List, Optional
+from typing import Iterable, Union, List, Optional, Dict, Any
 from urllib.error import URLError
 
 import numpy as np
@@ -87,3 +87,11 @@ class D2VEmbedder(BaseDocEmbedder):
     @property
     def embedding_size(self) -> int:
         return self.vector_size
+
+    @property
+    def settings(self) -> Dict[str, Any]:
+        return {
+            "vector_size": self.vector_size,
+            "min_count": self.min_count,
+            "epoch": self.epoch,
+        }

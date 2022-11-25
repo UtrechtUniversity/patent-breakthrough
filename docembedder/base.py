@@ -1,7 +1,7 @@
 """Base class for document embeddings."""
 
 from abc import ABC, abstractmethod
-from typing import Union, Sequence
+from typing import Union, Sequence, Dict, Any
 
 import scipy
 from numpy import typing as npt
@@ -23,3 +23,7 @@ class BaseDocEmbedder(ABC):
     @abstractmethod
     def embedding_size(self) -> int:
         """Vector size of the embedding."""
+
+    @property
+    def settings(self) -> Dict[str, Any]:
+        return {}
