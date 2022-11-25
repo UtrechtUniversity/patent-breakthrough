@@ -1,9 +1,9 @@
 """Module containing patent classifications"""
 
-from typing import Union
+from typing import Union, Sequence, Dict, List, Optional
 from pathlib import Path
 
-import pandas as pd
+import polars as pl
 import numpy as np
 
 
@@ -18,9 +18,9 @@ class PatentClassification():
         coarse levels. Should be between 0 and 1.
     """
     def __init__(self, classification_file: Union[str, Path], similarity_exponent=2./3.):
-        self.class_df = pd.read_csv(classification_file, delimiter="\t")
-        self.by_patent = self.class_df.groupby("pat")
+        self.class_df = pl.read_csv(classification_file, sep="\t")
         self.similarity_exponent = similarity_exponent
+        self.lookup: Optional[Dict[int, List[str]]] = None
 
     def get_similarity(self, i_patent_id: int, j_patent_id: int) -> float:
         """Get the similarity between two patents.
@@ -37,24 +37,23 @@ class PatentClassification():
         if i_patent_id == j_patent_id:
             return 1.0
 
-        try:
-            i_patent_df = self.by_patent.get_group(i_patent_id)
-        except KeyError as exc:
-            raise ValueError(f"Cannot find patent with id '{i_patent_id}'") from exc
+        i_patent_class = self._get_pat_classifications(i_patent_id)
+        j_patent_class = self._get_pat_classifications(j_patent_id)
+        corr_matrix = np.zeros((len(i_patent_class), len(j_patent_class)))
 
-        try:
-            j_patent_df = self.by_patent.get_group(j_patent_id)
-        except KeyError as exc:
-            raise ValueError(f"Cannot find patent with id '{j_patent_id}'") from exc
-        corr_matrix = np.zeros((len(i_patent_df), len(j_patent_df)))
-
-        for iter_class in range(len(i_patent_df)):
-            class_i = i_patent_df["CPC"].iloc[iter_class]
-            for jter_class in range(len(j_patent_df)):
-                class_j = j_patent_df["CPC"].iloc[jter_class]
+        for iter_class, class_i in enumerate(i_patent_class):
+            for jter_class, class_j in enumerate(j_patent_class):
                 corr_matrix[iter_class, jter_class] = self.get_classification_similarity(class_i,
                                                                                          class_j)
         return np.mean(np.append(np.max(corr_matrix, axis=0), np.max(corr_matrix, axis=1)))
+
+    def _get_pat_classifications(self, patent_id) -> List:
+        if self.lookup is None:
+            self.set_patent_ids()
+        try:
+            return self.lookup[patent_id]  # type: ignore
+        except KeyError as exc:
+            raise ValueError("Cannot find patent with id '{patent_id}'") from exc
 
     def get_classification_similarity(self, class_a: str, class_b: str) -> float:
         """Get the similarity between two classifications.
@@ -84,3 +83,25 @@ class PatentClassification():
         if right_a != right_b:
             return 1-dissimilarity
         return 1
+
+    def set_patent_ids(self, patent_ids: Optional[Sequence[int]]=None) -> None:
+        """Initialize the look-up table for a subset of the patent_ids.
+
+        Arguments
+        ---------
+        patent_ids: Patent ID's to initialize the lookup table for.
+        """
+        pat_df = pl.DataFrame({"pat": patent_ids})
+        query = (
+            self.class_df.lazy()
+            .groupby("pat")
+            .agg(
+                [
+                    pl.col("CPC").list()
+                ]
+            )
+        )
+        if patent_ids is not None:
+            query = query.join(pat_df.lazy(), on="pat")
+        df_filtered = query.collect()
+        self.lookup = dict(zip(df_filtered["pat"], df_filtered["CPC"].to_list()))  # type: ignore
