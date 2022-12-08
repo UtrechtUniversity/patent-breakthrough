@@ -33,10 +33,12 @@ class D2VEmbedder(BaseDocEmbedder):
     """
     def __init__(self,
                  vector_size: int = 100,
+                 dm: int = 1,
                  min_count: int = 2,
                  epoch: int = 10,
                  workers: int = 4):
         self.vector_size = vector_size
+        self.dm = dm
         self.min_count = min_count
         self.epoch = epoch
         self.workers = workers
@@ -57,7 +59,7 @@ class D2VEmbedder(BaseDocEmbedder):
     def fit(self, documents: Iterable[str]) -> None:
         logging.info("Building Doc2Vec vocabulary:")
         self._d2v_model = gensim.models.doc2vec.Doc2Vec(
-            vector_size=self.vector_size, min_count=self.min_count, epochs=self.epoch,
+            vector_size=self.vector_size, dm=self.dm, min_count=self.min_count, epochs=self.epoch,
             workers=self.workers)
 
         self._tagged_data = [
