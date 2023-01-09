@@ -17,6 +17,8 @@ def _tokenizer(text):
 
 
 class TfidfEmbedder(BaseDocEmbedder):  # pylint: disable=too-many-instance-attributes
+    sparse = True
+
     """Sklearn TF-IDF class."""
     def __init__(  # pylint: disable=too-many-arguments
             self, ngram_max: int=1, stop_words: str="english", stem=False, min_df=3,

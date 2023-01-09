@@ -9,6 +9,8 @@ import numpy as np
 
 
 class BaseDocEmbedder(ABC):
+    sparse = False
+
     """Base class for creating document embeddings."""
     @abstractmethod
     def fit(self, documents: Sequence[str]) -> None:

@@ -6,7 +6,7 @@ import glob
 import logging
 import json
 import re
-from typing import List, Dict, Iterable, Tuple, Set, Optional
+from typing import List, Dict, Iterable, Tuple, Set, Optional, Union
 from pathlib import Path
 from docembedder.preprocessor.parser import read_xz
 
@@ -178,15 +178,17 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
         for pat in read_xz(file):
             yield pat
 
-    def preprocess_file(self, file: str, max_patents: Optional[int]=None
-                        ) -> Tuple[List[Dict], Dict[str, int]]:
+    def preprocess_file(self, file: str,
+                        max_patents: Optional[int]=None,
+                        return_stats: bool=False) -> Union[
+                            List[Dict], Tuple[List[Dict], Dict[str, int]]]:
         """Iterates individual JSON-docs in JSONL-file and calls preprocsseing
         for each"""
 
         processed = 0
         skipped_empty = 0
         skipped_no_year = 0
-        processed_patents = []
+        processed_patents: List[Dict] = []
 
         for patent in self.yield_document(file):
             if max_patents is not None and len(processed_patents) >= max_patents:
@@ -229,8 +231,9 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
             "skipped_empty": skipped_empty,
             "skipped_no_year": skipped_no_year,
         }
-
-        return processed_patents, stats
+        if return_stats:
+            return processed_patents, stats
+        return processed_patents
 
     @staticmethod
     def remove_unprintable(content: str) -> str:
