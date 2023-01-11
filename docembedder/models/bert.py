@@ -7,7 +7,7 @@ import numpy.typing as npt
 
 from sentence_transformers import SentenceTransformer
 
-from docembedder.base import BaseDocEmbedder
+from docembedder.models.base import BaseDocEmbedder
 
 
 class BERTEmbedder(BaseDocEmbedder):

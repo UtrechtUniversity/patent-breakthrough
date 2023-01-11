@@ -1,12 +1,20 @@
+"""Analysis functions and classes for embedding results."""
+
 from collections import defaultdict
-from typing import List
+from typing import List, Union, Dict, Any, Optional, Tuple
 
 import numpy as np
+from numpy import typing as npt
 from scipy.stats import spearmanr
 from scipy.sparse import csr_matrix
 
+from docembedder.datamodel import DataModel
 
-def _compute_cpc_cor(model_res, cpc_res, patent_id, chunk_size=10000):
+
+def _compute_cpc_cor(model_res: Union[npt.NDArray[np.float_]],
+                     cpc_res: Dict[str, Any],
+                     chunk_size: int=10000) -> float:
+    """Compute correlation for a set of embeddings."""
     n_split = max(1, len(cpc_res["correlations"]) // chunk_size)
     i_pat_split = np.array_split(cpc_res["i_patents"], n_split)
     j_pat_split = np.array_split(cpc_res["j_patents"], n_split)
@@ -29,15 +37,38 @@ def _compute_cpc_cor(model_res, cpc_res, patent_id, chunk_size=10000):
     return spearmanr(model_cor, cpc_res["correlations"]).correlation
 
 
-class DocAnalysis():
-    def __init__(self, data):
+class DocAnalysis():  # pylint: disable=too-few-public-methods
+    """Analysis class that can analyse embeddings.
+
+    Arguments
+    ---------
+    data: Data to analyze (class that handles hdf5 files).
+    """
+    def __init__(self, data: DataModel):
         self.data = data
 
-    def cpc_correlations(self, models=None):
+    def cpc_correlations(self, models: Optional[Union[str, List[str]]]=None
+                         ) -> Tuple[List[float], Dict[str, npt.NDArray[np.float_]]]:
+        """Compute the correlations with the CPC classifications.
+
+        It computes the correlations for each window/year in which the embeddings
+        are trained on the same patents.
+
+        Arguments
+        ---------
+        models: Model names to use for computation. If None, use all models available.
+
+        Returns
+        -------
+        results: Tuple with the average years of the windows and a dictionary
+                 containing the correlations for each of the models.
+        """
         if models is None:
             models = self.data.model_names
         elif isinstance(models, str):
             models = [models]
+        else:
+            raise TypeError("models argument must be a string or a list of strings.")
 
         correlations = defaultdict(lambda: [])
         years = []
@@ -46,9 +77,9 @@ class DocAnalysis():
             cpc_res = res["cpc"]
             year_str = res["year"]
             try:
-                years.append(int(year_str))
+                years.append(float(year_str))
             except ValueError:
-                years.append(np.mean([int(x) for x in year_str.split("-")]))
+                years.append(float(np.mean([float(x) for x in year_str.split("-")])))
             for model_name, model_res in res["embeddings"].items():
                 correlations[model_name].append(_compute_cpc_cor(model_res, cpc_res, patent_id))
         return years, dict(correlations)
