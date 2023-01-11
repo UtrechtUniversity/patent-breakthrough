@@ -1,8 +1,9 @@
+from pathlib import Path
+
 import h5py
 import numpy as np
-
-from docembedder.classification import PatentClassification
 from scipy.sparse import csr_matrix
+
 from docembedder.models.utils import create_model
 
 
@@ -15,27 +16,9 @@ class DataModel():
                 self.handle.create_group("embeddings")
                 self.handle.create_group("year")
                 self.handle.create_group("models")
+                self.handle.create_group("cpc")
         else:
             self.handle = h5py.File(hdf5_file, "r")
-
-    def compute_embeddings(self, model, model_name, train_patents, test_patents, year,
-                           overwrite=False):
-        dataset_group_str = f"/embeddings/{model_name}/{year}"
-        if dataset_group_str in self.handle and overwrite:
-            del self.handle[dataset_group_str]
-        elif dataset_group_str in self.handle:
-            return
-        dataset_group = self.handle.create_group(dataset_group_str)
-        train_id = [pat["patent"] for pat in train_patents]
-        test_id = [pat["patent"] for pat in test_patents]
-        self._add_year(year, test_id, train_id)
-
-        model.fit([pat["contents"] for pat in train_patents])
-        embeddings = model.transform([pat["contents"] for pat in test_patents])
-        self._store_embeddings(dataset_group, embeddings)
-        model_group = self.handle[f"/embeddings/{model_name}"]
-        for key, value in model.settings.items():
-            model_group.attrs[key] = value
 
     def store_year(self, year, test_id, train_id):
             # Set training data
@@ -54,50 +37,16 @@ class DataModel():
         else:
             year_group.create_dataset("train_id", data=train_id)
 
-    def store_embeddings(self, model_name, embeddings, year, overwrite=False):
+    def store_embeddings(self, year, model_name, embeddings, overwrite=False):
         dataset_group_str = f"/embeddings/{model_name}/{year}"
         if dataset_group_str in self.handle and overwrite:
             del self.handle[dataset_group_str]
         elif dataset_group_str in self.handle:
             return
         dataset_group = self.handle.create_group(dataset_group_str)
-        # train_id = [pat["patent"] for pat in train_patents]
-        # test_id = [pat["patent"] for pat in test_patents]
-        # self._add_year(year, test_id, train_id)
-
-        # model.fit([pat["contents"] for pat in train_patents])
-        # embeddings = model.transform([pat["contents"] for pat in test_patents])
         self._store_embeddings(dataset_group, embeddings)
 
-    def sample_cpc_correlations(self, class_fp, year, samples_per_patent=None):
-        cpc = PatentClassification(class_fp)
-        try:
-            pat_id = self.handle[f"/year/{year}/test_id"][...]
-        except KeyError as exc:
-            raise ValueError("First run a model on the patents before classification.") from exc
-
-        i_patents, j_patents, correlations = cpc.sample_cpc_correlations(
-            pat_id, samples_per_patent)
-
-        if f"/cpc/{year}" in self.handle:
-            return
-
-        grp = self.handle.require_group(f"/cpc/{year}")
-        grp.create_dataset("i_patents", data=i_patents)
-        grp.create_dataset("j_patents", data=j_patents)
-        grp.create_dataset("correlations", data=correlations)
-
-    def store_cpc_correlations(self, data, year):
-        # if "test_"
-        # cpc = PatentClassification(class_fp)
-        # try:
-            # pat_id = self.handle[f"/year/{year}/test_id"][...]
-        # except KeyError as exc:
-            # raise ValueError("First run a model on the patents before classification.") from exc
-
-        # i_patents, j_patents, correlations = cpc.sample_cpc_correlations(
-            # pat_id, samples_per_patent)
-
+    def store_cpc_correlations(self, year, data):
         if f"/cpc/{year}" in self.handle:
             return
 
@@ -147,7 +96,7 @@ class DataModel():
                     "correlations": cpc_base_group[year_str+"/correlations"][...]
                 }
             cur_results["patent_id"] = self.handle[f"/year/{year_str}/test_id"][...],
-            cur_results["year"] = int(year_str)
+            cur_results["year"] = year_str
             yield cur_results
 
     def has_run(self, model_name, year):
@@ -221,42 +170,26 @@ class DataModel():
         year_group = self.handle[f"/year/{year}"]
         return year_group["train_id"][...], year_group["test_id"][...]
 
-    def merge_with(self, data_fp, delete_copy=False):
-        with self.__class__(data_file, read_only=False) as other:
+    def add_data(self, data_fp, delete_copy=False):
+        with self.__class__(data_fp, read_only=False) as other:
             new_models = list(set(other.model_names) - set(self.model_names))
-            exist_models = list(set(self.model_names) & set(other.model_names))
-            for cur_model in exist_models:
+            for cur_model in new_models:
                 self.handle["/embeddings"].copy(other.handle[f"/embeddings/{cur_model}"], cur_model)
-                
-            
             for year in other.handle["/year"].keys():
-                if year in self.handle["/year"]:
-                    continue
-                self.handle["/year"].copy(other.handle[f"/year/{year}"], year)
-                for cur_model in exist_models:
-                    self.handle[f"/embeddings/{model_name}"].copy(
-                        other.handle[f"/embeddings/{cur_model}/{year}"],
-                        year)
+                if year not in self.handle["/year"]:
+                    self.handle["/year"].copy(other.handle[f"/year/{year}"], year)
+            for model_name in other.model_names:
+                for year in other.handle[f"/embeddings/{model_name}"].keys():
+                    group_name = f"/embeddings/{model_name}/{year}"
+                    if group_name not in self.handle:
+                        self.handle[f"/embeddings/{model_name}"].copy(
+                            other.handle[group_name],
+                            year
+                        )
                 if year in other.handle["/cpc"].keys() and year not in self.handle["/cpc"].keys():
                     self.handle["/cpc"].copy(other.handle[f"/cpc/{year}"], year)
-                    
-
-    def _add_year(self, year, test_id, train_id):
-        # Set training data
-        try:
-            year_group = self.handle[f"/year/{year}"]
-        except KeyError:
-            year_group = self.handle.create_group(f"/year/{year}")
-
-        if "test_id" in year_group:
-            assert np.all(test_id == year_group["test_id"][...])
-        else:
-            year_group.create_dataset("test_id", data=test_id)
-
-        if "train_id" in year_group:
-            assert np.all(train_id == year_group["train_id"][...])
-        else:
-            year_group.create_dataset("train_id", data=train_id)
+        if delete_copy:
+            Path(data_fp).unlink(missing_ok=True)
 
     def __enter__(self):
         return self

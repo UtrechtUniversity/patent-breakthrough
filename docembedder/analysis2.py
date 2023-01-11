@@ -44,7 +44,11 @@ class DocAnalysis():
         for res in self.data.iterate_embeddings(return_cpc=True, model_names=models):
             patent_id = res["patent_id"]
             cpc_res = res["cpc"]
-            years.append(res["year"])
+            year_str = res["year"]
+            try:
+                years.append(int(year_str))
+            except ValueError:
+                years.append(np.mean([int(x) for x in year_str.split("-")]))
             for model_name, model_res in res["embeddings"].items():
                 correlations[model_name].append(_compute_cpc_cor(model_res, cpc_res, patent_id))
         return years, dict(correlations)

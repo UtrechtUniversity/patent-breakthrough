@@ -45,7 +45,7 @@ class D2VEmbedder(BaseDocEmbedder):
         logging.basicConfig(format="%(levelname)s - %(asctime)s: %(message)s",
                             datefmt='%H:%M:%S')
         try:
-            nltk.download('punkt')
+            nltk.download('punkt', quiet=True)
         except URLError as exc:
             raise ValueError(
                 """
