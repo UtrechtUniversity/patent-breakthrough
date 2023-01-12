@@ -186,11 +186,11 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
 
     @overload
     def preprocess_file(self, file: PathType, max_patents: Optional[int],
-                        return_stats: Literal[True] = ...) -> Tuple[List[Dict], Dict[str, int]]: ...
+                        return_stats: Literal[False] = ...) -> List[Dict]: ...
 
     @overload
     def preprocess_file(self, file: PathType, max_patents: Optional[int],
-                        return_stats: Literal[False]) -> List[Dict]: ...
+                        return_stats: Literal[True]) -> Tuple[List[Dict], Dict[str, int]]: ...
 
     def preprocess_file(self, file: PathType,
                         max_patents: Optional[int]=None,
