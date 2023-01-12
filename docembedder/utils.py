@@ -57,7 +57,7 @@ class SimulationSpecification():
         self.n_patents_per_window = n_patents_per_window
 
     def create_jobs(self, output_fp: PathType,
-                    models: dict[str, BaseDocEmbedder],
+                    models: Dict[str, BaseDocEmbedder],
                     cpc_fp: PathType,
                     patent_dir: PathType):
         """Create jobs to run the simulation specification.

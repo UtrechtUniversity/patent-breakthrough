@@ -320,6 +320,8 @@ class DataModel():
         delete_copy:
             If True, delete the file that the data was collected from after collection.
         """
+        if not Path(data_fp).is_file():
+            raise FileNotFoundError(f"Cannot find file {data_fp} to add to datamodel.")
         with self.__class__(data_fp, read_only=False) as other:
             new_models = list(set(other.model_names) - set(self.model_names))
             for cur_model in new_models:
@@ -338,7 +340,7 @@ class DataModel():
                 if year in other.handle["/cpc"].keys() and year not in self.handle["/cpc"].keys():
                     self.handle["/cpc"].copy(other.handle[f"/cpc/{year}"], year)
         if delete_copy:
-            Path(data_fp).unlink(missing_ok=True)
+            Path(data_fp).unlink()
 
     def __enter__(self):
         return self

@@ -2,7 +2,8 @@
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Union, Sequence, Dict, Any, TypeAlias
+from typing import Union, Sequence, Dict, Any
+from typing_extensions import TypeAlias
 
 import scipy
 from numpy import typing as npt
