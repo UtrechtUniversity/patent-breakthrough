@@ -14,9 +14,9 @@ PathType: TypeAlias = Union[Path, str]
 
 
 class BaseDocEmbedder(ABC):
+    """Base class for creating document embeddings."""
     sparse = False
 
-    """Base class for creating document embeddings."""
     @abstractmethod
     def fit(self, documents: Sequence[str]) -> None:
         """Train the model on documents."""
@@ -31,6 +31,7 @@ class BaseDocEmbedder(ABC):
         """Vector size of the embedding."""
 
     @property
+    @abstractmethod
     def settings(self) -> Dict[str, Any]:
         """Settings of the document embedder."""
         return {}

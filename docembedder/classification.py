@@ -108,8 +108,26 @@ class PatentClassification():
         df_filtered = query.collect()
         self._lookup = dict(zip(df_filtered["pat"], df_filtered["CPC"].to_list()))  # type: ignore
 
-    def sample_cpc_correlations(self, patent_ids: Sequence[int],
+    def sample_cpc_correlations(self, patent_ids: Sequence[int],  # pylint: disable=too-many-locals
                                 samples_per_patent: Optional[int]=None):
+        """Sample/compute CPC correlations.
+
+        Since it is costly to compute the CPC correlations between all patents O(n^2),
+        this method is able to only take a few samples per patent.
+
+        Arguments
+        ---------
+        patent_ids:
+            Patent numbers to compute the correlations for.
+        samples_per_patent:
+            Number of correlation values per patent. If None, compute the full
+            correlation matrix
+
+        Returns
+        -------
+        cpc_correlations:
+            Dictionary containing three arrays that together from the tuples (i, j, correlation).
+        """
         self.set_patent_ids(patent_ids)
         index_used_mask = np.array([pid in self._lookup for pid in patent_ids])
         index_used = np.where(index_used_mask)[0]

@@ -79,8 +79,8 @@ class D2VEmbedder(BaseDocEmbedder):
             raise ValueError("Error: Doc2Vec model not yet trained.")
         logging.info("Extracting Document vectors:")
         vectors = [
-            self._d2v_model.infer_vector(
-                doc_words=word_tokenize(_d.lower())) for i, _d in enumerate(documents)]
+            self._d2v_model.infer_vector(doc_words=word_tokenize(d.lower()))
+            for d in documents]
 
         return np.array(vectors)
 

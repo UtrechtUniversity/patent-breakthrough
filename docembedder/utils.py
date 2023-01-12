@@ -375,7 +375,7 @@ def run_models(models: Dict[str, BaseDocEmbedder],  # pylint: disable=too-many-a
     progress_bar:
         Whether to show a progress bar.
     """
-    if sim_spec.check_file(output_fp):
+    if not sim_spec.check_file(output_fp):
         raise ValueError("Simulation specifications do not match existing specifications.")
 
     insert_models(models, output_fp)
