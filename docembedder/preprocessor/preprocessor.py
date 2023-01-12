@@ -6,9 +6,14 @@ import glob
 import logging
 import json
 import re
-from typing import List, Dict, Iterable, Tuple, Set, Optional, Union
+from typing import List, Dict, Iterable, Tuple, Set, Optional, Union, overload
 from pathlib import Path
+
+from typing_extensions import Literal
+
+
 from docembedder.preprocessor.parser import read_xz
+from docembedder.models.base import PathType
 
 
 class Preprocessor:  # pylint: disable=too-many-instance-attributes
@@ -136,7 +141,8 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
         """Iterates all input JSONL-files and calls preprocessing for each"""
         for file in self.file_list:
             self.logger.info('processing %s', file)
-            processed_patents, stats = self.preprocess_file(file)
+            processed_patents, stats = self.preprocess_file(  # pylint: disable=unpacking-non-sequence
+                file, return_stats=True)
             self.logger.info("processed %s (%s documents, skipped %s empty, "
                              "%s w/o year)", file, str(stats["processed"]),
                              str(stats["skipped_empty"]),
@@ -156,7 +162,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
         self.logger.info("words reassembled: %s",
                          str(self.total_docs['words_reassembled']))
 
-    def yield_document(self, file: str) -> Iterable[Dict]:
+    def yield_document(self, file: PathType) -> Iterable[Dict]:
         """Generator yielding single JSON-doc from input file"""
         suffix = Path(file).suffix
         if suffix == ".jsonl":
@@ -165,7 +171,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
             return self.patent_get_xz(file)
         raise ValueError(f"Unsupported format for documents: {suffix}")
 
-    def patent_get_jsonl(self, file: str) -> Iterable[Dict]:
+    def patent_get_jsonl(self, file: PathType) -> Iterable[Dict]:
         """Generate patents from a JSONL file"""
         with open(file, encoding="utf-8") as handle:
             line = handle.readline()
@@ -173,12 +179,20 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
                 yield json.loads(line)
                 line = handle.readline()
 
-    def patent_get_xz(self, file: str) -> Iterable[Dict]:
+    def patent_get_xz(self, file: PathType) -> Iterable[Dict]:
         """Generate patents from a compressed xz file"""
         for pat in read_xz(file):
             yield pat
 
-    def preprocess_file(self, file: str,
+    @overload
+    def preprocess_file(self, file: PathType, max_patents: Optional[int],
+                        return_stats: Literal[True] = ...) -> Tuple[List[Dict], Dict[str, int]]: ...
+
+    @overload
+    def preprocess_file(self, file: PathType, max_patents: Optional[int],
+                        return_stats: Literal[False]) -> List[Dict]: ...
+
+    def preprocess_file(self, file: PathType,
                         max_patents: Optional[int]=None,
                         return_stats: bool=False) -> Union[
                             List[Dict], Tuple[List[Dict], Dict[str, int]]]:

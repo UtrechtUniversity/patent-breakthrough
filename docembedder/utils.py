@@ -179,8 +179,9 @@ class Job():
         for year in self.job_data["year_list"]:
             try:
                 patents.extend(prep.preprocess_file(
-                    self.job_data["patent_dir"] / (str(year) + ".xz"),
-                    self.sim_spec.debug_max_patents)
+                    Path(self.job_data["patent_dir"]) / (str(year) + ".xz"),
+                    self.sim_spec.debug_max_patents,
+                    return_stats=False)
                 )
             except FileNotFoundError:
                 pass

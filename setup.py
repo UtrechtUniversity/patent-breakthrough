@@ -24,6 +24,9 @@ setup(
         "gensim",
         "bpemb",
         "polars",
-        "pyarrow"
+        "pyarrow",
+        "matplotlib",
+        "tqdm",
+        "h5py",
     ]
 )
