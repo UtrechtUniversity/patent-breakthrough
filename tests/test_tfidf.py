@@ -1,4 +1,4 @@
-from docembedder import TfidfEmbedder
+from docembedder.models import TfidfEmbedder
 
 
 def test_tfidf():
