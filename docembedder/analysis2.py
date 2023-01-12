@@ -9,9 +9,10 @@ from scipy.stats import spearmanr
 from scipy.sparse import csr_matrix
 
 from docembedder.datamodel import DataModel
+from docembedder.models.base import AllEmbedType
 
 
-def _compute_cpc_cor(model_res: Union[npt.NDArray[np.float_]],
+def _compute_cpc_cor(model_res: AllEmbedType,
                      cpc_res: Dict[str, Any],
                      chunk_size: int=10000) -> float:
     """Compute correlation for a set of embeddings."""
@@ -73,7 +74,6 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
         correlations = defaultdict(lambda: [])
         years = []
         for res in self.data.iterate_embeddings(return_cpc=True, model_names=models):
-            patent_id = res["patent_id"]
             cpc_res = res["cpc"]
             year_str = res["year"]
             try:
@@ -81,5 +81,5 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
             except ValueError:
                 years.append(float(np.mean([float(x) for x in year_str.split("-")])))
             for model_name, model_res in res["embeddings"].items():
-                correlations[model_name].append(_compute_cpc_cor(model_res, cpc_res, patent_id))
+                correlations[model_name].append(_compute_cpc_cor(model_res, cpc_res))
         return years, dict(correlations)

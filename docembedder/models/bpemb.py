@@ -9,7 +9,7 @@ from bpemb import BPEmb
 import numpy as np
 from numpy import typing as npt
 
-from docembedder.base import BaseDocEmbedder
+from docembedder.models.base import BaseDocEmbedder
 
 
 def _get_prefac(model: BPEmb, documents: Union[Iterable[str], Sequence[str]]) -> Dict[str, float]:

@@ -1,6 +1,7 @@
 """Base class for document embeddings."""
 
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Union, Sequence, Dict, Any, TypeAlias
 
 import scipy
@@ -9,6 +10,7 @@ import numpy as np
 
 
 AllEmbedType: TypeAlias = Union[scipy.sparse.spmatrix, npt.NDArray[np.float_]]
+PathType: TypeAlias = Union[Path, str]
 
 
 class BaseDocEmbedder(ABC):

@@ -7,7 +7,7 @@ import scipy
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.preprocessing import normalize
 
-from docembedder.base import BaseDocEmbedder
+from docembedder.models.base import BaseDocEmbedder
 
 
 class CountVecEmbedder(BaseDocEmbedder):

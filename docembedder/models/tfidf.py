@@ -7,7 +7,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 import nltk
 from nltk.stem import SnowballStemmer
 
-from docembedder.base import BaseDocEmbedder
+from docembedder.models.base import BaseDocEmbedder
 
 
 def _tokenizer(text):

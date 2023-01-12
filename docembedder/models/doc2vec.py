@@ -11,7 +11,7 @@ from gensim.models.doc2vec import TaggedDocument
 import gensim
 import nltk
 
-from docembedder.base import BaseDocEmbedder
+from docembedder.models.base import BaseDocEmbedder
 
 
 class D2VEmbedder(BaseDocEmbedder):

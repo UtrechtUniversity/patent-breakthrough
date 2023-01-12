@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from numpy import typing as npt
 
-from docembedder.base import BaseDocEmbedder
+from docembedder.models.base import BaseDocEmbedder
 from docembedder.classification import PatentClassification
 
 
