@@ -46,7 +46,7 @@ class SimulationSpecification():
                  year_start: int,
                  year_end: int,
                  window_size: int=1,
-                 cpc_samples_per_patent: int=1000,
+                 cpc_samples_per_patent: int=10,
                  debug_max_patents: Optional[int]=None,
                  n_patents_per_window: Optional[int]=None):
         self.year_start = year_start

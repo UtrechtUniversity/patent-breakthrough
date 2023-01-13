@@ -1,7 +1,7 @@
 """Data model for storing patent analysis data."""
 
 from pathlib import Path
-from typing import Union, Dict, List, Optional, Any, Tuple
+from typing import Union, Dict, List, Tuple, Iterable
 
 import h5py
 import numpy as np
@@ -41,6 +41,7 @@ class DataModel():
     """
     def __init__(self, hdf5_file: Union[Path, str], read_only: bool=False):
         self.hdf5_file = hdf5_file
+        self.read_only = read_only
         if not read_only:
             self.handle = h5py.File(hdf5_file, "a")
             if "embeddings" not in self.handle:
@@ -87,7 +88,7 @@ class DataModel():
             year_group.create_dataset("train_id", data=train_id)
 
     def store_embeddings(self,
-                         year: str,
+                         window: str,
                          model_name: str,
                          embeddings: AllEmbedType,
                          overwrite: bool=False):
@@ -102,7 +103,7 @@ class DataModel():
         overwrite:
             If True, overwrite embeddings if they exist.
         """
-        dataset_group_str = f"/embeddings/{model_name}/{year}"
+        dataset_group_str = f"/embeddings/{model_name}/{window}"
         if dataset_group_str in self.handle and overwrite:
             del self.handle[dataset_group_str]
         elif dataset_group_str in self.handle:
@@ -121,23 +122,97 @@ class DataModel():
         else:
             raise ValueError(f"Not implemented datatype {type(embeddings)}")
 
-    def store_cpc_correlations(self, year: str, data: Dict[str, npt.NDArray]):
+    def load_embeddings(self, window: str, model_name: str) -> AllEmbedType:
+        """Load embeddings for a window/year.
+
+        Arguments
+        ---------
+        window:
+            Year or window name.
+        model_name:
+            Name of the model that generated the embeddings.
+
+        Returns
+        -------
+        embeddings:
+            Embeddings for that window/model.
+        """
+        dataset_group = self.handle[f"/embeddings/{model_name}/{window}"]
+        if dataset_group.attrs["dtype"] == "array":
+            return dataset_group["array"][...]
+        if dataset_group.attrs["dtype"] == "csr_matrix":
+            shape = dataset_group.attrs["shape"]
+            data = dataset_group["data"][...]
+            indices = dataset_group["indices"][...]
+            indptr = dataset_group["indptr"][...]
+            return csr_matrix((data, indices, indptr), shape=shape)
+        raise ValueError(f"Unrecognized datatype {dataset_group.attr['dtype']}")
+
+    def store_cpc_correlations(self, window: str, data: Dict[str, npt.NDArray]):
+        """Store CPC correlations for a year/window.
+
+        Arguments
+        ---------
+        window:
+            Window or year of the CPC correlations
+        data:
+            Correlations, as a dict with i_patents, j_patents, correlations.
+        """
+        if f"/cpc/{window}" in self.handle:
+            return
+
+        grp = self.handle.require_group(f"/cpc/{window}")
+        grp.create_dataset("i_patents", data=data["i_patents"])
+        grp.create_dataset("j_patents", data=data["j_patents"])
+        grp.create_dataset("correlations", data=data["correlations"])
+
+    def load_cpc_correlations(self, year: str) -> Dict[str, npt.NDArray]:
         """Store CPC correlations for a year/window.
 
         Arguments
         ---------
         year:
             Window or year of the CPC correlations
+
+        Returns
+        -------
         data:
             Correlations, as a dict with i_patents, j_patents, correlations.
         """
-        if f"/cpc/{year}" in self.handle:
-            return
+        cpc_group = self.handle[f"/cpc/{year}"]
+        return {
+            "i_patents": cpc_group["i_patents"][...],
+            "j_patents": cpc_group["j_patents"][...],
+            "correlations": cpc_group["correlations"][...]
+        }
 
-        grp = self.handle.require_group(f"/cpc/{year}")
-        grp.create_dataset("i_patents", data=data["i_patents"])
-        grp.create_dataset("j_patents", data=data["j_patents"])
-        grp.create_dataset("correlations", data=data["correlations"])
+    def store_cpc_spearmanr(self, window: str, model_name: str, correlation: float):
+        """Store CPC spearmanr results.
+
+        Arguments
+        ---------
+        window:
+            Name of the window/year to store.
+        model_name:
+            Name of the model to store the correlations.
+        correlation:
+            Value of the Spearman-R correlation.
+        """
+        self.handle[f"/embeddings/{model_name}/{window}"].attrs["cpc_spearmanr"] = correlation
+
+    def load_cpc_spearmanr(self, window: str, model_name: str) -> float:
+        """Load CPC spearmanr results.
+
+        Arguments
+        ---------
+        window:
+            Name of the window/year to store.
+        model_name:
+            Name of the model to store the correlations.
+        correlation:
+            Value of the Spearman-R correlation.
+        """
+        return self.handle[f"/embeddings/{model_name}/{window}"].attrs["cpc_spearmanr"]
 
     def store_model(self, model_name: str, model: BaseDocEmbedder):
         """Store the settings of a model, to be reinitialized
@@ -175,43 +250,19 @@ class DataModel():
         """Names of all stored models."""
         return list(self.handle["embeddings"].keys())
 
-    def iterate_embeddings(self, return_cpc: bool=False,
-                           model_names: Optional[Union[str, List[str]]]=None):
-        """Iterate over all embeddings in the data file.
+    def iterate_window_models(self) -> Iterable[Tuple[str, str]]:
+        """Iterate over all available windows/models.
 
-        Arguments
-        ---------
-        return_cpc:
-            Whether to get the CPC correlations
+        Returns
+        -------
+        window, model_name:
+            Window and model_name for each combination that has an embedding.
         """
-        if model_names is None:
-            model_list = list(self.model_names)
-        elif isinstance(model_names, str):
-            model_list = [model_names]
-        else:
-            model_list = model_names
-
-        cpc_base_group = self.handle["/cpc"]
-
-        # Iterate over the available windows.
-        for year_str in self.handle["year"].keys():
-            if return_cpc and year_str not in cpc_base_group:
-                continue
-
-            cur_results: Dict[str, Any] = {"embeddings": {}}
-            for cur_model in model_list:
-                model_group = self.handle[f"/embeddings/{cur_model}"]
-                cur_results["embeddings"][cur_model] = (
-                    self._get_embeddings(model_group[year_str]))
-            if return_cpc:
-                cur_results["cpc"] = {
-                    "i_patents": cpc_base_group[year_str+"/i_patents"][...],
-                    "j_patents": cpc_base_group[year_str+"/j_patents"][...],
-                    "correlations": cpc_base_group[year_str+"/correlations"][...]
-                }
-            cur_results["patent_id"] = self.handle[f"/year/{year_str}/test_id"][...]
-            cur_results["year"] = year_str
-            yield cur_results
+        for window in self.handle["year"]:
+            for model_name in self.model_names:
+                if f"/embeddings/{model_name}/{window}" not in self.handle:
+                    continue
+                yield window, model_name
 
     def has_run(self, model_name: str, year: str) -> bool:
         """Compute whether a model has run on a certain window/year.
@@ -286,18 +337,6 @@ class DataModel():
                 year_group = model_group[year]
                 if test_stale(year_group):
                     del self.handle[f"/embeddings/{model_name}/{year}"]
-
-    def _get_embeddings(self, dataset_group):
-        """Get the embeddings from a dataset in the data file."""
-        if dataset_group.attrs["dtype"] == "array":
-            return dataset_group["array"][...]
-        if dataset_group.attrs["dtype"] == "csr_matrix":
-            shape = dataset_group.attrs["shape"]
-            data = dataset_group["data"][...]
-            indices = dataset_group["indices"][...]
-            indptr = dataset_group["indptr"][...]
-            return csr_matrix((data, indices, indptr), shape=shape)
-        raise ValueError(f"Unrecognized datatype {dataset_group.attr['dtype']}")
 
     def get_train_test_id(self, year: str) -> Tuple[npt.NDArray[np.int_], npt.NDArray[np.int_]]:
         """Get the training and test patent numbers for a window/year.

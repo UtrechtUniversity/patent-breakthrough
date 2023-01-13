@@ -1,18 +1,18 @@
 """Analysis functions and classes for embedding results."""
 
 from collections import defaultdict
-from typing import List, Union, Dict, Any, Optional, Tuple
+from typing import List, Union, Dict, Any, Optional, DefaultDict
 
 import numpy as np
-from numpy import typing as npt
 from scipy.stats import spearmanr
 from scipy.sparse import csr_matrix
+from tqdm import tqdm
 
 from docembedder.datamodel import DataModel
 from docembedder.models.base import AllEmbedType
 
 
-def _compute_cpc_cor(model_res: AllEmbedType,
+def _compute_cpc_cor(embeddings: AllEmbedType,
                      cpc_res: Dict[str, Any],
                      chunk_size: int=10000) -> float:
     """Compute correlation for a set of embeddings."""
@@ -21,7 +21,6 @@ def _compute_cpc_cor(model_res: AllEmbedType,
     j_pat_split = np.array_split(cpc_res["j_patents"], n_split)
 
     model_cor: List[float] = []
-    embeddings = model_res
 
     for i_split in range(n_split):
         i_embeddings = embeddings[i_pat_split[i_split]]
@@ -49,13 +48,13 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
         self.data = data
 
     def cpc_correlations(self, models: Optional[Union[str, List[str]]]=None
-                         ) -> Tuple[List[float], Dict[str, npt.NDArray[np.float_]]]:
+                         ) -> Dict[str, Dict[str, List[float]]]:
         """Compute the correlations with the CPC classifications.
 
         It computes the correlations for each window/year in which the embeddings
         are trained on the same patents.
 
-        Arguments
+        Argumentssi
         ---------
         models: Model names to use for computation. If None, use all models available.
 
@@ -71,15 +70,25 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
         else:
             raise TypeError("models argument must be a string or a list of strings.")
 
-        correlations = defaultdict(lambda: [])
-        years = []
-        for res in self.data.iterate_embeddings(return_cpc=True, model_names=models):
-            cpc_res = res["cpc"]
-            year_str = res["year"]
+        correlations: DefaultDict[str, Dict[str, List[float]]] = defaultdict(
+            lambda: {"year": [], "correlations": []})
+
+        for window, model_name in tqdm(self.data.iterate_window_models()):
+            if model_name not in models:
+                continue
             try:
-                years.append(float(year_str))
+                correlation = self.data.load_cpc_spearmanr(window, model_name)
+            except KeyError:
+                embeddings = self.data.load_embeddings(window, model_name)
+                cpc_cor = self.data.load_cpc_correlations(window)
+                correlation = _compute_cpc_cor(embeddings, cpc_cor)
+                if not self.data.read_only:
+                    self.data.store_cpc_spearmanr(window, model_name, correlation)
+            try:
+                year = float(window)
             except ValueError:
-                years.append(float(np.mean([float(x) for x in year_str.split("-")])))
-            for model_name, model_res in res["embeddings"].items():
-                correlations[model_name].append(_compute_cpc_cor(model_res, cpc_res))
-        return years, dict(correlations)
+                year = float(np.mean([float(x) for x in window.split("-")]))
+
+            correlations[model_name]["year"].append(year)
+            correlations[model_name]["correlations"].append(correlation)
+        return dict(correlations)

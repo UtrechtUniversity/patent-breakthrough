@@ -60,6 +60,10 @@ class TfidfEmbedder(BaseDocEmbedder):  # pylint: disable=too-many-instance-attri
         if stem:
             self.stem_tokenizer = _tokenizer
 
+        if self.norm == "None":
+            self.norm = None
+        if self.stop_words == "None":
+            self.stop_words = None
         self._model: Optional[TfidfVectorizer] = None
 
     def fit(self, documents: Sequence[str]) -> None:
@@ -90,9 +94,9 @@ class TfidfEmbedder(BaseDocEmbedder):  # pylint: disable=too-many-instance-attri
     def settings(self) -> Dict[str, Any]:
         return {
             "ngram_max": self.ngram_max,
-            "stop_words": self.stop_words,
+            "stop_words": str(self.stop_words),
             "stem": self.stem,
-            "norm": self.norm,
+            "norm": str(self.norm),
             "sublinear_tf": self.sublinear_tf,
             "min_df": self.min_df,
             "max_df": self.max_df,
