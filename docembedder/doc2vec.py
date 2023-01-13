@@ -2,8 +2,7 @@
 
 import logging
 from typing import Iterable, Union, List, Optional
-
-import ssl
+from urllib.error import URLError
 
 import numpy as np
 from numpy import typing as npt
@@ -42,17 +41,25 @@ class D2VEmbedder(BaseDocEmbedder):
         self.workers = workers
         self._tagged_data: List = []
         self._d2v_model: Optional[gensim.models.doc2vec.Doc2Vec] = None
-        # Solving CERTIFICATE_VERIFY_FAILED while loading punk
-        try:
-            _create_unverified_https_context = ssl._create_unverified_context  # pylint: disable=W0212
-        except AttributeError:
-            pass
-        else:
-            ssl._create_default_https_context = _create_unverified_https_context  # pylint: disable=W0212
 
         logging.basicConfig(format="%(levelname)s - %(asctime)s: %(message)s",
                             datefmt='%H:%M:%S')
-        nltk.download('punkt')
+        try:
+            nltk.download('punkt')
+        except URLError as exc:
+            raise ValueError(
+                """
+                You need to install Python certificates to download files needed for
+                the doc2vec model.
+                See https://stackoverflow.com/questions/27835619/urllib-and-ssl-certificate-"""
+                """verify-failed-error.
+
+                For a quick workaround, use:
+                ssl._create_default_https_context = ssl._create_unverified_context
+
+                However, this is not safe, so instead you are advised to install the certifi package
+                and install the certificates for you Python system."""
+            ) from exc
 
     def fit(self, documents: Iterable[str]) -> None:
         logging.info("Building Doc2Vec vocabulary:")
