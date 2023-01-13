@@ -5,6 +5,7 @@ from matplotlib import pyplot as plt
 
 def plot_cpc_correlations(correlations):
     """Plot correlation of embeddings with CPC classifications."""
+    plt.figure(dpi=100)
     for model_name, cor_data in correlations.items():
         plt.plot(cor_data["year"], cor_data["correlations"], label=model_name)
     plt.legend()
