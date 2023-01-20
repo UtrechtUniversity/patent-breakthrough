@@ -2,15 +2,17 @@
 
 from multiprocessing import Pool
 from pathlib import Path
-from typing import Optional, Dict, Any, Sequence, List, Tuple
+from typing import Optional, Dict, Any, Sequence, List, Tuple, Union
 
 import numpy as np
 from tqdm import tqdm
+from numpy import typing as npt
 
-from docembedder import DataModel
+from docembedder.datamodel import DataModel
 from docembedder.preprocessor.preprocessor import Preprocessor
 from docembedder.classification import PatentClassification
-from docembedder.models.base import PathType, BaseDocEmbedder, AllEmbedType
+from docembedder.models.base import BaseDocEmbedder
+from docembedder.typing import PathType, AllEmbedType, IntSequence
 
 
 STARTING_YEAR = 1838  # First year of the patents dataset
@@ -58,6 +60,7 @@ class SimulationSpecification():
 
     def create_jobs(self, output_fp: PathType,
                     models: Dict[str, BaseDocEmbedder],
+                    preprocessors: Dict[str, Preprocessor],
                     cpc_fp: PathType,
                     patent_dir: PathType):
         """Create jobs to run the simulation specification.
@@ -83,8 +86,11 @@ class SimulationSpecification():
                 job_name = f"{cur_start}-{cur_end-1}"
                 compute_year = not data.has_year(job_name)
                 compute_cpc = not data.has_cpc(job_name)
-                compute_models = [model for model in models if not data.has_run(model, job_name)]
-                if compute_year or compute_cpc or compute_models:
+                compute_models = [(prep, model)
+                                  for prep in preprocessors
+                                  for model in models
+                                  if not data.has_run(prep, model, job_name)]
+                if compute_year or compute_cpc or len(compute_models) > 0:
                     jobs.append(Job(
                         job_data={
                             "name": job_name,
@@ -158,7 +164,8 @@ class Job():
         Specifications used for the run.
     """
     def __init__(self, job_data: Dict[str, Any],  # pylint: disable=too-many-arguments
-                 need_window: bool, need_cpc: bool, need_models: Sequence[str],
+                 need_window: bool, need_cpc: bool,
+                 need_models: list[tuple[str, str]],
                  sim_spec: SimulationSpecification):
         self.job_data = job_data
         self.need_window = need_window
@@ -166,7 +173,17 @@ class Job():
         self.need_models = need_models
         self.sim_spec = sim_spec
 
-    def get_patents(self) -> List[Dict]:
+        all_prep_names = list(set([x[0] for x in need_models]))
+        all_model_names = list(set([x[1] for x in need_models]))
+
+        with DataModel(self.job_data["output_fp"], read_only=True) as data:
+            self.models = {model_name: data.load_model(model_name)
+                           for model_name in all_model_names}
+            self.preps = {prep_name: data.load_preprocessor(prep_name)
+                          for prep_name in all_prep_names}
+            # self.model, self.prep = data.load_model(self.job_data["name"])
+
+    def get_patents(self, prep_name) -> List[Dict]:
         """Get the preprocessed patents.
 
         Returns
@@ -174,11 +191,13 @@ class Job():
         patents:
             Preprocessed patents that are in the window.
         """
-        prep = Preprocessor()
+        # with DataModel(self.job_data["output_fp"], read_only=True) as data:
+        # prep = data.load_preprocessor(prep_name)
+
         patents: List[Dict] = []
         for year in self.job_data["year_list"]:
             try:
-                patents.extend(prep.preprocess_file(
+                patents.extend(self.preps[prep_name].preprocess_file(
                     Path(self.job_data["patent_dir"]) / (str(year) + ".xz"),
                     self.sim_spec.debug_max_patents,
                     return_stats=False)
@@ -187,7 +206,8 @@ class Job():
                 pass
         return patents
 
-    def compute_train_test(self, patents: List[Dict[str, Any]]) -> Tuple[List[int], List[int]]:
+    def compute_train_test(self, patents: List[Dict[str, Any]]) -> Tuple[npt.NDArray[np.int_],
+                                                                         npt.NDArray[np.int_]]:
         """Compute the train/test patent numbers.
 
         Arguments
@@ -208,9 +228,10 @@ class Job():
                 [pat["patent"] for pat in patents],
                 size=min(len(patents), self.sim_spec.n_patents_per_window)).tolist()
         test_id = train_id
-        return train_id, test_id
+        return np.array(train_id), np.array(test_id)
 
-    def compute_embeddings(self, train_documents, test_documents) -> Dict[str, AllEmbedType]:
+    def compute_embeddings(self, model_name: str, train_documents: Sequence[str],
+                           test_documents: Sequence[str]) -> AllEmbedType:
         """Compute the embeddings.
 
         Arguments
@@ -225,15 +246,13 @@ class Job():
         all_embeddings:
             Dictionary containing all embeddings for each model.
         """
-        all_embeddings = {}
-        for model_name in self.need_models:
-            with DataModel(self.job_data["output_fp"], read_only=True) as data:
-                model = data.load_model(model_name)
-            model.fit(train_documents)
-            all_embeddings[model_name] = model.transform(test_documents)
-        return all_embeddings
+        # all_embeddings = {}
+        # for model_name in self.need_models:
+        self.models[model_name].fit(train_documents)
+        return self.models[model_name].transform(test_documents)
+        # return all_embeddings
 
-    def compute_cpc(self, test_id: Sequence[int]) -> Dict[str, Any]:
+    def compute_cpc(self, test_id: IntSequence) -> Dict[str, Any]:
         """Compute the CPC classification correlations.
 
         Arguments
@@ -246,6 +265,7 @@ class Job():
         cpc_cor:
             Correlation of patents in the window.
         """
+        test_id = np.array(test_id)
         pat_class = PatentClassification(self.job_data["cpc_fp"])
         cpc_cor = pat_class.sample_cpc_correlations(
             test_id, samples_per_patent=self.sim_spec.cpc_samples_per_patent)
@@ -262,7 +282,10 @@ class Job():
         temp_fp = self.job_data["temp_fp"]
         name = self.job_data["name"]
 
-        patents = self.get_patents()
+        # print("Do the run", [prep.logger.level for prep in self.preps.values()])
+
+        last_prep = list(self.preps)[0]
+        patents = self.get_patents(last_prep)
 
         if self.need_window:
             train_id, test_id = self.compute_train_test(patents)
@@ -274,7 +297,18 @@ class Job():
         train_documents = [pat["contents"] for pat in patents if pat["patent"] in train_id]
         test_documents = [pat["contents"] for pat in patents if pat["patent"] in test_id]
 
-        all_embeddings = self.compute_embeddings(train_documents, test_documents)
+        all_embeddings = {}
+        for cur_prep, cur_model in self.need_models:
+            # print([prep.logger.level for prep in self.preps.values()])
+
+            if cur_prep != last_prep:
+                patents = self.get_patents(cur_prep)
+                train_documents = [pat["contents"] for pat in patents if pat["patent"] in train_id]
+                test_documents = [pat["contents"] for pat in patents if pat["patent"] in test_id]
+                last_prep = cur_prep
+            combi_name = f"{cur_prep}-{cur_model}"
+            all_embeddings[combi_name] = self.compute_embeddings(
+                cur_model, train_documents, test_documents)
 
         # Compute the CPC correlations
         if self.need_cpc:
@@ -296,7 +330,9 @@ class Job():
                 f", models: {self.need_models}")
 
 
-def insert_models(models: Dict[str, BaseDocEmbedder], output_fp: PathType):
+def insert_models(models: Dict[str, BaseDocEmbedder],
+                  preprocessors: dict[str, Preprocessor],
+                  output_fp: PathType):
     """Store the information of models in the data file.
 
     Arguments
@@ -309,7 +345,11 @@ def insert_models(models: Dict[str, BaseDocEmbedder], output_fp: PathType):
     with DataModel(output_fp, read_only=False) as data:
         for model_name, model in models.items():
             if not data.has_model(model_name):
+                print(model_name, model)
                 data.store_model(model_name, model)
+        for prep_name, prep in preprocessors.items():
+            if not data.has_prep(prep_name):
+                data.store_preprocessor(prep_name, prep)
 
 
 def _pool_worker(job):
@@ -350,7 +390,40 @@ def run_jobs_multi(jobs: Sequence[Job],
             data.add_data(temp_data_fp, delete_copy=True)
 
 
-def run_models(models: Dict[str, BaseDocEmbedder],  # pylint: disable=too-many-arguments
+def run_jobs_single(jobs: Sequence[Job],
+                    output_fp: PathType,
+                    n_jobs: int=10,
+                    progress_bar: bool=True):
+    """Run jobs using a single thread/process.
+
+    Arguments
+    ---------
+    jobs:
+        Jobs to be run in parallel.
+    output_fp:
+        File to store/load the results to/from.
+    n_jobs:
+        Number of jobs to be run simultaneously.
+    progress_bar:
+        Whether to display a progress bar.
+    """
+    if len(jobs) == 0:
+        return
+
+    # Process all jobs.
+    all_files = []
+    for job in tqdm(jobs, disable=not progress_bar):
+        temp_data_fp = job.run()
+        all_files.append(temp_data_fp)
+
+    # Merge the files with the main output file.
+    with DataModel(output_fp, read_only=False) as data:
+        for temp_data_fp in all_files:
+            data.add_data(temp_data_fp, delete_copy=True)
+
+
+def run_models(preprocessors: Optional[dict[str, Preprocessor]],  # pylint: disable=too-many-arguments
+               models: dict[str, BaseDocEmbedder],
                sim_spec: SimulationSpecification,
                patent_dir: PathType,
                output_fp: PathType,
@@ -379,6 +452,11 @@ def run_models(models: Dict[str, BaseDocEmbedder],  # pylint: disable=too-many-a
     if not sim_spec.check_file(output_fp):
         raise ValueError("Simulation specifications do not match existing specifications.")
 
-    insert_models(models, output_fp)
-    jobs = sim_spec.create_jobs(output_fp, models, cpc_fp, patent_dir)
-    run_jobs_multi(jobs, output_fp, n_jobs=n_jobs, progress_bar=progress_bar)
+    if preprocessors is None:
+        preprocessors = {"default": Preprocessor()}
+    insert_models(models, preprocessors, output_fp)
+    jobs = sim_spec.create_jobs(output_fp, models, preprocessors, cpc_fp, patent_dir)
+    if n_jobs == 1:
+        run_jobs_single(jobs, output_fp, n_jobs=n_jobs, progress_bar=progress_bar)
+    else:
+        run_jobs_multi(jobs, output_fp, n_jobs=n_jobs, progress_bar=progress_bar)

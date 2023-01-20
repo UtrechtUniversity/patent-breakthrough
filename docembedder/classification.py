@@ -1,10 +1,10 @@
 """Module containing patent classifications"""
 
-from typing import Union, Sequence, Dict, List, Optional
-from pathlib import Path
+from typing import Dict, List, Optional
 
 import polars as pl
 import numpy as np
+from docembedder.typing import PathType, IntSequence
 
 
 class PatentClassification():
@@ -17,7 +17,7 @@ class PatentClassification():
         Higher values mean more weight to finer levels, lower values mean more weight to more
         coarse levels. Should be between 0 and 1.
     """
-    def __init__(self, classification_file: Union[str, Path], similarity_exponent=2./3.):
+    def __init__(self, classification_file: PathType, similarity_exponent=2./3.):
         self.class_df = pl.read_csv(classification_file, sep="\t")
         self.similarity_exponent = similarity_exponent
         self._lookup: Dict[int, List[str]] = {}
@@ -86,7 +86,7 @@ class PatentClassification():
             return 1-dissimilarity
         return 1
 
-    def set_patent_ids(self, patent_ids: Optional[Sequence[int]]=None) -> None:
+    def set_patent_ids(self, patent_ids: Optional[IntSequence]=None) -> None:
         """Initialize the look-up table for a subset of the patent_ids.
 
         Arguments
@@ -108,7 +108,8 @@ class PatentClassification():
         df_filtered = query.collect()
         self._lookup = dict(zip(df_filtered["pat"], df_filtered["CPC"].to_list()))  # type: ignore
 
-    def sample_cpc_correlations(self, patent_ids: Sequence[int],  # pylint: disable=too-many-locals
+    def sample_cpc_correlations(self,  # pylint: disable=too-many-locals
+                                patent_ids: IntSequence,
                                 samples_per_patent: Optional[int]=None):
         """Sample/compute CPC correlations.
 

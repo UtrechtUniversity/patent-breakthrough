@@ -5,7 +5,6 @@ import versioneer
 
 setup(
     name='docembedder',
-    version='0.0.1',
     author='UU Research Engineering Team',
     description='Package for creating document embeddings',
     version=versioneer.get_version(),

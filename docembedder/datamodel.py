@@ -1,5 +1,6 @@
 """Data model for storing patent analysis data."""
 
+from __future__ import annotations
 from pathlib import Path
 from typing import Union, Dict, List, Tuple, Iterable
 
@@ -8,8 +9,10 @@ import numpy as np
 from numpy import typing as npt
 from scipy.sparse import csr_matrix
 
-from docembedder.models.utils import create_model
+from docembedder.models.utils import create_model, create_preprocessor
 from docembedder.models.base import AllEmbedType, BaseDocEmbedder
+from docembedder.preprocessor.preprocessor import Preprocessor
+from docembedder._version import get_versions
 
 
 class DataModel():
@@ -48,7 +51,9 @@ class DataModel():
                 self.handle.create_group("embeddings")
                 self.handle.create_group("year")
                 self.handle.create_group("models")
+                self.handle.create_group("preprocessors")
                 self.handle.create_group("cpc")
+                self.handle.attrs["docembedder-version"] = get_versions()["version"]
         else:
             self.handle = h5py.File(hdf5_file, "r")
 
@@ -243,7 +248,21 @@ class DataModel():
             Newly initialized (untrained) model.
         """
         model_dict = dict(self.handle[f"/models/{model_name}"].attrs)
-        return create_model(**model_dict)
+        model_type = model_dict.pop("model_type")
+        return create_model(model_type, model_dict)
+
+    def store_preprocessor(self, prep_name: str, preprocessor: Preprocessor):
+        prep_group = self.handle.create_group(f"/preprocessors/{prep_name}")
+        for key, value in preprocessor.settings.items():
+            prep_group.attrs[key] = value
+        prep_group.attrs["prep_type"] = preprocessor.__class__.__name__
+
+    def load_preprocessor(self, prep_name: str, **kwargs) -> Preprocessor:
+        prep_dict = dict(self.handle[f"/preprocessors/{prep_name}"].attrs)
+        prep_type = prep_dict.pop("prep_type")
+        prep_dict.update(kwargs)
+        prep = create_preprocessor(prep_type, prep_dict)
+        return prep
 
     @property
     def model_names(self) -> List["str"]:
@@ -264,7 +283,7 @@ class DataModel():
                     continue
                 yield window, model_name
 
-    def has_run(self, model_name: str, year: str) -> bool:
+    def has_run(self, prep_name: str, embed_name: str, year: str) -> bool:
         """Compute whether a model has run on a certain window/year.
 
         Arguments
@@ -274,7 +293,7 @@ class DataModel():
         year:
             Window of year for the embedding.
         """
-        return f"/embeddings/{model_name}/{year}" in self.handle
+        return f"/embeddings/{prep_name}-{embed_name}/{year}" in self.handle
 
     def has_cpc(self, year: str) -> bool:
         """Compute whether there is CPC correlation data.
@@ -305,6 +324,9 @@ class DataModel():
             Name of the model (not to be confused with the model class).
         """
         return model_name in self.handle["models"]
+
+    def has_prep(self, prep_name: str) -> bool:
+        return prep_name in self.handle["preprocessors"]
 
     def __str__(self):
         ret_str = "Models:\n\n"
@@ -381,7 +403,7 @@ class DataModel():
         if delete_copy:
             Path(data_fp).unlink()
 
-    def __enter__(self):
+    def __enter__(self) -> DataModel:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):

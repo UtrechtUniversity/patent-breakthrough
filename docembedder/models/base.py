@@ -1,17 +1,9 @@
 """Base class for document embeddings."""
 
 from abc import ABC, abstractmethod
-from pathlib import Path
 from typing import Union, Sequence, Dict, Any
-from typing_extensions import TypeAlias
 
-import scipy
-from numpy import typing as npt
-import numpy as np
-
-
-AllEmbedType: TypeAlias = Union[scipy.sparse.spmatrix, npt.NDArray[np.float_]]
-PathType: TypeAlias = Union[Path, str]
+from docembedder.typing import AllEmbedType
 
 
 class BaseDocEmbedder(ABC):

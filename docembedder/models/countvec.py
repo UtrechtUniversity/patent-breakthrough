@@ -1,6 +1,8 @@
-"""Sklearn TF-IDF class."""  # pylint: skip-file
+"""Sklearn TF-IDF class."""  # pylint: skip-file cyclic-import
 
-from typing import Iterable, Union
+from __future__ import annotations
+
+from typing import Iterable, Union, Any
 
 import numpy as np
 import scipy
@@ -36,3 +38,7 @@ class CountVecEmbedder(BaseDocEmbedder):
     @property
     def embedding_size(self) -> int:
         return len(self._model.vocabulary_)
+
+    @property
+    def settings(self) -> dict[str, Any]:
+        return {"method": self.method}
