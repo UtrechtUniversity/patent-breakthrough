@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 from pathlib import Path
-from typing import Union
-from collections.abc import Sequence
+from typing import Union, Sequence
 
 from typing_extensions import TypeAlias
 
