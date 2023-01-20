@@ -1,5 +1,6 @@
 """General utilities for performing runs."""
 
+from __future__ import annotations
 from multiprocessing import Pool
 from pathlib import Path
 from typing import Optional, Dict, Any, Sequence, List, Tuple
