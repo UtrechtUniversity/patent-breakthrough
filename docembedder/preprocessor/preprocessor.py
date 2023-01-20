@@ -3,7 +3,6 @@ Preprocessor for patent texts
 """
 import argparse
 import glob
-import logging
 import json
 import re
 from typing import List, Dict, Iterable, Tuple, Set, Optional, Union, overload
@@ -78,11 +77,9 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-pub
         parser.add_argument('--keep_start_section', action='store_true')
         parser.add_argument('--keep_empty_patents', action='store_true')
         parser.add_argument('--keep_missing_years', action='store_true')
-        parser.add_argument('--log_file', type=str)
         args = vars(parser.parse_args())
 
         return cls(
-            log_file=args['log_file'],
             keep_empty_patents=args['keep_empty_patents'],
             keep_missing_years=args['keep_missing_years'],
             keep_caps=args['keep_caps'],

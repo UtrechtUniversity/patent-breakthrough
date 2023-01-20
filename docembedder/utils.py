@@ -2,7 +2,7 @@
 
 from multiprocessing import Pool
 from pathlib import Path
-from typing import Optional, Dict, Any, Sequence, List, Tuple, Union
+from typing import Optional, Dict, Any, Sequence, List, Tuple
 
 import numpy as np
 from tqdm import tqdm
@@ -58,7 +58,7 @@ class SimulationSpecification():
         self.debug_max_patents = debug_max_patents
         self.n_patents_per_window = n_patents_per_window
 
-    def create_jobs(self, output_fp: PathType,
+    def create_jobs(self, output_fp: PathType,  # pylint: disable=too-many-arguments, too-many-locals
                     models: Dict[str, BaseDocEmbedder],
                     preprocessors: Dict[str, Preprocessor],
                     cpc_fp: PathType,
@@ -173,8 +173,8 @@ class Job():
         self.need_models = need_models
         self.sim_spec = sim_spec
 
-        all_prep_names = list(set([x[0] for x in need_models]))
-        all_model_names = list(set([x[1] for x in need_models]))
+        all_prep_names = list(set(x[0] for x in need_models))
+        all_model_names = list(set(x[1] for x in need_models))
 
         with DataModel(self.job_data["output_fp"], read_only=True) as data:
             self.models = {model_name: data.load_model(model_name)
@@ -271,7 +271,7 @@ class Job():
             test_id, samples_per_patent=self.sim_spec.cpc_samples_per_patent)
         return cpc_cor
 
-    def run(self) -> Path:
+    def run(self) -> Path:  # pylint: disable=too-many-locals
         """Run the job.
 
         Returns
@@ -392,7 +392,6 @@ def run_jobs_multi(jobs: Sequence[Job],
 
 def run_jobs_single(jobs: Sequence[Job],
                     output_fp: PathType,
-                    n_jobs: int=10,
                     progress_bar: bool=True):
     """Run jobs using a single thread/process.
 
@@ -457,6 +456,6 @@ def run_models(preprocessors: Optional[dict[str, Preprocessor]],  # pylint: disa
     insert_models(models, preprocessors, output_fp)
     jobs = sim_spec.create_jobs(output_fp, models, preprocessors, cpc_fp, patent_dir)
     if n_jobs == 1:
-        run_jobs_single(jobs, output_fp, n_jobs=n_jobs, progress_bar=progress_bar)
+        run_jobs_single(jobs, output_fp, progress_bar=progress_bar)
     else:
         run_jobs_multi(jobs, output_fp, n_jobs=n_jobs, progress_bar=progress_bar)

@@ -234,7 +234,7 @@ class DataModel():
             model_group.attrs[key] = value
         model_group.attrs["model_type"] = model.__class__.__name__
 
-    def load_model(self, model_name) -> BaseDocEmbedder:
+    def load_model(self, model_name: str) -> BaseDocEmbedder:
         """Load model from the settings in the file.
 
         Arguments
@@ -252,12 +252,14 @@ class DataModel():
         return create_model(model_type, model_dict)
 
     def store_preprocessor(self, prep_name: str, preprocessor: Preprocessor):
+        """Store preprocessor information."""
         prep_group = self.handle.create_group(f"/preprocessors/{prep_name}")
         for key, value in preprocessor.settings.items():
             prep_group.attrs[key] = value
         prep_group.attrs["prep_type"] = preprocessor.__class__.__name__
 
     def load_preprocessor(self, prep_name: str, **kwargs) -> Preprocessor:
+        """Create preprocessor from stored information."""
         prep_dict = dict(self.handle[f"/preprocessors/{prep_name}"].attrs)
         prep_type = prep_dict.pop("prep_type")
         prep_dict.update(kwargs)
@@ -326,6 +328,7 @@ class DataModel():
         return model_name in self.handle["models"]
 
     def has_prep(self, prep_name: str) -> bool:
+        """Return whether a preprocessor exists with that name."""
         return prep_name in self.handle["preprocessors"]
 
     def __str__(self):

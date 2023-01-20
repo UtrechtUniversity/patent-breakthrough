@@ -40,6 +40,20 @@ def create_model(model_type, model_dict: dict) -> BaseDocEmbedder:
 
 
 def create_preprocessor(prep_type, prep_dict: dict) -> Preprocessor:
+    """Create a preprocessor from a dictionary.
+
+    Arguments
+    ---------
+    prep_type:
+        Name of the class of the preprocessor.
+    kwargs:
+        Keyword arguments for the model initialization.
+
+    Returns
+    -------
+    preprocessor:
+        Initialized preprocessor.
+    """
     if prep_type == "OldPreprocessor":
         prep_model: Preprocessor = OldPreprocessor(**prep_dict)
     else:
