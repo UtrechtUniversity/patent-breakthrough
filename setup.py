@@ -11,7 +11,7 @@ setup(
     cmdclass=versioneer.get_cmdclass(),
     long_description='Package for creating document embeddings',
     packages=find_packages(exclude=['data', 'docs', 'tests', 'examples']),
-    python_requires='~=3.6',
+    python_requires='>=3.8, <3.11',
     install_requires=[
         "numpy",
         "scipy",
