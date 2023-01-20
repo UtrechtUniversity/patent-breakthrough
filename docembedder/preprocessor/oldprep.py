@@ -1,6 +1,8 @@
-from copy import deepcopy  # pylint: skip-file
+from __future__ import annotations
 from itertools import chain
+import logging
 import re
+from typing import Optional, Union, overload, Literal
 
 from pathlib import Path
 import pandas as pd
@@ -9,23 +11,37 @@ from nltk.corpus import stopwords
 from nltk.stem.snowball import SnowballStemmer
 
 from docembedder.preprocessor.preprocessor import Preprocessor
+from docembedder.typing import PathType
 
 
 class OldPreprocessor(Preprocessor):
     def __init__(self, list_path=Path("..", "data"), keep_missing_years=False,
-                 keep_empty_patents=False):
+                 keep_empty_patents=False, job_id: Optional[str] = None):
         self.list_path = list_path
         self.keep_missing_years = keep_missing_years
         self.keep_empty_patents = keep_empty_patents
         self.import_lists()
 
-    def preprocess_file(self, file):
+    @overload
+    def preprocess_file(self, file: PathType, max_patents: Optional[int],
+                        return_stats: Literal[False] = ...) -> list[dict]: ...
+
+    @overload
+    def preprocess_file(self, file: PathType, max_patents: Optional[int],
+                        return_stats: Literal[True]) -> tuple[list[dict], dict[str, int]]: ...
+
+    def preprocess_file(self, file: PathType,
+                        max_patents: Optional[int]=None,
+                        return_stats: bool=False) -> Union[
+                        list[dict], tuple[list[dict], dict[str, int]]]:
         processed = 0
         skipped_empty = 0
         skipped_no_year = 0
-        processed_patents = []
+        processed_patents: list[dict] = []
 
         for patent in self.yield_document(file):
+            if max_patents is not None and len(processed_patents) >= max_patents:
+                break
             if patent['year'] == 0 or patent['year'] is None:
                 if not self.keep_missing_years:
                     skipped_no_year += 1
@@ -50,18 +66,20 @@ class OldPreprocessor(Preprocessor):
             patent['contents'] = body
             processed += 1
             processed_patents.append(patent)
-        return processed_patents, {}
+        if return_stats:
+            return processed_patents, {}
+        return processed_patents
 
     def import_lists(self):
         # compile a set of words that need deleting
-        nltk.download('stopwords')
+        nltk.download('stopwords', quiet=True)
         with open(self.list_path / 'stopwords.txt', mode='r') as f:
             self.STOPWORDS = set(
                 f.read().split() +
                 ['.sub.', '.sup.'] +
                 stopwords.words('english')
             )
-        print(f'...read {len(self.STOPWORDS)} stopwords...')
+        # print(f'...read {len(self.STOPWORDS)} stopwords...')
 
         # these symbols are to be replaced with a single space
         with open(self.list_path / 'symbols.txt', mode='r') as f:
@@ -123,6 +141,9 @@ class OldPreprocessor(Preprocessor):
 
         return process_contents(body)
 
-        # new_patent = deepcopy(patent)
-        # new_patent["contents"] = new_contents
-        # return new_patent
+    @property
+    def settings(self):
+        return {
+            "keep_missing_years": self.keep_missing_years,
+            "keep_empty_patents": self.keep_empty_patents,
+        }

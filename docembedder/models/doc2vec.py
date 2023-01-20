@@ -1,7 +1,7 @@
 """ Gensim Doc2vec class."""
 
 import logging
-from typing import Iterable, Union, List, Optional
+from typing import Iterable, Union, List, Optional, Dict, Any
 from urllib.error import URLError
 
 import numpy as np
@@ -11,7 +11,7 @@ from gensim.models.doc2vec import TaggedDocument
 import gensim
 import nltk
 
-from docembedder.base import BaseDocEmbedder
+from docembedder.models.base import BaseDocEmbedder
 
 
 class D2VEmbedder(BaseDocEmbedder):
@@ -45,7 +45,7 @@ class D2VEmbedder(BaseDocEmbedder):
         logging.basicConfig(format="%(levelname)s - %(asctime)s: %(message)s",
                             datefmt='%H:%M:%S')
         try:
-            nltk.download('punkt')
+            nltk.download('punkt', quiet=True)
         except URLError as exc:
             raise ValueError(
                 """
@@ -79,11 +79,19 @@ class D2VEmbedder(BaseDocEmbedder):
             raise ValueError("Error: Doc2Vec model not yet trained.")
         logging.info("Extracting Document vectors:")
         vectors = [
-            self._d2v_model.infer_vector(
-                doc_words=word_tokenize(_d.lower())) for i, _d in enumerate(documents)]
+            self._d2v_model.infer_vector(doc_words=word_tokenize(d.lower()))
+            for d in documents]
 
         return np.array(vectors)
 
     @property
     def embedding_size(self) -> int:
         return self.vector_size
+
+    @property
+    def settings(self) -> Dict[str, Any]:
+        return {
+            "vector_size": self.vector_size,
+            "min_count": self.min_count,
+            "epoch": self.epoch,
+        }

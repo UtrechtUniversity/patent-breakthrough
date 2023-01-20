@@ -1,6 +1,6 @@
 from pytest import mark
 
-from docembedder import BPembEmbedder
+from docembedder.models import BPembEmbedder
 
 
 @mark.parametrize(

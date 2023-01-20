@@ -1,5 +1,5 @@
 """ pytest file for doc2vec.py"""
-from docembedder import D2VEmbedder
+from docembedder.models import D2VEmbedder
 
 
 def test_doc2vec():

@@ -3,24 +3,25 @@ Preprocessor for patent texts
 """
 import argparse
 import glob
-import logging
 import json
 import re
-from typing import List, Dict, Iterable, Tuple, Set, Optional
+from typing import List, Dict, Iterable, Tuple, Set, Optional, Union, overload
 from pathlib import Path
+
+from typing_extensions import Literal
+
+
 from docembedder.preprocessor.parser import read_xz
+from docembedder.typing import PathType
 
 
-class Preprocessor:  # pylint: disable=too-many-instance-attributes
+class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-public-methods
     """
     Preprocessor class
     """
 
     def __init__(  # pylint: disable=too-many-arguments too-many-locals
             self,
-            log_level: int = logging.INFO,
-            log_file: Optional[str] = None,
-            log_format: str = '%(asctime)s [%(levelname)s] %(message)s',
             keep_empty_patents: bool = False,
             keep_missing_years: bool = False,
             keep_caps: bool = False,
@@ -30,19 +31,6 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
             output_dir: Optional[str] = None,
             lexicon_path: Optional[str] = None
             ):
-
-        self.logger = logging.getLogger('preprocessor')
-        self.logger.setLevel(log_level)
-        slog = logging.StreamHandler()
-        slog.setLevel(log_level)
-        slog.setFormatter(logging.Formatter(log_format))
-        self.logger.addHandler(slog)
-
-        if log_file:
-            flog = logging.FileHandler(log_file)
-            flog.setLevel(log_level)
-            flog.setFormatter(logging.Formatter(log_format))
-            self.logger.addHandler(flog)
 
         self.keep_empty_patents = keep_empty_patents
         self.keep_missing_years = keep_missing_years
@@ -89,11 +77,9 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
         parser.add_argument('--keep_start_section', action='store_true')
         parser.add_argument('--keep_empty_patents', action='store_true')
         parser.add_argument('--keep_missing_years', action='store_true')
-        parser.add_argument('--log_file', type=str)
         args = vars(parser.parse_args())
 
         return cls(
-            log_file=args['log_file'],
             keep_empty_patents=args['keep_empty_patents'],
             keep_missing_years=args['keep_missing_years'],
             keep_caps=args['keep_caps'],
@@ -135,28 +121,29 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
     def preprocess_files(self):
         """Iterates all input JSONL-files and calls preprocessing for each"""
         for file in self.file_list:
-            self.logger.info('processing %s', file)
-            processed_patents, stats = self.preprocess_file(file)
-            self.logger.info("processed %s (%s documents, skipped %s empty, "
-                             "%s w/o year)", file, str(stats["processed"]),
-                             str(stats["skipped_empty"]),
-                             str(stats["skipped_no_year"]))
+            # self.logger.info('processing %s', file)
+            processed_patents, stats = self.preprocess_file(  # pylint: disable=unpacking-non-sequence
+                file, return_stats=True)
+            # self.logger.info("processed %s (%s documents, skipped %s empty, "
+                             # "%s w/o year)", file, str(stats["processed"]),
+                             # str(stats["skipped_empty"]),
+                             # str(stats["skipped_no_year"]))
             self.total_docs['processed'] += len(processed_patents)
             self.total_docs['skipped_empty'] += stats["skipped_empty"]
             self.total_docs['skipped_no_year'] += stats["skipped_no_year"]
 
-        self.logger.info("done")
-        self.logger.info("files: %s", str(len(self.file_list)))
-        self.logger.info("docs processed: %s",
-                         str(self.total_docs['processed']))
-        self.logger.info("skipped empty docs: %s",
-                         str(self.total_docs['skipped_empty']))
-        self.logger.info("skipped docs w/o year: %s",
-                         str(self.total_docs['skipped_no_year']))
-        self.logger.info("words reassembled: %s",
-                         str(self.total_docs['words_reassembled']))
+        # self.logger.info("done")
+        # self.logger.info("files: %s", str(len(self.file_list)))
+        # self.logger.info("docs processed: %s",
+                         # str(self.total_docs['processed']))
+        # self.logger.info("skipped empty docs: %s",
+                         # str(self.total_docs['skipped_empty']))
+        # self.logger.info("skipped docs w/o year: %s",
+                         # str(self.total_docs['skipped_no_year']))
+        # self.logger.info("words reassembled: %s",
+                         # str(self.total_docs['words_reassembled']))
 
-    def yield_document(self, file: str) -> Iterable[Dict]:
+    def yield_document(self, file: PathType) -> Iterable[Dict]:
         """Generator yielding single JSON-doc from input file"""
         suffix = Path(file).suffix
         if suffix == ".jsonl":
@@ -165,7 +152,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
             return self.patent_get_xz(file)
         raise ValueError(f"Unsupported format for documents: {suffix}")
 
-    def patent_get_jsonl(self, file: str) -> Iterable[Dict]:
+    def patent_get_jsonl(self, file: PathType) -> Iterable[Dict]:
         """Generate patents from a JSONL file"""
         with open(file, encoding="utf-8") as handle:
             line = handle.readline()
@@ -173,24 +160,40 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
                 yield json.loads(line)
                 line = handle.readline()
 
-    def patent_get_xz(self, file: str) -> Iterable[Dict]:
+    def patent_get_xz(self, file: PathType) -> Iterable[Dict]:
         """Generate patents from a compressed xz file"""
         for pat in read_xz(file):
             yield pat
 
-    def preprocess_file(self, file: str) -> Tuple[List[Dict], Dict[str, int]]:
+    @overload
+    def preprocess_file(self, file: PathType, max_patents: Optional[int],
+                        return_stats: Literal[False] = ...) -> List[Dict]: ...
+
+    @overload
+    def preprocess_file(self, file: PathType, max_patents: Optional[int],
+                        return_stats: Literal[True]) -> Tuple[List[Dict], Dict[str, int]]: ...
+
+    def preprocess_file(self, file: PathType,
+                        max_patents: Optional[int]=None,
+                        return_stats: bool=False) -> Union[
+                            List[Dict], Tuple[List[Dict], Dict[str, int]]]:
         """Iterates individual JSON-docs in JSONL-file and calls preprocsseing
         for each"""
+        # print("current level", self.logger.level)
+        # self.logger.setLevel(logging.ERROR)
 
         processed = 0
         skipped_empty = 0
         skipped_no_year = 0
-        processed_patents = []
+        processed_patents: List[Dict] = []
 
         for patent in self.yield_document(file):
+            if max_patents is not None and len(processed_patents) >= max_patents:
+                break
+
             if patent['year'] == 0 or patent['year'] is None:
-                self.logger.warning('Patent #%s has no year',
-                                    str(patent["patent"]))
+                # self.logger.warning('Patent #%s has no year',
+                                    # str(patent["patent"]))
                 if not self.keep_missing_years:
                     skipped_no_year += 1
                     continue
@@ -198,8 +201,8 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
             body = patent['contents']
 
             if len(body) == 0:
-                self.logger.warning('Patent #%s has no content',
-                                    str(patent["patent"]))
+                # self.logger.warning('Patent #%s has no content',
+                                    # str(patent["patent"]))
                 if not self.keep_empty_patents:
                     skipped_empty += 1
                     continue
@@ -225,8 +228,9 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
             "skipped_empty": skipped_empty,
             "skipped_no_year": skipped_no_year,
         }
-
-        return processed_patents, stats
+        if return_stats:
+            return processed_patents, stats
+        return processed_patents
 
     @staticmethod
     def remove_unprintable(content: str) -> str:
@@ -414,8 +418,8 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
                    and assembly in self.dictionary:
                     # we reassembled a word!
                     new_word_list.append(assembly)
-                    self.logger.debug("%s + %s -> %s", token, next_token,
-                                      assembly)
+                    # self.logger.debug("%s + %s -> %s", token, next_token,
+                                      # assembly)
 
                     self.total_docs['words_reassembled'] += 1
 
@@ -428,3 +432,14 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes
                 new_word_list.append(token)
 
         return " ".join(new_word_list)
+
+    @property
+    def settings(self):
+        """Settings of the preprocessor."""
+        return {
+            "keep_empty_patents": self.keep_empty_patents,
+            "keep_missing_years": self.keep_missing_years,
+            "keep_caps": self.keep_caps,
+            "keep_start_section": self.keep_start_section,
+            "remove_non_alpha": self.remove_non_alpha,
+        }

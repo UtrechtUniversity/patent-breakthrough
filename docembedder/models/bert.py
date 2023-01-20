@@ -1,13 +1,13 @@
 """ Huggingface BERT class."""
 
-from typing import Iterable, Union
+from typing import Iterable, Union, Dict, Any
 
 import numpy as np
 import numpy.typing as npt
 
 from sentence_transformers import SentenceTransformer
 
-from docembedder.base import BaseDocEmbedder
+from docembedder.models.base import BaseDocEmbedder
 
 
 class BERTEmbedder(BaseDocEmbedder):
@@ -33,3 +33,9 @@ class BERTEmbedder(BaseDocEmbedder):
     @property
     def embedding_size(self) -> int:
         return 0
+
+    @property
+    def settings(self) -> Dict[str, Any]:
+        return {
+            "pretrained_model": self.pretrained_model
+        }

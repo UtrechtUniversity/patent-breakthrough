@@ -1,5 +1,5 @@
 """ pytest file for bert.py"""
-from docembedder import BERTEmbedder
+from docembedder.models import BERTEmbedder
 
 
 def test_bert():

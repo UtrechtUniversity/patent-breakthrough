@@ -3,7 +3,7 @@ from pandas.testing import assert_frame_equal
 import pandas as pd
 
 from docembedder import DOCSimilarity
-from docembedder import D2VEmbedder
+from docembedder.models import D2VEmbedder
 
 
 PATENTS = {'index': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],

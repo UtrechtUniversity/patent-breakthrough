@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Iterable, Union, Dict, Optional, Sequence
+from typing import Iterable, Union, Dict, Optional, Sequence, Any
 
 from bpemb import BPEmb
 import numpy as np
 from numpy import typing as npt
 
-from docembedder.base import BaseDocEmbedder
+from docembedder.models.base import BaseDocEmbedder
 
 
 def _get_prefac(model: BPEmb, documents: Union[Iterable[str], Sequence[str]]) -> Dict[str, float]:
@@ -90,3 +90,10 @@ class BPembEmbedder(BaseDocEmbedder):
     @property
     def embedding_size(self) -> int:
         return self.vector_size
+
+    @property
+    def settings(self) -> Dict[str, Any]:
+        return {
+            "vector_size": 300,
+            "vocab_size": 200000,
+        }

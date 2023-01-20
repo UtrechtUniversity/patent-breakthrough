@@ -1,0 +1,5 @@
+[MASTER]
+
+
+ignore-patterns=_version.py,oldprep.py,countvec.py
+
