@@ -25,7 +25,7 @@ setup(
         "nltk",
         "gensim",
         "bpemb",
-        "polars",
+        "polars>=0.16",
         "pyarrow",
         "matplotlib",
         "tqdm",

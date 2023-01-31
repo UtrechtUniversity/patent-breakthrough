@@ -99,7 +99,7 @@ class PatentClassification():
             .groupby("pat")
             .agg(
                 [
-                    pl.col("CPC").list()
+                    pl.col("CPC")
                 ]
             )
         )
