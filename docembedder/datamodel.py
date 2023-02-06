@@ -22,13 +22,13 @@ class DataModel():
 
     embeddings: Stores all the embeddings
         {model}: Embeddings are sorted by model name first.
-            {year}: Each window/year of embeddings has their own dataset.
+            {window}: Each window/year of embeddings has their own dataset.
                 - (data, indices, indptr) for sparse embeddings, or:
                 - (array) for dense embeddings
-    year: Stores all patent numbers that were used for each window.
-        {year}: One dataset for each window of all patent numbers used.
+    windows: Stores all patent numbers that were used for each window.
+        {window}: One dataset for each window of all patent numbers used.
     cpc: Stores the correlations between CPC classifications of different patents
-        {year}: They are stored by year/window
+        {window}: They are stored by year/window
             i_patents: Array of patent indices i (not to be confused with patent numbers)
             j_patents: Array of patent indices j
             correlation: Array with correlation between i and j.
@@ -49,7 +49,7 @@ class DataModel():
             self.handle = h5py.File(hdf5_file, "a")
             if "embeddings" not in self.handle:
                 self.handle.create_group("embeddings")
-                self.handle.create_group("year")
+                self.handle.create_group("windows")
                 self.handle.create_group("models")
                 self.handle.create_group("preprocessors")
                 self.handle.create_group("cpc")
@@ -57,43 +57,63 @@ class DataModel():
         else:
             self.handle = h5py.File(hdf5_file, "r")
 
-    def store_year(self,
-                   year: str,
-                   test_id: npt.NDArray[np.int_],
-                   train_id: npt.NDArray[np.int_]):
+    def store_window(self,
+                     window_name: str,
+                     patent_id: npt.NDArray[np.int_],
+                     year: npt.NDArray[np.int_]
+                     ):
         """Store the patent numbers used for a window or check if they're the same.
 
         Arguments
         ---------
-        year:
+        window_name:
             Year or window of years used for the embeddings.
-        test_id:
+        patent_id:
             Patent numbers for the embedding vectors.
-        train_id:
-            Patent numbers that were used to train the embedding vectors.
-            This is usually the same as the test_id.
+        year:
+            Year of each of the patents in the window.
         """
 
         # Create the new window/year group
         try:
-            year_group = self.handle[f"/year/{year}"]
+            window_group = self.handle[f"/windows/{window_name}"]
         except KeyError:
-            year_group = self.handle.create_group(f"/year/{year}")
+            window_group = self.handle.create_group(f"/windows/{window_name}")
 
-        # Add the patent numbers for the test_ids
-        if "test_id" in year_group:
-            assert np.all(test_id == year_group["test_id"][...])
+        # Add the patent numbers for the patents in this window
+        if "patent_id" in window_group:
+            assert np.all(patent_id == window_group["patent_id"][...])
         else:
-            year_group.create_dataset("test_id", data=test_id)
+            window_group.create_dataset("patent_id", data=patent_id)
 
-        # Add the patent numbers for the train_ids
-        if "train_id" in year_group:
-            assert np.all(train_id == year_group["train_id"][...])
+        # Add the year for each of the patents
+        if "year" in window_group:
+            assert np.all(year == window_group["year"][...])
         else:
-            year_group.create_dataset("train_id", data=train_id)
+            window_group.create_dataset("year", data=year)
+
+    def load_window(self, window_name: str) -> tuple[npt.NDArray[np.int_], npt.NDArray[np.int_]]:
+        """Load the patent numbers and year of issue.
+
+        Arguments
+        ---------
+        window_name:
+            Name of the window to load.
+
+        Returns
+        -------
+        patent_id:
+            Patent number for each of the patents in the window.
+        year:
+            Year of patent issue for each of the patents.
+        """
+        return (
+            self.handle[f"/windows/{window_name}/patent_id"][...],
+            self.handle[f"/windows/{window_name}/year"][...],
+        )
 
     def store_embeddings(self,
-                         window: str,
+                         window_name: str,
                          model_name: str,
                          embeddings: AllEmbedType,
                          overwrite: bool=False):
@@ -101,14 +121,14 @@ class DataModel():
 
         Arguments
         ---------
-        year:
+        window_name:
             Year or window name.
         model_name:
             Name of the model that generated the embeddings.
         overwrite:
             If True, overwrite embeddings if they exist.
         """
-        dataset_group_str = f"/embeddings/{model_name}/{window}"
+        dataset_group_str = f"/embeddings/{model_name}/{window_name}"
         if dataset_group_str in self.handle and overwrite:
             del self.handle[dataset_group_str]
         elif dataset_group_str in self.handle:
@@ -127,12 +147,12 @@ class DataModel():
         else:
             raise ValueError(f"Not implemented datatype {type(embeddings)}")
 
-    def load_embeddings(self, window: str, model_name: str) -> AllEmbedType:
+    def load_embeddings(self, window_name: str, model_name: str) -> AllEmbedType:
         """Load embeddings for a window/year.
 
         Arguments
         ---------
-        window:
+        window_name:
             Year or window name.
         model_name:
             Name of the model that generated the embeddings.
@@ -142,7 +162,7 @@ class DataModel():
         embeddings:
             Embeddings for that window/model.
         """
-        dataset_group = self.handle[f"/embeddings/{model_name}/{window}"]
+        dataset_group = self.handle[f"/embeddings/{model_name}/{window_name}"]
         if dataset_group.attrs["dtype"] == "array":
             return dataset_group["array"][...]
         if dataset_group.attrs["dtype"] == "csr_matrix":
@@ -153,7 +173,7 @@ class DataModel():
             return csr_matrix((data, indices, indptr), shape=shape)
         raise ValueError(f"Unrecognized datatype {dataset_group.attr['dtype']}")
 
-    def store_cpc_correlations(self, window: str, data: Dict[str, npt.NDArray]):
+    def store_cpc_correlations(self, window_name: str, data: Dict[str, npt.NDArray]):
         """Store CPC correlations for a year/window.
 
         Arguments
@@ -163,20 +183,20 @@ class DataModel():
         data:
             Correlations, as a dict with i_patents, j_patents, correlations.
         """
-        if f"/cpc/{window}" in self.handle:
+        if f"/cpc/{window_name}" in self.handle:
             return
 
-        grp = self.handle.require_group(f"/cpc/{window}")
+        grp = self.handle.require_group(f"/cpc/{window_name}")
         grp.create_dataset("i_patents", data=data["i_patents"])
         grp.create_dataset("j_patents", data=data["j_patents"])
         grp.create_dataset("correlations", data=data["correlations"])
 
-    def load_cpc_correlations(self, year: str) -> Dict[str, npt.NDArray]:
+    def load_cpc_correlations(self, window_name: str) -> Dict[str, npt.NDArray]:
         """Store CPC correlations for a year/window.
 
         Arguments
         ---------
-        year:
+        window_name:
             Window or year of the CPC correlations
 
         Returns
@@ -184,40 +204,40 @@ class DataModel():
         data:
             Correlations, as a dict with i_patents, j_patents, correlations.
         """
-        cpc_group = self.handle[f"/cpc/{year}"]
+        cpc_group = self.handle[f"/cpc/{window_name}"]
         return {
             "i_patents": cpc_group["i_patents"][...],
             "j_patents": cpc_group["j_patents"][...],
             "correlations": cpc_group["correlations"][...]
         }
 
-    def store_cpc_spearmanr(self, window: str, model_name: str, correlation: float):
+    def store_cpc_spearmanr(self, window_name: str, model_name: str, correlation: float):
         """Store CPC spearmanr results.
 
         Arguments
         ---------
-        window:
+        window_name:
             Name of the window/year to store.
         model_name:
             Name of the model to store the correlations.
         correlation:
             Value of the Spearman-R correlation.
         """
-        self.handle[f"/embeddings/{model_name}/{window}"].attrs["cpc_spearmanr"] = correlation
+        self.handle[f"/embeddings/{model_name}/{window_name}"].attrs["cpc_spearmanr"] = correlation
 
-    def load_cpc_spearmanr(self, window: str, model_name: str) -> float:
+    def load_cpc_spearmanr(self, window_name: str, model_name: str) -> float:
         """Load CPC spearmanr results.
 
         Arguments
         ---------
-        window:
+        window_name:
             Name of the window/year to store.
         model_name:
             Name of the model to store the correlations.
         correlation:
             Value of the Spearman-R correlation.
         """
-        return self.handle[f"/embeddings/{model_name}/{window}"].attrs["cpc_spearmanr"]
+        return self.handle[f"/embeddings/{model_name}/{window_name}"].attrs["cpc_spearmanr"]
 
     def store_model(self, model_name: str, model: BaseDocEmbedder):
         """Store the settings of a model, to be reinitialized
@@ -279,43 +299,45 @@ class DataModel():
         window, model_name:
             Window and model_name for each combination that has an embedding.
         """
-        for window in self.handle["year"]:
+        for window in self.handle["windows"]:
             for model_name in self.model_names:
                 if f"/embeddings/{model_name}/{window}" not in self.handle:
                     continue
                 yield window, model_name
 
-    def has_run(self, prep_name: str, embed_name: str, year: str) -> bool:
+    def has_run(self, prep_name: str, embed_name: str, window_name: str) -> bool:
         """Compute whether a model has run on a certain window/year.
 
         Arguments
         ---------
-        model_name:
-            Name of the model.
-        year:
+        prep_name:
+            Name of the preprocessor.
+        embed_name:
+            Name of the embedding model.
+        window_name:
             Window of year for the embedding.
         """
-        return f"/embeddings/{prep_name}-{embed_name}/{year}" in self.handle
+        return f"/embeddings/{prep_name}-{embed_name}/{window_name}" in self.handle
 
-    def has_cpc(self, year: str) -> bool:
+    def has_cpc(self, window_name: str) -> bool:
         """Compute whether there is CPC correlation data.
 
         Arguments
         ---------
-        year:
+        window_name:
             Window or year of the CPC.
         """
-        return f"/cpc/{year}" in self.handle
+        return f"/cpc/{window_name}" in self.handle
 
-    def has_year(self, year: str) -> bool:
+    def has_window(self, window_name: str) -> bool:
         """Compute whether there is already an entry for a window/year.
 
         Arguments
         ---------
-        year:
+        window_name:
             Window or year.
         """
-        return str(year) in self.handle["year"]
+        return str(window_name) in self.handle["windows"]
 
     def has_model(self, model_name: str) -> bool:
         """Compute whether there is already an entry for a model.
@@ -336,9 +358,9 @@ class DataModel():
         for model_name in self.handle["/embeddings"].keys():
             ret_str += model_name + "\n"
 
-        ret_str += "Years:\n\n"
-        for year in self.handle["/year"].keys():
-            ret_str += year + "\n"
+        ret_str += "Windows:\n\n"
+        for window_name in self.handle["/windows"].keys():
+            ret_str += window_name + "\n"
         return ret_str
 
     def _remove_detect_stale(self):
@@ -358,21 +380,10 @@ class DataModel():
 
         for model_name in self.handle["/embeddings"]:
             model_group = self.handle[f"/embeddings/{model_name}"]
-            for year in model_group:
-                year_group = model_group[year]
-                if test_stale(year_group):
-                    del self.handle[f"/embeddings/{model_name}/{year}"]
-
-    def get_train_test_id(self, year: str) -> Tuple[npt.NDArray[np.int_], npt.NDArray[np.int_]]:
-        """Get the training and test patent numbers for a window/year.
-
-        Arguments
-        ---------
-        year:
-            Window or year.
-        """
-        year_group = self.handle[f"/year/{year}"]
-        return year_group["train_id"][...], year_group["test_id"][...]
+            for window_name in model_group:
+                window_group = model_group[window_name]
+                if test_stale(window_group):
+                    del self.handle[f"/embeddings/{model_name}/{window_name}"]
 
     def add_data(self, data_fp: Union[Path, str], delete_copy: bool=False):
         """Collect data from another file and add it.
@@ -390,19 +401,21 @@ class DataModel():
             new_models = list(set(other.model_names) - set(self.model_names))
             for cur_model in new_models:
                 self.handle["/embeddings"].copy(other.handle[f"/embeddings/{cur_model}"], cur_model)
-            for year in other.handle["/year"].keys():
-                if year not in self.handle["/year"]:
-                    self.handle["/year"].copy(other.handle[f"/year/{year}"], year)
+            for window_name in other.handle["/windows"].keys():
+                if window_name not in self.handle["/windows"]:
+                    self.handle["/windows"].copy(other.handle[f"/windows/{window_name}"],
+                                                 window_name)
             for model_name in other.model_names:
-                for year in other.handle[f"/embeddings/{model_name}"].keys():
-                    group_name = f"/embeddings/{model_name}/{year}"
+                for window_name in other.handle[f"/embeddings/{model_name}"].keys():
+                    group_name = f"/embeddings/{model_name}/{window_name}"
                     if group_name not in self.handle:
                         self.handle[f"/embeddings/{model_name}"].copy(
                             other.handle[group_name],
-                            year
+                            window_name
                         )
-                if year in other.handle["/cpc"].keys() and year not in self.handle["/cpc"].keys():
-                    self.handle["/cpc"].copy(other.handle[f"/cpc/{year}"], year)
+                if (window_name in other.handle["/cpc"].keys()
+                        and window_name not in self.handle["/cpc"].keys()):
+                    self.handle["/cpc"].copy(other.handle[f"/cpc/{window_name}"], window_name)
         if delete_copy:
             Path(data_fp).unlink()
 
