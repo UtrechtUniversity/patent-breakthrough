@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 from pathlib import Path
-from typing import Union, Dict, List, Tuple, Iterable
+from typing import Dict, List, Tuple, Iterable
+import io
 
 import h5py
 import numpy as np
@@ -12,6 +13,7 @@ from scipy.sparse import csr_matrix
 from docembedder.models.utils import create_model, create_preprocessor
 from docembedder.models.base import AllEmbedType, BaseDocEmbedder
 from docembedder.preprocessor.preprocessor import Preprocessor
+from docembedder.typing import FileType
 from docembedder._version import get_versions
 
 
@@ -42,7 +44,7 @@ class DataModel():
     read_only:
         Open the file in read only mode, no writes possible.
     """
-    def __init__(self, hdf5_file: Union[Path, str], read_only: bool=False):
+    def __init__(self, hdf5_file: FileType, read_only: bool=False):
         self.hdf5_file = hdf5_file
         self.read_only = read_only
         if not read_only:
@@ -385,7 +387,7 @@ class DataModel():
                 if test_stale(window_group):
                     del self.handle[f"/embeddings/{model_name}/{window_name}"]
 
-    def add_data(self, data_fp: Union[Path, str], delete_copy: bool=False):
+    def add_data(self, data_fp: FileType, delete_copy: bool=False):
         """Collect data from another file and add it.
 
         Arguments
@@ -395,7 +397,7 @@ class DataModel():
         delete_copy:
             If True, delete the file that the data was collected from after collection.
         """
-        if not Path(data_fp).is_file():
+        if not (isinstance(data_fp, io.BytesIO) or Path(data_fp).is_file()):
             raise FileNotFoundError(f"Cannot find file {data_fp} to add to datamodel.")
         with self.__class__(data_fp, read_only=False) as other:
             new_models = list(set(other.model_names) - set(self.model_names))
@@ -416,7 +418,7 @@ class DataModel():
                 if (window_name in other.handle["/cpc"].keys()
                         and window_name not in self.handle["/cpc"].keys()):
                     self.handle["/cpc"].copy(other.handle[f"/cpc/{window_name}"], window_name)
-        if delete_copy:
+        if delete_copy and not isinstance(data_fp, io.BytesIO):
             Path(data_fp).unlink()
 
     def __enter__(self) -> DataModel:
@@ -424,5 +426,6 @@ class DataModel():
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._remove_detect_stale()
-        self.handle.close()
+        if not isinstance(self.hdf5_file, io.BytesIO):
+            self.handle.close()
         return exc_type is None

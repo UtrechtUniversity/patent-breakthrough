@@ -1,9 +1,10 @@
 """General utilities for performing runs."""
 
 from __future__ import annotations
+import io
 from multiprocessing import Pool
 from pathlib import Path
-from typing import Optional, Dict, Any, Sequence, List, Tuple
+from typing import Optional, Dict, Any, Sequence, List, Tuple, Union
 
 import numpy as np
 from tqdm import tqdm
@@ -13,7 +14,7 @@ from docembedder.datamodel import DataModel
 from docembedder.preprocessor.preprocessor import Preprocessor
 from docembedder.classification import PatentClassification
 from docembedder.models.base import BaseDocEmbedder
-from docembedder.typing import PathType, AllEmbedType, IntSequence
+from docembedder.typing import PathType, AllEmbedType, IntSequence, FileType
 
 
 STARTING_YEAR = 1838  # First year of the patents dataset
@@ -59,7 +60,7 @@ class SimulationSpecification():
         self.debug_max_patents = debug_max_patents
         self.n_patents_per_window = n_patents_per_window
 
-    def create_jobs(self, output_fp: PathType,  # pylint: disable=too-many-arguments, too-many-locals
+    def create_jobs(self, output_fp: FileType,  # pylint: disable=too-many-arguments, too-many-locals
                     models: Dict[str, BaseDocEmbedder],
                     preprocessors: Dict[str, Preprocessor],
                     cpc_fp: PathType,
@@ -92,11 +93,15 @@ class SimulationSpecification():
                                   for model in models
                                   if not data.has_run(prep, model, job_name)]
                 if compute_window or compute_cpc or len(compute_models) > 0:
+                    if isinstance(output_fp, io.BytesIO):
+                        temp_fp: FileType = io.BytesIO()
+                    else:
+                        temp_fp = Path(output_fp).parent / f"temp_{job_name}.h5"
                     jobs.append(Job(
                         job_data={
                             "name": job_name,
                             "output_fp": output_fp, "cpc_fp": cpc_fp,
-                            "temp_fp": Path(output_fp).parent / f"temp_{job_name}.h5",
+                            "temp_fp": temp_fp,
                             "year_list": year_list,
                             "patent_dir": patent_dir,
                         },
@@ -120,7 +125,7 @@ class SimulationSpecification():
                 f"c{self.cpc_samples_per_patent}-d{self.debug_max_patents}-"
                 f"n{self.n_patents_per_window}")
 
-    def check_file(self, output_fp: PathType) -> bool:
+    def check_file(self, output_fp: FileType) -> bool:
         """Check whether the output file has a simulation specification.
 
         If it doesn't have one, insert the supplied specification.
@@ -275,7 +280,7 @@ class Job():
             test_id, samples_per_patent=self.sim_spec.cpc_samples_per_patent)
         return cpc_cor
 
-    def run(self) -> Path:  # pylint: disable=too-many-locals
+    def run(self) -> FileType:  # pylint: disable=too-many-locals
         """Run the job.
 
         Returns
@@ -283,7 +288,7 @@ class Job():
         temp_fp:
             Path to the temporary file with the results.
         """
-        temp_fp = self.job_data["temp_fp"]
+        temp_fp: FileType = self.job_data["temp_fp"]
         window_name = self.job_data["name"]
 
         # print("Do the run", [prep.logger.level for prep in self.preps.values()])
@@ -314,7 +319,8 @@ class Job():
             cpc_cor = self.compute_cpc(patent_id)
 
         # Store the computed results to the temporary file.
-        temp_fp.unlink(missing_ok=True)
+        if not isinstance(temp_fp, io.BytesIO):
+            Path(temp_fp).unlink(missing_ok=True)
         with DataModel(temp_fp, read_only=False) as data:
             if self.need_window:
                 data.store_window(window_name, patent_id, year)
@@ -331,7 +337,7 @@ class Job():
 
 def insert_models(models: Dict[str, BaseDocEmbedder],
                   preprocessors: dict[str, Preprocessor],
-                  output_fp: PathType):
+                  output_fp: FileType):
     """Store the information of models in the data file.
 
     Arguments
@@ -344,7 +350,6 @@ def insert_models(models: Dict[str, BaseDocEmbedder],
     with DataModel(output_fp, read_only=False) as data:
         for model_name, model in models.items():
             if not data.has_model(model_name):
-                print(model_name, model)
                 data.store_model(model_name, model)
         for prep_name, prep in preprocessors.items():
             if not data.has_prep(prep_name):
@@ -356,7 +361,7 @@ def _pool_worker(job):
 
 
 def run_jobs_multi(jobs: Sequence[Job],
-                   output_fp: PathType,
+                   output_fp: FileType,
                    n_jobs: int=10,
                    progress_bar: bool=True):
     """Run jobs with multiprocessing.
@@ -390,7 +395,7 @@ def run_jobs_multi(jobs: Sequence[Job],
 
 
 def run_jobs_single(jobs: Sequence[Job],
-                    output_fp: PathType,
+                    output_fp: FileType,
                     progress_bar: bool=True):
     """Run jobs using a single thread/process.
 
@@ -424,7 +429,7 @@ def run_models(preprocessors: Optional[dict[str, Preprocessor]],  # pylint: disa
                models: dict[str, BaseDocEmbedder],
                sim_spec: SimulationSpecification,
                patent_dir: PathType,
-               output_fp: PathType,
+               output_fp: FileType,
                cpc_fp: PathType,
                n_jobs: int=10,
                progress_bar: bool=True):
