@@ -4,7 +4,7 @@ from __future__ import annotations
 import io
 from multiprocessing import Pool
 from pathlib import Path
-from typing import Optional, Dict, Any, Sequence, List, Tuple, Union
+from typing import Optional, Dict, Any, Sequence, List, Tuple
 
 import numpy as np
 from tqdm import tqdm
