@@ -85,13 +85,13 @@ class SimulationSpecification():
             while cur_start < self.year_end:
                 year_list = list(range(cur_start, cur_end))
                 job_name = f"{cur_start}-{cur_end-1}"
-                compute_year = not data.has_year(job_name)
+                compute_window = not data.has_window(job_name)
                 compute_cpc = not data.has_cpc(job_name)
                 compute_models = [(prep, model)
                                   for prep in preprocessors
                                   for model in models
                                   if not data.has_run(prep, model, job_name)]
-                if compute_year or compute_cpc or len(compute_models) > 0:
+                if compute_window or compute_cpc or len(compute_models) > 0:
                     jobs.append(Job(
                         job_data={
                             "name": job_name,
@@ -100,7 +100,7 @@ class SimulationSpecification():
                             "year_list": year_list,
                             "patent_dir": patent_dir,
                         },
-                        need_window=compute_year,
+                        need_window=compute_window,
                         need_cpc=compute_cpc,
                         need_models=compute_models,
                         sim_spec=self,
@@ -207,8 +207,8 @@ class Job():
                 pass
         return patents
 
-    def compute_train_test(self, patents: List[Dict[str, Any]]) -> Tuple[npt.NDArray[np.int_],
-                                                                         npt.NDArray[np.int_]]:
+    def compute_patent_year(self, patents: List[Dict[str, Any]]) -> Tuple[npt.NDArray[np.int_],
+                                                                          npt.NDArray[np.int_]]:
         """Compute the train/test patent numbers.
 
         Arguments
@@ -218,29 +218,32 @@ class Job():
 
         Returns
         -------
-        train_id, test_id:
+        Patent_id, year:
             Training and testing patent numbers.
         """
         # Get the train/test id's if they haven't been computed.
         if self.sim_spec.n_patents_per_window is None:
-            train_id = [pat["patent"] for pat in patents]
+            patent_id = [pat["patent"] for pat in patents]
+            year = [pat["year"] for pat in patents]
         else:
-            train_id = np.random.choice(
-                [pat["patent"] for pat in patents],
-                size=min(len(patents), self.sim_spec.n_patents_per_window)).tolist()
-        test_id = train_id
-        return np.array(train_id), np.array(test_id)
+            idx = np.random.choice(
+                len(patents),
+                size=min(len(patents), self.sim_spec.n_patents_per_window))
+            patent_id = [patents[i]["patent"] for i in idx]
+            year = [patents[i]["year"] for i in idx]
+            # train_id = np.random.choice(
+                # [pat["patent"] for pat in patents],
+                # size=).tolist()
+        # test_id = train_id
+        return np.array(patent_id), np.array(year)
 
-    def compute_embeddings(self, model_name: str, train_documents: Sequence[str],
-                           test_documents: Sequence[str]) -> AllEmbedType:
+    def compute_embeddings(self, model_name: str, documents: Sequence[str]) -> AllEmbedType:
         """Compute the embeddings.
 
         Arguments
         ---------
-        train_documents:
-            Documents for training the models.
-        test_documents:
-            Documents for testing the models.
+        documents:
+            Documents for training/testing the models.
 
         Returns
         -------
@@ -249,8 +252,8 @@ class Job():
         """
         # all_embeddings = {}
         # for model_name in self.need_models:
-        self.models[model_name].fit(train_documents)
-        return self.models[model_name].transform(test_documents)
+        self.models[model_name].fit(documents)
+        return self.models[model_name].transform(documents)
         # return all_embeddings
 
     def compute_cpc(self, test_id: IntSequence) -> Dict[str, Any]:
@@ -281,7 +284,7 @@ class Job():
             Path to the temporary file with the results.
         """
         temp_fp = self.job_data["temp_fp"]
-        name = self.job_data["name"]
+        window_name = self.job_data["name"]
 
         # print("Do the run", [prep.logger.level for prep in self.preps.values()])
 
@@ -289,41 +292,36 @@ class Job():
         patents = self.get_patents(last_prep)
 
         if self.need_window:
-            train_id, test_id = self.compute_train_test(patents)
+            patent_id, year = self.compute_patent_year(patents)
         else:
             # Retrieve the train/test id's if the have been computed.
             with DataModel(self.job_data["output_fp"], read_only=True) as data:
-                train_id, test_id = data.get_train_test_id(name)
+                patent_id, year = data.load_window(window_name)
 
-        train_documents = [pat["contents"] for pat in patents if pat["patent"] in train_id]
-        test_documents = [pat["contents"] for pat in patents if pat["patent"] in test_id]
+        documents = [pat["contents"] for pat in patents if pat["patent"] in patent_id]
 
         all_embeddings = {}
         for cur_prep, cur_model in self.need_models:
-            # print([prep.logger.level for prep in self.preps.values()])
-
             if cur_prep != last_prep:
                 patents = self.get_patents(cur_prep)
-                train_documents = [pat["contents"] for pat in patents if pat["patent"] in train_id]
-                test_documents = [pat["contents"] for pat in patents if pat["patent"] in test_id]
+                documents = [pat["contents"] for pat in patents if pat["patent"] in patent_id]
                 last_prep = cur_prep
             combi_name = f"{cur_prep}-{cur_model}"
-            all_embeddings[combi_name] = self.compute_embeddings(
-                cur_model, train_documents, test_documents)
+            all_embeddings[combi_name] = self.compute_embeddings(cur_model, documents)
 
         # Compute the CPC correlations
         if self.need_cpc:
-            cpc_cor = self.compute_cpc(test_id)
+            cpc_cor = self.compute_cpc(patent_id)
 
         # Store the computed results to the temporary file.
         temp_fp.unlink(missing_ok=True)
         with DataModel(temp_fp, read_only=False) as data:
             if self.need_window:
-                data.store_year(name, test_id, train_id)
+                data.store_window(window_name, patent_id, year)
             if self.need_cpc:
-                data.store_cpc_correlations(name, cpc_cor)
+                data.store_cpc_correlations(window_name, cpc_cor)
             for model_name, embeddings in all_embeddings.items():
-                data.store_embeddings(name, model_name, embeddings)
+                data.store_embeddings(window_name, model_name, embeddings)
         return temp_fp
 
     def __str__(self):

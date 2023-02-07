@@ -351,7 +351,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-pub
         for idx, chunk in enumerate(chunks):
             c_upper = sum(map(self.count_upper_case_letters, chunk))
             c_all = sum(map(len, chunk))
-            frac = (c_upper / c_all)
+            frac = c_upper / c_all
             if idx > 10 and frac < frac_threshold:
                 break
 
