@@ -53,6 +53,7 @@ class DataModel():
                 self.handle.create_group("models")
                 self.handle.create_group("preprocessors")
                 self.handle.create_group("cpc")
+                self.handle.create_group("impacts")
                 self.handle.attrs["docembedder-version"] = get_versions()["version"]
         else:
             self.handle = h5py.File(hdf5_file, "r")
@@ -286,10 +287,32 @@ class DataModel():
         prep = create_preprocessor(prep_type, prep_dict)
         return prep
 
+    def store_impacts(self,
+                         window_name,
+                         model_name,
+                         impacts,
+                         overwrite = False):
+
+        dataset_group_str = f"/impacts/{model_name}/{window_name}"
+        if dataset_group_str in self.handle and overwrite:
+            del self.handle[dataset_group_str]
+        elif dataset_group_str in self.handle:
+            return
+        dataset_group = self.handle.create_group(dataset_group_str)
+
+
+        dataset_group.create_dataset("array", data=impacts)
+        dataset_group.attrs["dtype"] = "array"
+
     @property
     def model_names(self) -> List["str"]:
         """Names of all stored models."""
         return list(self.handle["embeddings"].keys())
+
+    @property
+    def windows_list(self) -> List["str"]:
+        """Names of all stored models."""
+        return list(self.handle["windows"].keys())
 
     def iterate_window_models(self) -> Iterable[Tuple[str, str]]:
         """Iterate over all available windows/models.
