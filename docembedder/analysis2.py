@@ -11,6 +11,9 @@ from tqdm import tqdm
 from docembedder.datamodel import DataModel
 from docembedder.models.base import AllEmbedType
 
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy
+
 
 def _compute_cpc_cor(embeddings: AllEmbedType,
                      cpc_res: Dict[str, Any],
@@ -46,6 +49,59 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
     """
     def __init__(self, data: DataModel):
         self.data = data
+
+    def compute_impact(self):
+        list_models = self.data.model_names
+        list_windows = self.data.windows_list
+
+        for model in list_models:
+            for year in list_windows:
+                patent_ids, patent_years = self.data.load_window(year)
+                embs = self.data.load_embeddings(year, model)
+
+                ids_years_embs = np.array(list(zip(patent_ids, patent_years, embs)))
+                impact_list = []
+                
+                for p in ids_years_embs:
+                    backward_similarity = 0
+                    forward_similarity = 0
+                    len_backward = 0
+                    len_forward = 0
+                    focus_index = p[0]
+                    focus_year = p[1]
+                    focus_emb = p[2]
+
+                    for patent_index, patent_year, patent_emb in ids_years_embs:
+                        if patent_index == focus_index:
+                            continue
+                        if patent_year <= focus_year:
+                            backward_similarity += cosine_similarity(focus_emb, patent_emb)
+                            len_backward += 1
+                        elif patent_year > focus_year:
+                            forward_similarity += cosine_similarity(focus_emb, patent_emb)
+                            len_forward += 1
+
+                    if len_backward == 0:
+                        average_backward_similarity = 0
+                    else:
+                        average_backward_similarity = backward_similarity / len_backward
+                    if len_forward == 0:
+                        average_forward_similarity = 0
+                    else:
+                        average_forward_similarity = forward_similarity / len_forward
+
+                    if average_forward_similarity == 0:
+                        impact = None
+                    else:
+                        impact = average_backward_similarity / average_forward_similarity
+                        impact = impact.tolist()
+                        impact_list.append(impact[0][0])
+
+                impact_arr = numpy.array(impact_list)
+                self.data.store_impacts(year, model, impact_arr)
+                # print(impact_arr)
+                    # t = impact.tolist()
+                    # print(t[0][0])
 
     def cpc_correlations(self, models: Optional[Union[str, List[str]]]=None
                          ) -> Dict[str, Dict[str, List[float]]]:
