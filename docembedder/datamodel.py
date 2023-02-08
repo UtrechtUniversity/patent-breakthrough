@@ -17,9 +17,7 @@ from docembedder._version import get_versions
 
 class DataModel():
     """Data model for and HDF5 file that keeps embeddings results.
-
     The groups are ordered as follows:
-
     embeddings: Stores all the embeddings
         {model}: Embeddings are sorted by model name first.
             {window}: Each window/year of embeddings has their own dataset.
@@ -34,7 +32,6 @@ class DataModel():
             correlation: Array with correlation between i and j.
     models: Stores the models that were run.
         {model}: Group with attributes to recreate a model.
-
     Arguments
     ---------
     hdf5_file:
@@ -64,7 +61,6 @@ class DataModel():
                      year: npt.NDArray[np.int_]
                      ):
         """Store the patent numbers used for a window or check if they're the same.
-
         Arguments
         ---------
         window_name:
@@ -95,12 +91,10 @@ class DataModel():
 
     def load_window(self, window_name: str) -> tuple[npt.NDArray[np.int_], npt.NDArray[np.int_]]:
         """Load the patent numbers and year of issue.
-
         Arguments
         ---------
         window_name:
             Name of the window to load.
-
         Returns
         -------
         patent_id:
@@ -119,7 +113,6 @@ class DataModel():
                          embeddings: AllEmbedType,
                          overwrite: bool=False):
         """Store embeddings for a window/year.
-
         Arguments
         ---------
         window_name:
@@ -150,14 +143,12 @@ class DataModel():
 
     def load_embeddings(self, window_name: str, model_name: str) -> AllEmbedType:
         """Load embeddings for a window/year.
-
         Arguments
         ---------
         window_name:
             Year or window name.
         model_name:
             Name of the model that generated the embeddings.
-
         Returns
         -------
         embeddings:
@@ -176,7 +167,6 @@ class DataModel():
 
     def store_cpc_correlations(self, window_name: str, data: Dict[str, npt.NDArray]):
         """Store CPC correlations for a year/window.
-
         Arguments
         ---------
         window:
@@ -194,12 +184,10 @@ class DataModel():
 
     def load_cpc_correlations(self, window_name: str) -> Dict[str, npt.NDArray]:
         """Store CPC correlations for a year/window.
-
         Arguments
         ---------
         window_name:
             Window or year of the CPC correlations
-
         Returns
         -------
         data:
@@ -214,7 +202,6 @@ class DataModel():
 
     def store_cpc_spearmanr(self, window_name: str, model_name: str, correlation: float):
         """Store CPC spearmanr results.
-
         Arguments
         ---------
         window_name:
@@ -228,7 +215,6 @@ class DataModel():
 
     def load_cpc_spearmanr(self, window_name: str, model_name: str) -> float:
         """Load CPC spearmanr results.
-
         Arguments
         ---------
         window_name:
@@ -242,7 +228,6 @@ class DataModel():
 
     def store_model(self, model_name: str, model: BaseDocEmbedder):
         """Store the settings of a model, to be reinitialized
-
         Arguments
         ---------
         model_name:
@@ -257,12 +242,10 @@ class DataModel():
 
     def load_model(self, model_name: str) -> BaseDocEmbedder:
         """Load model from the settings in the file.
-
         Arguments
         ---------
         model_name:
             Name of the model to load from file.
-
         Returns
         -------
         model:
@@ -288,10 +271,23 @@ class DataModel():
         return prep
 
     def store_impacts(self,
-                         window_name,
-                         model_name,
-                         impacts,
-                         overwrite = False):
+                         window_name: str,
+                         model_name: str,
+                         impacts: np.ndarray,
+                         overwrite: bool = False):
+        """Store impacts for a window/year.
+                Arguments
+                ---------
+                window_name:
+                    Year or window name.
+                model_name:
+                    Name of the model that generated the embeddings.
+                impacts:
+                    An array containing the impacts per model/window
+                overwrite:
+                    If True, overwrite embeddings if they exist.
+                """
+
 
         dataset_group_str = f"/impacts/{model_name}/{window_name}"
         if dataset_group_str in self.handle and overwrite:
@@ -301,7 +297,7 @@ class DataModel():
         dataset_group = self.handle.create_group(dataset_group_str)
 
 
-        dataset_group.create_dataset("array", data=impacts)
+        dataset_group.create_dataset("data", data=impacts)
         dataset_group.attrs["dtype"] = "array"
 
     @property
@@ -316,7 +312,6 @@ class DataModel():
 
     def iterate_window_models(self) -> Iterable[Tuple[str, str]]:
         """Iterate over all available windows/models.
-
         Returns
         -------
         window, model_name:
@@ -330,7 +325,6 @@ class DataModel():
 
     def has_run(self, prep_name: str, embed_name: str, window_name: str) -> bool:
         """Compute whether a model has run on a certain window/year.
-
         Arguments
         ---------
         prep_name:
@@ -344,7 +338,6 @@ class DataModel():
 
     def has_cpc(self, window_name: str) -> bool:
         """Compute whether there is CPC correlation data.
-
         Arguments
         ---------
         window_name:
@@ -354,7 +347,6 @@ class DataModel():
 
     def has_window(self, window_name: str) -> bool:
         """Compute whether there is already an entry for a window/year.
-
         Arguments
         ---------
         window_name:
@@ -364,7 +356,6 @@ class DataModel():
 
     def has_model(self, model_name: str) -> bool:
         """Compute whether there is already an entry for a model.
-
         Arguments
         ---------
         model_name:
@@ -410,7 +401,6 @@ class DataModel():
 
     def add_data(self, data_fp: Union[Path, str], delete_copy: bool=False):
         """Collect data from another file and add it.
-
         Arguments
         ---------
         data_fp:
