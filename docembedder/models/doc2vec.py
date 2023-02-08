@@ -13,6 +13,8 @@ import nltk
 
 from docembedder.models.base import BaseDocEmbedder
 
+from hyperopt import hp
+from hyperopt.pyll.base import scope
 
 class D2VEmbedder(BaseDocEmbedder):
     """ Doc2Vec
@@ -94,4 +96,12 @@ class D2VEmbedder(BaseDocEmbedder):
             "vector_size": self.vector_size,
             "min_count": self.min_count,
             "epoch": self.epoch,
+        }
+
+    @classmethod
+    def hyper_space(cls) -> Dict[str, Any]:
+        return {
+            "vector_size": scope.int(hp.quniform("vector_size", 100, 300, 1)),
+            "min_count": scope.int(hp.quniform("min_count", 1, 15, 1)),
+            "epoch": scope.int(hp.quniform("epoch", 8, 15, 1)),
         }

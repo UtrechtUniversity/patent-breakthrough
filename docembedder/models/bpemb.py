@@ -11,6 +11,8 @@ from numpy import typing as npt
 
 from docembedder.models.base import BaseDocEmbedder
 
+from hyperopt import hp
+from hyperopt.pyll.base import scope
 
 def _get_prefac(model: BPEmb, documents: Union[Iterable[str], Sequence[str]]) -> Dict[str, float]:
     """Compute the prefactor for each (sub)word.
@@ -96,4 +98,11 @@ class BPembEmbedder(BaseDocEmbedder):
         return {
             "vector_size": 300,
             "vocab_size": 200000,
+        }
+
+    @classmethod
+    def hyper_space(cls) -> Dict[str, Any]:
+        return {
+            "vector_size": scope.int(hp.quniform("vector_size", 200, 400, 1)),
+            "vocab_size": scope.int(hp.quniform("vocab_size", 100000, 300000, 1)),
         }

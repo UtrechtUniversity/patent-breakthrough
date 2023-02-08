@@ -9,6 +9,7 @@ from nltk.stem import SnowballStemmer
 
 from docembedder.models.base import BaseDocEmbedder
 
+from hyperopt import hp
 
 def _tokenizer(text):
     tokens = nltk.word_tokenize(text)
@@ -100,4 +101,20 @@ class TfidfEmbedder(BaseDocEmbedder):  # pylint: disable=too-many-instance-attri
             "sublinear_tf": self.sublinear_tf,
             "min_df": self.min_df,
             "max_df": self.max_df,
+        }
+
+    @classmethod
+    def hyper_space(cls) -> Dict[str, Any]:
+
+        min_df = hp.uniform("min_df", 0, 1)
+        max_df = hp.uniform("max_df", 0, 1)
+
+        return {
+            "ngram_max": hp.choice("ngram_max", [1, 2, 3, 4]),
+            "stop_words": hp.choice("stop_words", ["english", None]),
+            "stem": hp.choice("stem", [True, False]),
+            "norm": hp.choice("norm", ["l1", "l2", None]),
+            "sublinear_tf": hp.choice("sublinear_tf", [True, False]),
+            "min_df": min_df * max_df,
+            "max_df": max_df
         }
