@@ -51,6 +51,16 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
         self.data = data
 
     def compute_impact(self):
+        """ Compute impact using cosine similarity between document vectors
+        
+        Function to calculate the impact of the focused patent for a window of the years.
+        Impact score is calculated as:
+        the average of the backward similarity / the average of the forward similarity.
+
+        Note that a negative value for impact implies that there is no valid impact for that
+        patent available.
+        
+        """
         list_models = self.data.model_names
         list_windows = self.data.windows_list
 
@@ -61,15 +71,16 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
 
                 ids_years_embs = np.array(list(zip(patent_ids, patent_years, embs)))
                 impact_list = []
+                impact = 0
                 
-                for p in ids_years_embs:
+                for item in ids_years_embs:
                     backward_similarity = 0
                     forward_similarity = 0
                     len_backward = 0
                     len_forward = 0
-                    focus_index = p[0]
-                    focus_year = p[1]
-                    focus_emb = p[2]
+                    focus_index = item[0]
+                    focus_year = item[1]
+                    focus_emb = item[2]
 
                     for patent_index, patent_year, patent_emb in ids_years_embs:
                         if patent_index == focus_index:
@@ -82,16 +93,16 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
                             len_forward += 1
 
                     if len_backward == 0:
-                        average_backward_similarity = 0
+                        average_backward_similarity = -1
                     else:
                         average_backward_similarity = backward_similarity / len_backward
                     if len_forward == 0:
-                        average_forward_similarity = 0
+                        average_forward_similarity = -1
                     else:
                         average_forward_similarity = forward_similarity / len_forward
 
                     if average_forward_similarity == 0:
-                        impact = None
+                        impact = -1
                     else:
                         impact = average_backward_similarity / average_forward_similarity
                         impact = impact.tolist()
@@ -99,9 +110,7 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
 
                 impact_arr = numpy.array(impact_list)
                 self.data.store_impacts(year, model, impact_arr)
-                # print(impact_arr)
-                    # t = impact.tolist()
-                    # print(t[0][0])
+
 
     def cpc_correlations(self, models: Optional[Union[str, List[str]]]=None
                          ) -> Dict[str, Dict[str, List[float]]]:
