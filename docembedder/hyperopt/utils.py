@@ -1,7 +1,5 @@
 from typing import Optional, Any, Dict
 from pathlib import Path
-import json
-from hashlib import md5
 import io
 import numpy as np
 from docembedder.utils import run_models
