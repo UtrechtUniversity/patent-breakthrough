@@ -65,10 +65,6 @@ class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
                                  algo=tpe.suggest,
                                  max_evals=max_evals)
 
-    @classmethod
-    def hash_params(cls, prefix: str, params: Dict[str, Any]) -> str:
-        return prefix + md5(json.dumps(params).encode('utf-8')).hexdigest()
-
     def _general_objective_func(self, label: str, model: BaseDocEmbedder) -> Dict[str, Any]:
         models = {label: model}
         sim_spec = SimulationSpecification(year_start=self.year_start,
@@ -91,7 +87,7 @@ class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
 
     def _tfidf_objective_func(self, params: Dict[str, Any]) -> Dict[str, Any]:
         return self._general_objective_func(
-            label=self.hash_params(prefix="tfidf-", params=params),
+            label="tfidf",
             model=TfidfEmbedder(
                 max_df=params["max_df"],
                 min_df=params["min_df"],
@@ -104,7 +100,7 @@ class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
 
     def _d2v_objective_func(self, params: Dict[str, Any]) -> Dict[str, Any]:
         return self._general_objective_func(
-            label=self.hash_params(prefix="d2v-", params=params),
+            label="d2v",
             model=D2VEmbedder(
                 vector_size=params["vector_size"],
                 min_count=params["min_count"],
@@ -113,13 +109,13 @@ class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
 
     def _countvec_objective_func(self, params: Dict[str, Any]) -> Dict[str, Any]:
         return self._general_objective_func(
-            label=self.hash_params(prefix="countvec-", params=params),
+            label="countvec",
             model=CountVecEmbedder(method=params["method"]
                                    ))
 
     def _bpemp_objective_func(self, params: Dict[str, Any]) -> Dict[str, Any]:
         return self._general_objective_func(
-            label=self.hash_params(prefix="bpemp-", params=params),
+            label="bpemp",
             model=BPembEmbedder(
                 vector_size=params["vector_size"],
                 vocab_size=params["vocab_size"]
@@ -127,6 +123,6 @@ class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
 
     def _bert_objective_func(self, params: Dict[str, Any]) -> Dict[str, Any]:
         return self._general_objective_func(
-            label=self.hash_params(prefix="bert-", params=params),
+            label="bert",
             model=BERTEmbedder(pretrained_model=params["pretrained_model"]
                                ))
