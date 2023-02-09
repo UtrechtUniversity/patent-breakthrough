@@ -100,6 +100,7 @@ class D2VEmbedder(BaseDocEmbedder):
 
     @classmethod
     def hyper_space(cls) -> Dict[str, Any]:
+        """Parameter space for hyperopt."""
         return {
             "vector_size": scope.int(hp.quniform("vector_size", 100, 300, 1)),
             "min_count": scope.int(hp.quniform("min_count", 1, 15, 1)),

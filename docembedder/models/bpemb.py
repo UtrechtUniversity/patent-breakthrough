@@ -102,6 +102,7 @@ class BPembEmbedder(BaseDocEmbedder):
 
     @classmethod
     def hyper_space(cls) -> Dict[str, Any]:
+        """Parameter space for hyperopt."""
         return {
             "vector_size": scope.int(hp.quniform("vector_size", 200, 400, 1)),
             "vocab_size": scope.int(hp.quniform("vocab_size", 100000, 300000, 1)),

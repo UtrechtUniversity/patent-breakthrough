@@ -43,6 +43,7 @@ class BERTEmbedder(BaseDocEmbedder):
 
     @classmethod
     def hyper_space(cls) -> Dict[str, Any]:
+        """Parameter space for hyperopt."""
         return {
             "pretrained_model": hp.choice("pretrained_model",
                                           ["prithivida/bert-for-patents-64d",

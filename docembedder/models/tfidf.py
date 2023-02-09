@@ -105,7 +105,7 @@ class TfidfEmbedder(BaseDocEmbedder):  # pylint: disable=too-many-instance-attri
 
     @classmethod
     def hyper_space(cls) -> Dict[str, Any]:
-
+        """Parameter space for hyperopt."""
         min_df = hp.uniform("min_df", 0, 1)
         max_df = hp.uniform("max_df", 0, 1)
 

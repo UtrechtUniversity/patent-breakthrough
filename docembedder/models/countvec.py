@@ -46,6 +46,7 @@ class CountVecEmbedder(BaseDocEmbedder):
 
     @classmethod
     def hyper_space(cls) -> dict[str, Any]:
+        """Parameter space for hyperopt."""
         return {
             "method": hp.choice("method", ["prop", "sigmoid"]),
         }
