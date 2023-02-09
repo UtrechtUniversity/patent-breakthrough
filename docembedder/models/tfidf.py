@@ -109,6 +109,9 @@ class TfidfEmbedder(BaseDocEmbedder):  # pylint: disable=too-many-instance-attri
         min_df = hp.uniform("min_df", 0, 1)
         max_df = hp.uniform("max_df", 0, 1)
 
+        # min_df * max_df is a workaround to guarantee min_df < max_df
+        # as the nesting of hp.choice doesn't work anymore in hyperopt v0.2.7 (bug?)
+
         return {
             "ngram_max": hp.choice("ngram_max", [1, 2, 3, 4]),
             "stop_words": hp.choice("stop_words", ["english", None]),
