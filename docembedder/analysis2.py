@@ -13,6 +13,7 @@ from docembedder.datamodel import DataModel
 from docembedder.models.base import AllEmbedType
 
 # pylint: disable=R0914
+# pylint: disable=R0904
 def _compute_cpc_cor(embeddings: AllEmbedType,
                      cpc_res: Dict[str, Any],
                      chunk_size: int=10000) -> float:
