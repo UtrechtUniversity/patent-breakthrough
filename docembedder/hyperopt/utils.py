@@ -1,19 +1,15 @@
 """Utils for model parameter optimization using hyperopt."""
 
-
-from typing import Optional, Any, Dict
+from typing import Optional, Any, Dict, Callable
 from pathlib import Path
 import io
-import numpy as np
 from collections import defaultdict
+import numpy as np
 from docembedder.utils import run_models
-from docembedder.models import TfidfEmbedder, D2VEmbedder, CountVecEmbedder, BPembEmbedder, \
-    BERTEmbedder
 from docembedder.utils import SimulationSpecification
 from docembedder import DataModel
 from docembedder.analysis2 import DocAnalysis
 from docembedder.preprocessor.preprocessor import Preprocessor
-from docembedder.models.base import BaseDocEmbedder
 from hyperopt import STATUS_OK, fmin, tpe, Trials
 
 
@@ -43,7 +39,6 @@ class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
         self.best: Dict = defaultdict(fmin)
         self.trials: Dict = defaultdict(Trials)
 
-
     def get_best(self):
         """
         returns best result of each optimizing function
@@ -60,116 +55,47 @@ class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
         """
         return self.trials
 
-    def optimize_tfidf(self, max_evals: int = 10) -> None:
-        """
-        optimization function for Tfidf-model
-        """
-        self.best['tfidf'] = fmin(self._tfidf_objective_func,
-                                  space=TfidfEmbedder.hyper_space(),
-                                  algo=tpe.suggest,
-                                  max_evals=max_evals,
-                                  trials=self.trials['tfidf'])
-
-    def optimize_d2v(self, max_evals: int = 10) -> None:
-        """
-        optimization function for Doc2Vec-model
-        """
-        self.best['d2v'] = fmin(self._d2v_objective_func,
-                                space=D2VEmbedder.hyper_space(),
+    def optimize(self,
+                 label: str,
+                 objective_function: Callable,
+                 space: Dict,
+                 max_evals: int = 10) -> None:
+        """hyperopt optimization function"""        
+        self.best[label] = fmin(objective_function,
+                                space=space,
                                 algo=tpe.suggest,
                                 max_evals=max_evals,
-                                trials=self.trials['d2v'])
+                                trials=self.trials[label])
 
-    def optimize_countvec(self, max_evals: int = 10) -> None:
-        """
-        optimization function for CountVec-model
-        """
-        self.best['countvec'] = fmin(self._countvec_objective_func,
-                                     space=CountVecEmbedder.hyper_space(),
-                                     algo=tpe.suggest,
-                                     max_evals=max_evals,
-                                     trials=self.trials['countvec'])
+    def get_objective_func(self, **kwargs) -> Callable[[Dict[str, Any]], Dict[str, Any]]:
+        """creates general loss function"""
 
-    def optimize_bpemp(self, max_evals: int = 10) -> None:
-        """
-        optimization function for BPEmb-model
-        """
-        self.best['bpemp'] = fmin(self._bpemp_objective_func,
-                                  space=BPembEmbedder.hyper_space(),
-                                  algo=tpe.suggest,
-                                  max_evals=max_evals,
-                                  trials=self.trials['bpemp'])
+        def objective_func(params: Dict[str, Any]) -> Dict[str, Any]:
+            """hyperopt objective function"""
+            label = kwargs['label']
 
-    def optimize_bert(self, max_evals: int = 10) -> None:
-        """
-        optimization function for Bert-models
-        """
-        self.best['bert'] = fmin(self._bert_objective_func,
-                                 space=BERTEmbedder.hyper_space(),
-                                 algo=tpe.suggest,
-                                 max_evals=max_evals,
-                                 trials=self.trials['bert'])
+            sim_spec = SimulationSpecification(year_start=self.year_start,
+                                            year_end=self.year_end,
+                                            window_size=self.window_size,
+                                            debug_max_patents=self.debug_max_patents)
 
-    def _general_objective_func(self, label: str, model: BaseDocEmbedder) -> Dict[str, Any]:
-        models = {label: model}
-        sim_spec = SimulationSpecification(year_start=self.year_start,
-                                           year_end=self.year_end, 
-                                           window_size=self.window_size,
-                                           debug_max_patents=self.debug_max_patents)
+            output_fp = io.BytesIO()
 
-        output_fp = io.BytesIO()
+            run_models(preprocessors=self.preprocessors,
+                       models={label: kwargs['model'](**params)},
+                       sim_spec=sim_spec,
+                       patent_dir=self.patent_dir,
+                       output_fp=output_fp,
+                       cpc_fp=self.cpc_fp,
+                       n_jobs=self.n_jobs)
 
-        run_models(preprocessors=self.preprocessors, models=models, sim_spec=sim_spec,
-                   patent_dir=self.patent_dir, output_fp=output_fp, cpc_fp=self.cpc_fp,
-                   n_jobs=self.n_jobs)
+            pp_prefix = "default-"
 
-        pp_prefix = "default-"
+            with DataModel(output_fp, read_only=False) as data:
+                analysis = DocAnalysis(data)
+                correlations = analysis.cpc_correlations(models=f"{pp_prefix}{label}")
 
-        with DataModel(output_fp, read_only=False) as data:
-            analysis = DocAnalysis(data)
-            correlations = analysis.cpc_correlations(models=f"{pp_prefix}{label}")
+            return {'loss': (1 - np.mean(correlations[f"{pp_prefix}{label}"]["correlations"])),
+                    'status': STATUS_OK}
 
-        return {'loss': (1 - np.mean(correlations[f"{pp_prefix}{label}"]["correlations"])),
-                'status': STATUS_OK}
-
-    def _tfidf_objective_func(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        return self._general_objective_func(
-            label="tfidf",
-            model=TfidfEmbedder(
-                max_df=params["max_df"],
-                min_df=params["min_df"],
-                ngram_max=params["ngram_max"],
-                norm=params["norm"],
-                stem=params["stem"],
-                stop_words=params["stop_words"],
-                sublinear_tf=params["sublinear_tf"]
-            ))
-
-    def _d2v_objective_func(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        return self._general_objective_func(
-            label="d2v",
-            model=D2VEmbedder(
-                vector_size=params["vector_size"],
-                min_count=params["min_count"],
-                epoch=params["epoch"]
-            ))
-
-    def _countvec_objective_func(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        return self._general_objective_func(
-            label="countvec",
-            model=CountVecEmbedder(method=params["method"]
-                                   ))
-
-    def _bpemp_objective_func(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        return self._general_objective_func(
-            label="bpemp",
-            model=BPembEmbedder(
-                vector_size=params["vector_size"],
-                vocab_size=params["vocab_size"]
-            ))
-
-    def _bert_objective_func(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        return self._general_objective_func(
-            label="bert",
-            model=BERTEmbedder(pretrained_model=params["pretrained_model"]
-                               ))
+        return objective_func
