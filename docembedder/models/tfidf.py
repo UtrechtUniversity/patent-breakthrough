@@ -10,6 +10,7 @@ from nltk.stem import SnowballStemmer
 from docembedder.models.base import BaseDocEmbedder
 
 from hyperopt import hp
+from hyperopt.pyll.base import scope
 
 def _tokenizer(text):
     tokens = nltk.word_tokenize(text)
@@ -106,11 +107,6 @@ class TfidfEmbedder(BaseDocEmbedder):  # pylint: disable=too-many-instance-attri
     @classmethod
     def hyper_space(cls) -> Dict[str, Any]:
         """Parameter space for hyperopt."""
-        min_df = hp.uniform("min_df", 0, 1)
-        max_df = hp.uniform("max_df", 0, 1)
-
-        # min_df * max_df is a workaround to guarantee min_df < max_df
-        # as the nesting of hp.choice doesn't work anymore in hyperopt v0.2.7 (bug?)
 
         return {
             "ngram_max": hp.choice("ngram_max", [1, 2, 3, 4]),
@@ -118,6 +114,6 @@ class TfidfEmbedder(BaseDocEmbedder):  # pylint: disable=too-many-instance-attri
             "stem": hp.choice("stem", [True, False]),
             "norm": hp.choice("norm", ["l1", "l2", None]),
             "sublinear_tf": hp.choice("sublinear_tf", [True, False]),
-            "min_df": min_df * max_df,
-            "max_df": max_df
+            "min_df": scope.int(hp.uniform("min_df", 0, 10)),
+            "max_df": hp.uniform("max_df", 0.2, 1)
         }

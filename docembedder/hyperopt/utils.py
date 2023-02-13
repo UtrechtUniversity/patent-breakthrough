@@ -5,6 +5,7 @@ from typing import Optional, Any, Dict
 from pathlib import Path
 import io
 import numpy as np
+from collections import defaultdict
 from docembedder.utils import run_models
 from docembedder.models import TfidfEmbedder, D2VEmbedder, CountVecEmbedder, BPembEmbedder, \
     BERTEmbedder
@@ -28,23 +29,20 @@ class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
                  n_jobs: int,
                  preprocessors: Optional[Dict[str, Preprocessor]],
                  cpc_fp: Path,
-                 patent_dir: Path
+                 patent_dir: Path,
+                 debug_max_patents: Optional[int]=1000,
                  ) -> None:
         self.year_start = year_start
         self.year_end = year_end
         self.window_size = window_size
         self.n_jobs = n_jobs
+        self.debug_max_patents = debug_max_patents
         self.preprocessors = preprocessors
         self.cpc_fp = cpc_fp
         self.patent_dir = patent_dir
-        self.best: Dict = {}
-        self.trials: Dict = {
-            'tfidf': Trials(),
-            'd2v': Trials(),
-            'countvec': Trials(),
-            'bpemp': Trials(),
-            'bert': Trials(),
-            }
+        self.best: Dict = defaultdict(fmin)
+        self.trials: Dict = defaultdict(Trials)
+
 
     def get_best(self):
         """
@@ -115,7 +113,9 @@ class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
     def _general_objective_func(self, label: str, model: BaseDocEmbedder) -> Dict[str, Any]:
         models = {label: model}
         sim_spec = SimulationSpecification(year_start=self.year_start,
-                                           year_end=self.year_end, window_size=self.window_size)
+                                           year_end=self.year_end, 
+                                           window_size=self.window_size,
+                                           debug_max_patents=self.debug_max_patents)
 
         output_fp = io.BytesIO()
 
