@@ -12,7 +12,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from docembedder.datamodel import DataModel
 from docembedder.models.base import AllEmbedType
 
-
+# pylint: disable=R0914
 def _compute_cpc_cor(embeddings: AllEmbedType,
                      cpc_res: Dict[str, Any],
                      chunk_size: int=10000) -> float:
@@ -49,7 +49,6 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
         self.data = data
 
     def _compute_impact(self, model_name, window_name):
-        # pylint: disable=R0914
         patent_ids, patent_years = self.data.load_window(window_name)
         embeddings = self.data.load_embeddings(window_name, model_name)
         impact_list: List[float] = []
