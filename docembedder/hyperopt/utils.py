@@ -13,7 +13,7 @@ from docembedder import DataModel
 from docembedder.analysis2 import DocAnalysis
 from docembedder.preprocessor.preprocessor import Preprocessor
 from docembedder.models.base import BaseDocEmbedder
-from hyperopt import STATUS_OK, fmin, tpe, Trials
+from hyperopt import STATUS_OK, fmin, tpe, Trials  # type: ignore
 
 
 class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
