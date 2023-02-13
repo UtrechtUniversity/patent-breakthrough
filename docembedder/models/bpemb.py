@@ -9,7 +9,6 @@ import numpy as np
 from numpy import typing as npt
 
 from hyperopt import hp
-from hyperopt.pyll.base import scope
 
 from bpemb import BPEmb
 
@@ -105,6 +104,6 @@ class BPembEmbedder(BaseDocEmbedder):
     def hyper_space(cls) -> Dict[str, Any]:
         """Parameter space for hyperopt."""
         return {
-            "vector_size": scope.int(hp.quniform("vector_size", 200, 400, 1)),
-            "vocab_size": scope.int(hp.quniform("vocab_size", 100000, 300000, 1)),
+            "vector_size": hp.choice("vector_size", [25, 50, 100, 200, 300]),
+            "vocab_size": hp.choice("vocab_size", [1000, 3000, 5000, 10000, 25000, 50000, 100000, 200000]),
         }
