@@ -10,11 +10,10 @@ from pathlib import Path
 
 from typing_extensions import Literal
 
+from hyperopt import hp
 
 from docembedder.preprocessor.parser import read_xz
 from docembedder.typing import PathType
-
-from hyperopt import hp
 
 class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-public-methods
     """

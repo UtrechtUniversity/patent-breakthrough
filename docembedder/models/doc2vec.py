@@ -11,10 +11,10 @@ from gensim.models.doc2vec import TaggedDocument
 import gensim
 import nltk
 
-from docembedder.models.base import BaseDocEmbedder
-
 from hyperopt import hp
 from hyperopt.pyll.base import scope
+
+from docembedder.models.base import BaseDocEmbedder
 
 class D2VEmbedder(BaseDocEmbedder):
     """ Doc2Vec

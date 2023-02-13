@@ -7,9 +7,9 @@ import numpy.typing as npt
 
 from sentence_transformers import SentenceTransformer
 
-from docembedder.models.base import BaseDocEmbedder
-
 from hyperopt import hp
+
+from docembedder.models.base import BaseDocEmbedder
 
 class BERTEmbedder(BaseDocEmbedder):
     """BERT embedding based on Hugging face pre-trained models.
