@@ -7,7 +7,7 @@ import numpy.typing as npt
 
 from sentence_transformers import SentenceTransformer
 
-from hyperopt import hp  # type: ignore
+from hyperopt import hp
 
 from docembedder.models.base import BaseDocEmbedder
 
