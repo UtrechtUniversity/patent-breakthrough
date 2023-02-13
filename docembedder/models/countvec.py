@@ -11,7 +11,7 @@ from sklearn.preprocessing import normalize
 
 from docembedder.models.base import BaseDocEmbedder
 
-from hyperopt import hp
+from hyperopt import hp  # type: ignore
 
 class CountVecEmbedder(BaseDocEmbedder):
     """Sklearn TF-IDF class."""

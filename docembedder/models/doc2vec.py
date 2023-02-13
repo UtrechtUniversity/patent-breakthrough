@@ -11,8 +11,8 @@ from gensim.models.doc2vec import TaggedDocument
 import gensim
 import nltk
 
-from hyperopt import hp
-from hyperopt.pyll.base import scope
+from hyperopt import hp  # type: ignore
+from hyperopt.pyll.base import scope  # type: ignore
 
 from docembedder.models.base import BaseDocEmbedder
 

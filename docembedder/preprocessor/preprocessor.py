@@ -10,7 +10,7 @@ from pathlib import Path
 
 from typing_extensions import Literal
 
-from hyperopt import hp
+from hyperopt import hp  # type: ignore
 
 from docembedder.preprocessor.parser import read_xz
 from docembedder.typing import PathType

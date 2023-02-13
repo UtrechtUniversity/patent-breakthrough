@@ -7,7 +7,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 import nltk
 from nltk.stem import SnowballStemmer
 
-from hyperopt import hp
+from hyperopt import hp  # type: ignore
 
 from docembedder.models.base import BaseDocEmbedder
 

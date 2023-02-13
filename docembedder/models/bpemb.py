@@ -8,8 +8,8 @@ from typing import Iterable, Union, Dict, Optional, Sequence, Any
 import numpy as np
 from numpy import typing as npt
 
-from hyperopt import hp
-from hyperopt.pyll.base import scope
+from hyperopt import hp  # type: ignore
+from hyperopt.pyll.base import scope  # type: ignore
 
 from bpemb import BPEmb
 
