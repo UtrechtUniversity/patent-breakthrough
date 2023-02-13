@@ -1,3 +1,6 @@
+"""Utils for model parameter optimization using hyperopt."""
+
+
 from typing import Optional, Any, Dict
 from pathlib import Path
 import io
@@ -14,7 +17,10 @@ from hyperopt import STATUS_OK, fmin, tpe, Trials
 
 
 class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
-
+    """
+    ModelHyperopt class
+    contains objective and optimization functions for each model type
+    """
     def __init__(self,  # pylint: disable=too-many-arguments
                  year_start: int,
                  year_end: int,
@@ -33,11 +39,11 @@ class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
         self.patent_dir = patent_dir
         self.best: Dict = {}
         self.trials: Dict = {
-            'tfidf' : Trials(),
-            'd2v' : Trials(),
-            'countvec' : Trials(),
-            'bpemp' : Trials(),
-            'bert' : Trials(),
+            'tfidf': Trials(),
+            'd2v': Trials(),
+            'countvec': Trials(),
+            'bpemp': Trials(),
+            'bert': Trials(),
             }
 
     def get_best(self):
@@ -57,6 +63,9 @@ class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
         return self.trials
 
     def optimize_tfidf(self, max_evals: int = 10) -> None:
+        """
+        optimization function for Tfidf-model
+        """
         self.best['tfidf'] = fmin(self._tfidf_objective_func,
                                   space=TfidfEmbedder.hyper_space(),
                                   algo=tpe.suggest,
@@ -64,6 +73,9 @@ class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
                                   trials=self.trials['tfidf'])
 
     def optimize_d2v(self, max_evals: int = 10) -> None:
+        """
+        optimization function for Doc2Vec-model
+        """
         self.best['d2v'] = fmin(self._d2v_objective_func,
                                 space=D2VEmbedder.hyper_space(),
                                 algo=tpe.suggest,
@@ -71,6 +83,9 @@ class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
                                 trials=self.trials['d2v'])
 
     def optimize_countvec(self, max_evals: int = 10) -> None:
+        """
+        optimization function for CountVec-model
+        """
         self.best['countvec'] = fmin(self._countvec_objective_func,
                                      space=CountVecEmbedder.hyper_space(),
                                      algo=tpe.suggest,
@@ -78,6 +93,9 @@ class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
                                      trials=self.trials['countvec'])
 
     def optimize_bpemp(self, max_evals: int = 10) -> None:
+        """
+        optimization function for BPEmb-model
+        """
         self.best['bpemp'] = fmin(self._bpemp_objective_func,
                                   space=BPembEmbedder.hyper_space(),
                                   algo=tpe.suggest,
@@ -85,6 +103,9 @@ class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
                                   trials=self.trials['bpemp'])
 
     def optimize_bert(self, max_evals: int = 10) -> None:
+        """
+        optimization function for Bert-models
+        """
         self.best['bert'] = fmin(self._bert_objective_func,
                                  space=BERTEmbedder.hyper_space(),
                                  algo=tpe.suggest,
