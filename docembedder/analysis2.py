@@ -49,6 +49,7 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
         self.data = data
 
     def _compute_impact(self, model_name, window_name):
+        # pylint: disable=R0914
         patent_ids, patent_years = self.data.load_window(window_name)
         embeddings = self.data.load_embeddings(window_name, model_name)
         impact_list: List[float] = []
@@ -97,13 +98,6 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
 
     def patent_impacts(self):
         """ Compute impact using cosine similarity between document vectors
-
-        Function to calculate the impact of the focused patent for a window of the years.
-        Impact score is calculated as:
-        the average of the backward similarity / the average of the forward similarity.
-        Note that a negative value for impact implies that there is no valid impact for that
-        patent available.
-
         """
 
         for window_name, model_name in tqdm(self.data.iterate_window_models()):
