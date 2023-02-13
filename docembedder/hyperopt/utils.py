@@ -10,7 +10,7 @@ from docembedder import DataModel
 from docembedder.analysis2 import DocAnalysis
 from docembedder.preprocessor.preprocessor import Preprocessor
 from docembedder.models.base import BaseDocEmbedder
-from hyperopt import STATUS_OK, fmin, tpe
+from hyperopt import STATUS_OK, fmin, tpe, Trials
 
 
 class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
@@ -32,36 +32,64 @@ class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
         self.cpc_fp = cpc_fp
         self.patent_dir = patent_dir
         self.best: Dict = {}
+        self.trials: Dict = {
+            'tfidf' : Trials(),
+            'd2v' : Trials(),
+            'countvec' : Trials(),
+            'bpemp' : Trials(),
+            'bert' : Trials(),
+            }
+
+    def get_best(self):
+        """
+        returns best result of each optimizing function
+        """
+        return self.best
+
+    def get_trials(self):
+        """
+        returns trial results of optimization process. eacht Trial contains:
+        trials - a list of dictionaries representing everything about the search
+        results - a list of dictionaries returned by 'objective' during the search
+        losses() - a list of losses (float for each 'ok' trial)
+        statuses() - a list of status strings
+        """
+        return self.trials
 
     def optimize_tfidf(self, max_evals: int = 10) -> None:
         self.best['tfidf'] = fmin(self._tfidf_objective_func,
                                   space=TfidfEmbedder.hyper_space(),
                                   algo=tpe.suggest,
-                                  max_evals=max_evals)
+                                  max_evals=max_evals,
+                                  trials=self.trials['tfidf'])
 
     def optimize_d2v(self, max_evals: int = 10) -> None:
         self.best['d2v'] = fmin(self._d2v_objective_func,
                                 space=D2VEmbedder.hyper_space(),
                                 algo=tpe.suggest,
-                                max_evals=max_evals)
+                                max_evals=max_evals,
+                                trials=self.trials['d2v'])
 
     def optimize_countvec(self, max_evals: int = 10) -> None:
         self.best['countvec'] = fmin(self._countvec_objective_func,
                                      space=CountVecEmbedder.hyper_space(),
                                      algo=tpe.suggest,
-                                     max_evals=max_evals)
+                                     max_evals=max_evals,
+                                     trials=self.trials['countvec'])
 
     def optimize_bpemp(self, max_evals: int = 10) -> None:
         self.best['bpemp'] = fmin(self._bpemp_objective_func,
                                   space=BPembEmbedder.hyper_space(),
                                   algo=tpe.suggest,
-                                  max_evals=max_evals)
+                                  max_evals=max_evals,
+                                  trials=self.trials['bpemp'])
 
     def optimize_bert(self, max_evals: int = 10) -> None:
         self.best['bert'] = fmin(self._bert_objective_func,
                                  space=BERTEmbedder.hyper_space(),
                                  algo=tpe.suggest,
-                                 max_evals=max_evals)
+                                 max_evals=max_evals,
+                                 trials=self.trials['bert'])
 
     def _general_objective_func(self, label: str, model: BaseDocEmbedder) -> Dict[str, Any]:
         models = {label: model}
