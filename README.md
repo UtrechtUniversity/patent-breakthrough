@@ -67,7 +67,7 @@ This section should list any major frameworks used to build this project.
 - [scikit-learn](https://scikit-learn.org/)
 - [gensim](https://pypi.org/project/gensim/)
 - [sbert](https://www.sbert.net/)
-
+- [bpemb](https://bpemb.h-its.org/)
 <!-- Do not forget to also include the license in a separate file(LICENSE[.txt/.md]) and link it properly. -->
 ### License
 
