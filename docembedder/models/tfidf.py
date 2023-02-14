@@ -7,10 +7,10 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 import nltk
 from nltk.stem import SnowballStemmer
 
-from docembedder.models.base import BaseDocEmbedder
-
 from hyperopt import hp
 from hyperopt.pyll.base import scope
+
+from docembedder.models.base import BaseDocEmbedder
 
 def _tokenizer(text):
     tokens = nltk.word_tokenize(text)
