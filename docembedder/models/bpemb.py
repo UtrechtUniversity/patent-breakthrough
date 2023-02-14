@@ -10,9 +10,9 @@ from numpy import typing as npt
 
 from hyperopt import hp
 
-from docembedder.models.base import BaseDocEmbedder
-
 from bpemb import BPEmb
+
+from docembedder.models.base import BaseDocEmbedder
 
 def _get_prefac(model: BPEmb, documents: Union[Iterable[str], Sequence[str]]) -> Dict[str, float]:
     """Compute the prefactor for each (sub)word.
