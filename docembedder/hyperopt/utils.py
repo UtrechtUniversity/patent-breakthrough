@@ -16,7 +16,15 @@ from hyperopt import STATUS_OK, fmin, tpe, Trials
 class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
     """
     ModelHyperopt class
-    contains objective and optimization functions for each model type
+    
+    Objective and optimization functions, generalized for each model type.
+    Class var 'best' contains the best result of each optimizing function.
+    Class var 'trials' contains the results of optimization process. Each element contains:
+    - trials - a list of dictionaries representing everything about the search
+    - results - a list of dictionaries returned by 'objective' during the search
+    - losses() - a list of losses (float for each 'ok' trial)
+    - statuses() - a list of status strings
+
     """
     def __init__(self,  # pylint: disable=too-many-arguments
                  year_start: int,
@@ -39,28 +47,12 @@ class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
         self.best: Dict = defaultdict(fmin)
         self.trials: Dict = defaultdict(Trials)
 
-    def get_best(self):
-        """
-        returns best result of each optimizing function
-        """
-        return self.best
-
-    def get_trials(self):
-        """
-        returns trial results of optimization process. eacht Trial contains:
-        trials - a list of dictionaries representing everything about the search
-        results - a list of dictionaries returned by 'objective' during the search
-        losses() - a list of losses (float for each 'ok' trial)
-        statuses() - a list of status strings
-        """
-        return self.trials
-
     def optimize(self,
                  label: str,
                  objective_function: Callable,
                  space: Dict,
                  max_evals: int = 10) -> None:
-        """hyperopt optimization function"""        
+        """Hyperopt optimization function"""        
         self.best[label] = fmin(objective_function,
                                 space=space,
                                 algo=tpe.suggest,
@@ -68,10 +60,10 @@ class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
                                 trials=self.trials[label])
 
     def get_objective_func(self, **kwargs) -> Callable[[Dict[str, Any]], Dict[str, Any]]:
-        """creates general loss function"""
+        """Creates general loss function"""
 
         def objective_func(params: Dict[str, Any]) -> Dict[str, Any]:
-            """hyperopt objective function"""
+            """Hyperopt objective function"""
             label = kwargs['label']
 
             sim_spec = SimulationSpecification(year_start=self.year_start,
