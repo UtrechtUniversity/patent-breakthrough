@@ -1,4 +1,4 @@
-# patent-breakthrough
+# Patent breakthrough
 
 ![tests](https://github.com/UtrechtUniversity/patent-breakthrough/actions/workflows/python-package.yml/badge.svg)
 
