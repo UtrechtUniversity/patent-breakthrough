@@ -5,7 +5,7 @@
 Package for the RE Patent Breakthrough project
 
 The code in this repository is used to identify breakthrough innovations in historical patents from the [USPTO](https://www.uspto.gov/).
-The docembeddings package contains a variety of methods for creating document embeddings. For this project these methods are optimized and tested for their ability to predict similarity between patents. This is done by optimizing the cosine similarity between patents that are classified into the same technology class. The best performing methods are then used to create document embeddings that are then used to create novelty scores using cosine similarities between the focal patent and patents in previous n years and subsequent n years.
+The `docembedding` Python package contains a variety of methods for creating document embeddings. We have optimized and tested these methods for their ability to predict similarity between patents. This was done by maximizing the cosine similarity between patents that are classified into the same technology class, and minimizing cosine similarity between patents that fall into different technology classes. These methods with optimized parameters are then used to create document embeddings. From these embeddings, novelty scores are created using cosine similarities between the focal patent and patents in the previous n years and subsequent n years.
 
 <!-- TABLE OF CONTENTS -->
 ## Table of Contents
