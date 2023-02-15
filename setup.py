@@ -30,5 +30,6 @@ setup(
         "matplotlib",
         "tqdm",
         "h5py",
+        "hyperopt"
     ]
 )
