@@ -316,6 +316,23 @@ class DataModel():
 
         dataset_group.create_dataset("data", data=impacts)
 
+    def load_impacts(self, window_name: str, model_name: str) -> List[float]:
+        """Load impacts for a window/year.
+
+        Arguments
+        ---------
+        window_name:
+            Year or window name.
+        model_name:
+            Name of the model.
+
+        Returns
+        -------
+        Impacts:
+            list of impacts for that window/model.
+        """
+        return list(self.handle[f"/impacts/{model_name}/{window_name}/data"])
+
     @property
     def model_names(self) -> List["str"]:
         """Names of all stored models."""
