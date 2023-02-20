@@ -53,15 +53,19 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
     def _compute_impact(self, model_name, window_name):
         patent_ids, patent_years = self.data.load_window(window_name)
         embeddings = self.data.load_embeddings(window_name, model_name)
-        impact_list: List[float] = []
+        patent_indices = np.array(range(len(patent_ids)))
+        # impact_list: List[float] = []
+        impact_arr: np.ndarray = np.empty(len(patent_years)) * np.nan
 
         for cur_index in range(len(patent_ids)):
             cur_embedding = embeddings[cur_index]
             cur_year = patent_years[cur_index]
 
-            other_indices = []
-            for i in [x for x in range(len(patent_ids)) if x != cur_index]:
-                other_indices.append(i)
+            # other_indices = []
+            # for i in [x for x in range(len(patent_ids)) if x != cur_index]:
+            #     other_indices.append(i)
+
+            other_indices = np.delete(patent_indices, cur_index)
 
             other_embeddings = embeddings[other_indices,:]
             other_years = np.delete(patent_years, cur_index)
@@ -69,33 +73,32 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
             embeddings_backward = other_embeddings[other_years < cur_year]
             embeddings_forward = other_embeddings[other_years > cur_year]
 
-            try:
+            if embeddings_backward.size:
                 backward_similarity = cosine_similarity(cur_embedding, embeddings_backward)
-            except ValueError:
+            else:
                 backward_similarity = np.nan
-
             average_backward_similarity = np.mean(backward_similarity)
 
-            try:
+            if embeddings_forward.size:
                 forward_similarity = cosine_similarity(cur_embedding, embeddings_forward)
-            except ValueError:
+            else:
                 forward_similarity = np.nan
-
             average_forward_similarity = np.mean(forward_similarity)
 
             if average_forward_similarity and average_backward_similarity:
-                impact = average_backward_similarity / average_forward_similarity
-            else:
-                impact = np.nan
+                # impact = average_backward_similarity / average_forward_similarity
+                impact_arr[cur_index] = average_backward_similarity / average_forward_similarity
+            # else:
+            #     impact = np.nan
 
             # try:
             #     impact = average_backward_similarity / average_forward_similarity
             # except (ZeroDivisionError, TypeError):
             #     impact = np.nan
 
-            impact_list.append(impact)
+            # impact_arr.append(impact)
 
-        return impact_list
+        return impact_arr
 
     def patent_impacts(self):
         """ Compute impact using cosine similarity between document vectors
