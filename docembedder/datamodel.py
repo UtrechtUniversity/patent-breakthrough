@@ -315,7 +315,6 @@ class DataModel():
         dataset_group = self.handle.create_group(dataset_group_str)
 
         dataset_group.create_dataset("data", data=impacts)
-        dataset_group.attrs["dtype"] = "array"
 
     @property
     def model_names(self) -> List["str"]:
