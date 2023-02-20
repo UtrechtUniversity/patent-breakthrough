@@ -323,7 +323,7 @@ class DataModel():
         return list(self.handle["embeddings"].keys())
 
     @property
-    def windows_list(self) -> List["str"]:
+    def window_list(self) -> List["str"]:
         """Names of all stored models."""
         return list(self.handle["windows"].keys())
 
