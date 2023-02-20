@@ -105,9 +105,9 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
         """
 
         for window_name, model_name in tqdm(self.data.iterate_window_models()):
-            impact_list = self._compute_impact(model_name, window_name)
-            impact_arr = np.array(impact_list)
-            self.data.store_impacts(window_name, model_name, impact_arr)
+            impact_array = self._compute_impact(model_name, window_name)
+            # impact_arr = np.array(impact_list)
+            self.data.store_impacts(window_name, model_name, impact_array)
 
 
 
