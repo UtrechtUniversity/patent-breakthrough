@@ -4,8 +4,11 @@ from typing import Optional, Any, Dict, Callable
 from pathlib import Path
 import io
 from collections import defaultdict
+import pickle
+
 import numpy as np
 from hyperopt import STATUS_OK, fmin, tpe, Trials
+
 from docembedder.utils import run_models
 from docembedder.utils import SimulationSpecification
 from docembedder import DataModel
@@ -13,7 +16,6 @@ from docembedder.analysis2 import DocAnalysis
 from docembedder.preprocessor.preprocessor import Preprocessor
 from docembedder.models.base import BaseDocEmbedder
 from docembedder.typing import PathType
-import pickle
 
 
 class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
@@ -50,7 +52,7 @@ class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
         self.best: Dict = defaultdict(fmin)
         self.trials: Dict = defaultdict(Trials)
 
-    def optimize(self,
+    def optimize(self,  # pylint: disable=too-many-arguments
                  label: str,
                  objective_function: Optional[Callable]=None,
                  space: Optional[Dict]=None,
