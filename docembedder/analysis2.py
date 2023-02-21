@@ -50,24 +50,20 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
     def __init__(self, data: DataModel):
         self.data = data
 
-    def _compute_impact(self, model_name, window_name):
+    def _compute_impact_novelty(self, model_name, window_name):
         patent_ids, patent_years = self.data.load_window(window_name)
         embeddings = self.data.load_embeddings(window_name, model_name)
         patent_indices = np.array(range(len(patent_ids)))
-        # impact_list: List[float] = []
+
         impact_arr: np.ndarray = np.empty(len(patent_years)) * np.nan
+        novelty_arr: np.ndarray = np.empty(len(patent_years)) * np.nan
 
         for cur_index in range(len(patent_ids)):
             cur_embedding = embeddings[cur_index]
             cur_year = patent_years[cur_index]
 
-            # other_indices = []
-            # for i in [x for x in range(len(patent_ids)) if x != cur_index]:
-            #     other_indices.append(i)
-
             other_indices = np.delete(patent_indices, cur_index)
-
-            other_embeddings = embeddings[other_indices,:]
+            other_embeddings = embeddings[other_indices, :]
             other_years = np.delete(patent_years, cur_index)
 
             embeddings_backward = other_embeddings[other_years < cur_year]
@@ -75,9 +71,15 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
 
             if embeddings_backward.size:
                 backward_similarity = cosine_similarity(cur_embedding, embeddings_backward)
+                backward_dissimilarity = 1 - cosine_similarity(cur_embedding, embeddings_backward)
             else:
                 backward_similarity = np.nan
+                backward_dissimilarity = np.nan
+
             average_backward_similarity = np.mean(backward_similarity)
+            average_backward_dissimilarity = np.mean(backward_dissimilarity)
+
+            novelty_arr[cur_index] = average_backward_dissimilarity
 
             if embeddings_forward.size:
                 forward_similarity = cosine_similarity(cur_embedding, embeddings_forward)
@@ -86,29 +88,17 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
             average_forward_similarity = np.mean(forward_similarity)
 
             if average_forward_similarity and average_backward_similarity:
-                # impact = average_backward_similarity / average_forward_similarity
                 impact_arr[cur_index] = average_backward_similarity / average_forward_similarity
-            # else:
-            #     impact = np.nan
 
-            # try:
-            #     impact = average_backward_similarity / average_forward_similarity
-            # except (ZeroDivisionError, TypeError):
-            #     impact = np.nan
-
-            # impact_arr.append(impact)
-
-        return impact_arr
+        return impact_arr, novelty_arr
 
     def patent_impacts(self):
         """ Compute impact using cosine similarity between document vectors
         """
 
         for window_name, model_name in tqdm(self.data.iterate_window_models()):
-            impact_array = self._compute_impact(model_name, window_name)
-            # impact_arr = np.array(impact_list)
-            self.data.store_impacts(window_name, model_name, impact_array)
-
+            impact_array, novelty_arr = self._compute_impact_novelty(model_name, window_name)
+            self.data.store_impacts(window_name, model_name, impact_array, novelty_arr)
 
 
     def cpc_correlations(self, models: Optional[Union[str, List[str]]]=None
