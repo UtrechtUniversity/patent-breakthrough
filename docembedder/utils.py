@@ -274,10 +274,12 @@ class Job():
         cpc_cor:
             Correlation of patents in the window.
         """
+        avg_year = round(np.mean(self.job_data["year_list"]))
         test_id = np.array(test_id)
         pat_class = PatentClassification(self.job_data["cpc_fp"])
         cpc_cor = pat_class.sample_cpc_correlations(
-            test_id, samples_per_patent=self.sim_spec.cpc_samples_per_patent)
+            test_id, samples_per_patent=self.sim_spec.cpc_samples_per_patent,
+            seed=avg_year)
         return cpc_cor
 
     def run(self) -> FileType:  # pylint: disable=too-many-locals

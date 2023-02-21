@@ -15,6 +15,7 @@ from hyperopt import hp  # type: ignore
 from docembedder.preprocessor.parser import read_xz
 from docembedder.typing import PathType
 
+
 class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-public-methods
     """
     Preprocessor class
@@ -121,27 +122,12 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-pub
     def preprocess_files(self):
         """Iterates all input JSONL-files and calls preprocessing for each"""
         for file in self.file_list:
-            # self.logger.info('processing %s', file)
             processed_patents, stats = self.preprocess_file(  # pylint: disable=unpacking-non-sequence
                 file, return_stats=True)
-            # self.logger.info("processed %s (%s documents, skipped %s empty, "
-                             # "%s w/o year)", file, str(stats["processed"]),
-                             # str(stats["skipped_empty"]),
-                             # str(stats["skipped_no_year"]))
+
             self.total_docs['processed'] += len(processed_patents)
             self.total_docs['skipped_empty'] += stats["skipped_empty"]
             self.total_docs['skipped_no_year'] += stats["skipped_no_year"]
-
-        # self.logger.info("done")
-        # self.logger.info("files: %s", str(len(self.file_list)))
-        # self.logger.info("docs processed: %s",
-                         # str(self.total_docs['processed']))
-        # self.logger.info("skipped empty docs: %s",
-                         # str(self.total_docs['skipped_empty']))
-        # self.logger.info("skipped docs w/o year: %s",
-                         # str(self.total_docs['skipped_no_year']))
-        # self.logger.info("words reassembled: %s",
-                         # str(self.total_docs['words_reassembled']))
 
     def yield_document(self, file: PathType) -> Iterable[Dict]:
         """Generator yielding single JSON-doc from input file"""

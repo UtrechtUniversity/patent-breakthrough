@@ -11,12 +11,15 @@ from docembedder.utils import SimulationSpecification
 from docembedder import DataModel
 from docembedder.analysis2 import DocAnalysis
 from docembedder.preprocessor.preprocessor import Preprocessor
+from docembedder.models.base import BaseDocEmbedder
+from docembedder.typing import PathType
+import pickle
 
 
 class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
     """
     ModelHyperopt class
-    
+
     Objective and optimization functions, generalized for each model type.
     Class var 'best' contains the best result of each optimizing function.
     Class var 'trials' contains the results of optimization process. Each element contains:
@@ -49,15 +52,38 @@ class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
 
     def optimize(self,
                  label: str,
-                 objective_function: Callable,
-                 space: Dict,
-                 max_evals: int = 10) -> None:
-        """Hyperopt optimization function"""        
-        self.best[label] = fmin(objective_function,
-                                space=space,
-                                algo=tpe.suggest,
-                                max_evals=max_evals,
-                                trials=self.trials[label])
+                 objective_function: Optional[Callable]=None,
+                 space: Optional[Dict]=None,
+                 model: Optional[BaseDocEmbedder]=None,
+                 max_evals: int = 10,
+                 pickle_fp: Optional[PathType] = None) -> None:
+        """Hyperopt optimization function"""
+
+        if objective_function is None:
+            if model is None:
+                raise ValueError("Either give objective function or model.")
+            objective_function = self.get_objective_func(label=label, model=model)
+        if space is None:
+            if model is None:
+                raise ValueError("Either give space or model.")
+            space = model.hyper_space()
+
+        if pickle_fp is None:
+            self.best[label] = fmin(objective_function,
+                                    space=space,
+                                    algo=tpe.suggest,
+                                    max_evals=max_evals,
+                                    trials=self.trials[label])
+        else:
+            while len(self.trials[label]) < max_evals:
+                new_evals = min(max_evals, len(self.trials[label])+10)
+                self.best[label] = fmin(objective_function,
+                                        space=space,
+                                        algo=tpe.suggest,
+                                        max_evals=new_evals,
+                                        trials=self.trials[label])
+                with open(pickle_fp, "wb") as handle:
+                    pickle.dump(self, handle)
 
     def get_objective_func(self, **kwargs) -> Callable[[Dict[str, Any]], Dict[str, Any]]:
         """Creates general loss function"""
@@ -66,10 +92,11 @@ class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
             """Hyperopt objective function"""
             label = kwargs['label']
 
-            sim_spec = SimulationSpecification(year_start=self.year_start,
-                                            year_end=self.year_end,
-                                            window_size=self.window_size,
-                                            debug_max_patents=self.debug_max_patents)
+            sim_spec = SimulationSpecification(
+                year_start=self.year_start,
+                year_end=self.year_end,
+                window_size=self.window_size,
+                debug_max_patents=self.debug_max_patents)
 
             output_fp = io.BytesIO()
 
@@ -79,7 +106,8 @@ class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
                        patent_dir=self.patent_dir,
                        output_fp=output_fp,
                        cpc_fp=self.cpc_fp,
-                       n_jobs=self.n_jobs)
+                       n_jobs=self.n_jobs,
+                       progress_bar=False)
 
             pp_prefix = "default-"
 
@@ -87,7 +115,7 @@ class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
                 analysis = DocAnalysis(data)
                 correlations = analysis.cpc_correlations(models=f"{pp_prefix}{label}")
 
-            return {'loss': (1 - np.mean(correlations[f"{pp_prefix}{label}"]["correlations"])),
+            return {'loss': -np.mean(correlations[f"{pp_prefix}{label}"]["correlations"]),
                     'status': STATUS_OK}
 
         return objective_func

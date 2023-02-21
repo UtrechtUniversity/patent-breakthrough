@@ -7,7 +7,6 @@ import numpy as np
 from numpy import typing as npt
 from scipy.stats import spearmanr
 from scipy.sparse import csr_matrix
-from tqdm import tqdm
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import normalize
 
@@ -156,7 +155,7 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
         correlations: DefaultDict[str, Dict[str, List[float]]] = defaultdict(
             lambda: {"year": [], "correlations": []})
 
-        for window, model_name in tqdm(self.data.iterate_window_models()):
+        for window, model_name in self.data.iterate_window_models():
             if model_name not in models:
                 continue
             try:
