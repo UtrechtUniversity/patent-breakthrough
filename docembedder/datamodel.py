@@ -289,7 +289,7 @@ class DataModel():
         prep = create_preprocessor(prep_type, prep_dict)
         return prep
 
-    def store_impacts(self,
+    def store_impact_novelty(self,
                       window_name: str,
                       model_name: str,
                       impacts: np.ndarray,
@@ -304,6 +304,8 @@ class DataModel():
                     Name of the model that generated the embeddings.
                 impacts:
                     An array containing the impacts per model/window
+                novelties:
+                    An array containing the novelties per model/window
                 overwrite:
                     If True, overwrite embeddings if they exist.
                 """
