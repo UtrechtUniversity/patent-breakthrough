@@ -98,7 +98,7 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
 
         for window_name, model_name in tqdm(self.data.iterate_window_models()):
             impact_array, novelty_arr = self._compute_impact_novelty(model_name, window_name)
-            self.data.store_impacts(window_name, model_name, impact_array, novelty_arr)
+            self.data.store_impact_novelty(window_name, model_name, impact_array, novelty_arr)
 
 
     def cpc_correlations(self, models: Optional[Union[str, List[str]]]=None
