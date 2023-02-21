@@ -55,7 +55,7 @@ class DataModel():
                 self.handle.create_group("models")
                 self.handle.create_group("preprocessors")
                 self.handle.create_group("cpc")
-                self.handle.create_group("impacts")
+                self.handle.create_group("impacts_novelties")
                 self.handle.attrs["docembedder-version"] = get_versions()["version"]
         else:
             self.handle = h5py.File(hdf5_file, "r")
@@ -293,6 +293,7 @@ class DataModel():
                       window_name: str,
                       model_name: str,
                       impacts: np.ndarray,
+                      novelties: np.ndarray,
                       overwrite: bool = False):
         """Store impacts for a window/year.
                 Arguments
@@ -307,14 +308,15 @@ class DataModel():
                     If True, overwrite embeddings if they exist.
                 """
 
-        dataset_group_str = f"/impacts/{model_name}/{window_name}"
+        dataset_group_str = f"/impacts_novelties/{model_name}/{window_name}"
         if dataset_group_str in self.handle and overwrite:
             del self.handle[dataset_group_str]
         elif dataset_group_str in self.handle:
             return
         dataset_group = self.handle.create_group(dataset_group_str)
 
-        dataset_group.create_dataset("data", data=impacts)
+        dataset_group.create_dataset("impact", data=impacts)
+        dataset_group.create_dataset("novelty", data=novelties)
 
     def load_impacts(self, window_name: str, model_name: str) -> List[float]:
         """Load impacts for a window/year.
@@ -331,7 +333,23 @@ class DataModel():
         Impacts:
             list of impacts for that window/model.
         """
-        return list(self.handle[f"/impacts/{model_name}/{window_name}/data"])
+        return list(self.handle[f"/impacts_novelties/{model_name}/{window_name}/impact"])
+    def load_novelties(self, window_name: str, model_name: str) -> List[float]:
+        """Load novelties for a window/year.
+
+        Arguments
+        ---------
+        window_name:
+            Year or window name.
+        model_name:
+            Name of the model.
+
+        Returns
+        -------
+        Impacts:
+            list of novelties for that window/model.
+        """
+        return list(self.handle[f"/impacts_novelties/{model_name}/{window_name}/novelty"])
 
     @property
     def model_names(self) -> List["str"]:
