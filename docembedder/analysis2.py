@@ -4,10 +4,12 @@ from collections import defaultdict
 from typing import List, Union, Dict, Any, Optional, DefaultDict
 
 import numpy as np
+from numpy import typing as npt
 from scipy.stats import spearmanr
 from scipy.sparse import csr_matrix
 from tqdm import tqdm
 from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.preprocessing import normalize
 
 from docembedder.datamodel import DataModel
 from docembedder.models.base import AllEmbedType
@@ -37,8 +39,12 @@ def _compute_cpc_cor(embeddings: AllEmbedType,
 
     return spearmanr(model_cor, cpc_res["correlations"]).correlation
 
-# pylint: disable=R0904
-# pylint: disable=R0914
+
+def _auto_cor(delta, embeddings):
+    start = delta
+    end = embeddings.shape[0] - delta
+    return np.array(embeddings[:end].multiply(embeddings[start:]).sum(axis=1)).flatten().mean()
+
 
 class DocAnalysis():  # pylint: disable=too-few-public-methods
     """Analysis class that can analyse embeddings.
@@ -50,13 +56,13 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
     def __init__(self, data: DataModel):
         self.data = data
 
-    def _compute_impact_novelty(self, model_name, window_name):
+    def _compute_impact_novelty(self, window_name, model_name):
         patent_ids, patent_years = self.data.load_window(window_name)
         embeddings = self.data.load_embeddings(window_name, model_name)
         patent_indices = np.array(range(len(patent_ids)))
 
-        impact_arr: np.ndarray = np.empty(len(patent_years)) * np.nan
-        novelty_arr: np.ndarray = np.empty(len(patent_years)) * np.nan
+        impact_arr: npt.NDArray[np.float_] = np.full(len(patent_years), np.nan)
+        novelty_arr: npt.NDArray[np.float_] = np.full(len(patent_years), np.nan)
 
         for cur_index in range(len(patent_ids)):
             cur_embedding = embeddings[cur_index]
@@ -92,14 +98,34 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
 
         return impact_arr, novelty_arr
 
-    def patent_impacts(self):
+    def auto_correlation(self, window_name, model_name):
+        embeddings = normalize(self.data.load_embeddings(window_name, model_name))
+        patent_ids, _ = self.data.load_window(window_name)
+        delta_count = np.unique((1+0.3*np.arange(5000)**2+0.5).astype(int))
+        delta_count = delta_count[delta_count < len(patent_ids)]
+        delta_year = 4*delta_count/len(patent_ids)
+        auto_correlations = np.array([_auto_cor(i, embeddings) for i in delta_count])
+        return delta_year, auto_correlations
+
+    def patent_impacts(self, window_name, model_name):
         """ Compute impact using cosine similarity between document vectors
         """
+        try:
+            impacts = self.data.load_impacts(window_name, model_name)
+        except KeyError:
+            impacts, novelties = self._compute_impact_novelty(window_name, model_name)
+            self.data.store_impact_novelty(window_name, model_name, impacts, novelties)
+        return impacts
 
-        for window_name, model_name in tqdm(self.data.iterate_window_models()):
-            impact_array, novelty_arr = self._compute_impact_novelty(model_name, window_name)
-            self.data.store_impact_novelty(window_name, model_name, impact_array, novelty_arr)
-
+    def patent_novelties(self, window_name, model_name):
+        """ Compute novelty using cosine similarity between document vectors
+        """
+        try:
+            novelties = self.data.load_novelties(window_name, model_name)
+        except KeyError:
+            impacts, novelties = self._compute_impact_novelty(window_name, model_name)
+            self.data.store_impact_novelty(window_name, model_name, impacts, novelties)
+        return novelties
 
     def cpc_correlations(self, models: Optional[Union[str, List[str]]]=None
                          ) -> Dict[str, Dict[str, List[float]]]:
