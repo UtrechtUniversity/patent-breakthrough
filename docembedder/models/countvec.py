@@ -11,6 +11,7 @@ from sklearn.preprocessing import normalize
 
 from docembedder.models.base import BaseDocEmbedder
 
+from hyperopt import hp
 
 class CountVecEmbedder(BaseDocEmbedder):
     """Sklearn TF-IDF class."""
@@ -42,3 +43,10 @@ class CountVecEmbedder(BaseDocEmbedder):
     @property
     def settings(self) -> dict[str, Any]:
         return {"method": self.method}
+
+    @classmethod
+    def hyper_space(cls) -> dict[str, Any]:
+        """Parameter space for hyperopt."""
+        return {
+            "method": hp.choice("method", ["prop", "sigmoid"]),
+        }

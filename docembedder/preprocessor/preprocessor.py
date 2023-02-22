@@ -5,15 +5,15 @@ import argparse
 import glob
 import json
 import re
-from typing import List, Dict, Iterable, Tuple, Set, Optional, Union, overload
+from typing import List, Dict, Iterable, Tuple, Set, Optional, Union, overload, Any
 from pathlib import Path
 
 from typing_extensions import Literal
 
+from hyperopt import hp  # type: ignore
 
 from docembedder.preprocessor.parser import read_xz
 from docembedder.typing import PathType
-
 
 class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-public-methods
     """
@@ -442,4 +442,15 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-pub
             "keep_caps": self.keep_caps,
             "keep_start_section": self.keep_start_section,
             "remove_non_alpha": self.remove_non_alpha,
+        }
+
+    @classmethod
+    def hyper_space(cls) -> Dict[str, Any]:
+        """Parameter space for hyperopt."""
+        return {
+            "keep_empty_patents": hp.choice("keep_empty_patents", [True, False]),
+            "keep_missing_years": hp.choice("keep_missing_years", [True, False]),
+            "keep_caps": hp.choice("keep_caps", [True, False]),
+            "keep_start_section": hp.choice("keep_start_section", [True, False]),
+            "remove_non_alpha": hp.choice("remove_non_alpha", [True, False]),
         }

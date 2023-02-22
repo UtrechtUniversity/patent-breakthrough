@@ -7,8 +7,9 @@ import numpy.typing as npt
 
 from sentence_transformers import SentenceTransformer
 
-from docembedder.models.base import BaseDocEmbedder
+from hyperopt import hp
 
+from docembedder.models.base import BaseDocEmbedder
 
 class BERTEmbedder(BaseDocEmbedder):
     """BERT embedding based on Hugging face pre-trained models.
@@ -38,4 +39,14 @@ class BERTEmbedder(BaseDocEmbedder):
     def settings(self) -> Dict[str, Any]:
         return {
             "pretrained_model": self.pretrained_model
+        }
+
+    @classmethod
+    def hyper_space(cls) -> Dict[str, Any]:
+        """Parameter space for hyperopt."""
+        return {
+            "pretrained_model": hp.choice("pretrained_model",
+                                          ["prithivida/bert-for-patents-64d",
+                                           "anferico/bert-for-patents",
+                                           "AI-Growth-Lab/PatentSBERTa"]),
         }
