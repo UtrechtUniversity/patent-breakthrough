@@ -12,7 +12,7 @@ from hyperopt import STATUS_OK, fmin, tpe, Trials
 from docembedder.utils import run_models
 from docembedder.utils import SimulationSpecification
 from docembedder import DataModel
-from docembedder.analysis2 import DocAnalysis
+from docembedder.analysis import DocAnalysis
 from docembedder.preprocessor.preprocessor import Preprocessor
 from docembedder.models.base import BaseDocEmbedder
 from docembedder.typing import PathType
