@@ -66,6 +66,8 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
 
         for cur_index in range(len(patent_ids)):
             cur_embedding = embeddings[cur_index]
+            if len(cur_embedding.shape) == 1:
+                cur_embedding = cur_embedding.reshape(1, -1)
             cur_year = patent_years[cur_index]
 
             other_indices = np.delete(patent_indices, cur_index)
