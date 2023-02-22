@@ -56,7 +56,7 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
     def __init__(self, data: DataModel):
         self.data = data
 
-    def _compute_impact_novelty(self, window_name, model_name):
+    def _compute_impact_novelty(self, window_name, model_name):  # pylint: disable=too-many-locals
         patent_ids, patent_years = self.data.load_window(window_name)
         embeddings = self.data.load_embeddings(window_name, model_name)
         patent_indices = np.array(range(len(patent_ids)))
@@ -101,6 +101,7 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
         return impact_arr, novelty_arr
 
     def auto_correlation(self, window_name, model_name):
+        """Compute autocorrelations for embeddings."""
         embeddings = normalize(self.data.load_embeddings(window_name, model_name))
         patent_ids, _ = self.data.load_window(window_name)
         delta_count = np.unique((1+0.3*np.arange(5000)**2+0.5).astype(int))
@@ -110,7 +111,7 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
         return delta_year, auto_correlations
 
     def patent_impacts(self, window_name, model_name):
-        """ Compute impact using cosine similarity between document vectors
+        """Compute impact using cosine similarity between document vectors
         """
         try:
             impacts = self.data.load_impacts(window_name, model_name)
@@ -120,7 +121,7 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
         return impacts
 
     def patent_novelties(self, window_name, model_name):
-        """ Compute novelty using cosine similarity between document vectors
+        """Compute novelty using cosine similarity between document vectors
         """
         try:
             novelties = self.data.load_novelties(window_name, model_name)
