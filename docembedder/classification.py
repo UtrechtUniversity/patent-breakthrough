@@ -110,7 +110,8 @@ class PatentClassification():
 
     def sample_cpc_correlations(self,  # pylint: disable=too-many-locals
                                 patent_ids: IntSequence,
-                                samples_per_patent: Optional[int]=None):
+                                samples_per_patent: Optional[int]=None,
+                                seed=None):
         """Sample/compute CPC correlations.
 
         Since it is costly to compute the CPC correlations between all patents O(n^2),
@@ -123,6 +124,8 @@ class PatentClassification():
         samples_per_patent:
             Number of correlation values per patent. If None, compute the full
             correlation matrix
+        seed:
+            Seed used in case of sampling.
 
         Returns
         -------
@@ -143,7 +146,7 @@ class PatentClassification():
             j_patent_list: List[int] = []
             n_sample = min(n_index_used-1, samples_per_patent)
 
-            rng = np.random.default_rng()
+            rng = np.random.default_rng(seed=seed)
             for i_index_pat, index_pat in enumerate(index_used):
                 j_pat = rng.choice(n_index_used-1, size=n_sample, replace=False)
                 j_pat += (j_pat >= i_index_pat)
