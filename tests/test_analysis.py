@@ -2,8 +2,10 @@
 from pandas.testing import assert_frame_equal
 import pandas as pd
 
-from docembedder import DOCSimilarity
+from docembedder import DocAnalysis
 from docembedder.models import D2VEmbedder
+import io
+from docembedder.datamodel import DataModel
 
 
 PATENTS = {'index': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
@@ -32,45 +34,52 @@ FORWARD_BLOCK_EXPECTED = pd.DataFrame({'index': [5, 6, 7, 8, 9],
 
 def process_data():
     """ Set parameters for expected dataset"""
+    data_fp = io.BytesIO()
     df_patents = pd.DataFrame(data=PATENTS)
     documents = df_patents['contents']
     model = D2VEmbedder()
     model.fit(documents)
     embeddings = model.transform(documents)
-    sim = DOCSimilarity(embeddings=embeddings, window_size=3, df_patent=df_patents)
-    return sim
+    with DataModel(data_fp, read_only=False) as data:
+        data.store_embeddings("test", "d2v", embeddings)
+        data.store_window("test", PATENTS["patent"], PATENTS["year"])
+        analysis = DocAnalysis(data)
+        impacts = analysis.patent_impacts("test", "d2v")
+        novelties = analysis.patent_novelties("test", "d2v")
+    return impacts, novelties
 
 
-def test_collect_blocks():
-    """ Function to test collect_blocks() functionality"""
-    sim = process_data()
-
-    sim.collect_blocks(PATENT_INDEX)
-
-    assert_frame_equal(
-        sim.backward_block[['index', 'patent', 'contents', 'year']].reset_index(drop=True),
-        BACKWARD_BLOCK_EXPECTED.reset_index(drop=True))
-
-    assert_frame_equal(
-        sim.forward_block[['index', 'patent', 'contents', 'year']].reset_index(drop=True),
-        FORWARD_BLOCK_EXPECTED.reset_index(drop=True))
+# def test_collect_blocks():
+#     """ Function to test collect_blocks() functionality"""
+#     sim = process_data()
+#
+#     sim.collect_blocks(PATENT_INDEX)
+#
+#     assert_frame_equal(
+#         sim.backward_block[['index', 'patent', 'contents', 'year']].reset_index(drop=True),
+#         BACKWARD_BLOCK_EXPECTED.reset_index(drop=True))
+#
+#     assert_frame_equal(
+#         sim.forward_block[['index', 'patent', 'contents', 'year']].reset_index(drop=True),
+#         FORWARD_BLOCK_EXPECTED.reset_index(drop=True))
 
 
 # @pytest.mark.parametrize("patent_index", [3, 4])
 def test_compute_impact():
     """Function to test compute_impact() functionality"""
-    sim = process_data()
-    sim.collect_blocks(PATENT_INDEX)
-    sim.compute_impact(PATENT_INDEX)
+    impacts, novelties = process_data()
+    # sim.collect_blocks(PATENT_INDEX)
+    # sim.compute_impact(PATENT_INDEX)
 
-    assert int(sim.df_patents_embeddings.loc[PATENT_INDEX, 'impact']) == 1
+    assert int(impacts[PATENT_INDEX]) == 1
+    assert int(novelties[PATENT_INDEX]) == 0
 
 
-def test_compute_novelty():
-    """Function to test compute_novelty functionality"""
-    sim = process_data()
-    sim.collect_blocks(PATENT_INDEX)
-    sim.compute_impact(PATENT_INDEX)
-    sim.compute_novelty(PATENT_INDEX)
-
-    assert int(sim.df_patents_embeddings.loc[PATENT_INDEX, 'novelty']) == 0
+# def test_compute_novelty():
+#     """Function to test compute_novelty functionality"""
+#     sim = process_data()
+#     sim.collect_blocks(PATENT_INDEX)
+#     sim.compute_impact(PATENT_INDEX)
+#     sim.compute_novelty(PATENT_INDEX)
+#
+#     assert int(sim.df_patents_embeddings.loc[PATENT_INDEX, 'novelty']) == 0

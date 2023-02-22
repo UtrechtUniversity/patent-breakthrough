@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from pathlib import Path
-from typing import Dict, List, Tuple, Iterable
+from typing import Dict, List, Tuple, Iterable, Optional
 import io
 
 import h5py
@@ -17,7 +17,7 @@ from docembedder.typing import FileType
 from docembedder._version import get_versions
 
 
-class DataModel():
+class DataModel():  # pylint: disable=too-many-public-methods
     """Data model for and HDF5 file that keeps embeddings results.
 
     The groups are ordered as follows:
@@ -27,6 +27,9 @@ class DataModel():
             {window}: Each window/year of embeddings has their own dataset.
                 - (data, indices, indptr) for sparse embeddings, or:
                 - (array) for dense embeddings
+    impacts_novelties: Stores all impact/novelty values
+        {model}: Model name
+            {window}: window name is the dataset.
     windows: Stores all patent numbers that were used for each window.
         {window}: One dataset for each window of all patent numbers used.
     cpc: Stores the correlations between CPC classifications of different patents
@@ -55,6 +58,7 @@ class DataModel():
                 self.handle.create_group("models")
                 self.handle.create_group("preprocessors")
                 self.handle.create_group("cpc")
+                self.handle.create_group("impacts_novelties")
                 self.handle.attrs["docembedder-version"] = get_versions()["version"]
         else:
             self.handle = h5py.File(hdf5_file, "r")
@@ -288,12 +292,85 @@ class DataModel():
         prep = create_preprocessor(prep_type, prep_dict)
         return prep
 
+    def store_impact_novelty(  # pylint: disable=too-many-arguments
+            self,
+            window_name: str,
+            model_name: str,
+            impacts: np.ndarray,
+            novelties: np.ndarray,
+            overwrite: bool = False):
+        """Store impacts for a window/year.
+                Arguments
+                ---------
+                window_name:
+                    Year or window name.
+                model_name:
+                    Name of the model that generated the embeddings.
+                impacts:
+                    An array containing the impacts per model/window
+                novelties:
+                    An array containing the novelties per model/window
+                overwrite:
+                    If True, overwrite embeddings if they exist.
+                """
+
+        dataset_group_str = f"/impacts_novelties/{model_name}/{window_name}"
+        if dataset_group_str in self.handle and overwrite:
+            del self.handle[dataset_group_str]
+        elif dataset_group_str in self.handle:
+            return
+        dataset_group = self.handle.create_group(dataset_group_str)
+
+        dataset_group.create_dataset("impact", data=impacts)
+        dataset_group.create_dataset("novelty", data=novelties)
+
+    def load_impacts(self, window_name: str, model_name: str) -> List[float]:
+        """Load impacts for a window/year.
+
+        Arguments
+        ---------
+        window_name:
+            Year or window name.
+        model_name:
+            Name of the model.
+
+        Returns
+        -------
+        Impacts:
+            list of impacts for that window/model.
+        """
+        return self.handle[f"/impacts_novelties/{model_name}/{window_name}/impact"][...]
+
+    def load_novelties(self, window_name: str, model_name: str) -> List[float]:
+        """Load novelties for a window/year.
+
+        Arguments
+        ---------
+        window_name:
+            Year or window name.
+        model_name:
+            Name of the model.
+
+        Returns
+        -------
+        Impacts:
+            list of novelties for that window/model.
+        """
+        return self.handle[f"/impacts_novelties/{model_name}/{window_name}/novelty"][...]
+
     @property
     def model_names(self) -> List["str"]:
         """Names of all stored models."""
         return list(self.handle["embeddings"].keys())
 
-    def iterate_window_models(self) -> Iterable[Tuple[str, str]]:
+    @property
+    def window_list(self) -> List["str"]:
+        """Names of all stored models."""
+        return list(self.handle["windows"].keys())
+
+    def iterate_window_models(self,
+                              window_name: Optional[str] = None,
+                              model_name: Optional[str] = None) -> Iterable[Tuple[str, str]]:
         """Iterate over all available windows/models.
 
         Returns
@@ -301,11 +378,15 @@ class DataModel():
         window, model_name:
             Window and model_name for each combination that has an embedding.
         """
-        for window in self.handle["windows"]:
-            for model_name in self.model_names:
-                if f"/embeddings/{model_name}/{window}" not in self.handle:
+        for cur_window_name in self.handle["windows"]:
+            if window_name is not None and cur_window_name != window_name:
+                continue
+            for cur_model_name in self.model_names:
+                if model_name is not None and cur_model_name != model_name:
                     continue
-                yield window, model_name
+                if f"/embeddings/{cur_model_name}/{cur_window_name}" not in self.handle:
+                    continue
+                yield cur_window_name, cur_model_name
 
     def has_run(self, prep_name: str, embed_name: str, window_name: str) -> bool:
         """Compute whether a model has run on a certain window/year.
