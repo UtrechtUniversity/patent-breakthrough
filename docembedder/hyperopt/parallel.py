@@ -1,6 +1,7 @@
 """Functions to run models for hyperparameter optimization in parallel.
 """
 
+from __future__ import annotations
 from collections import defaultdict
 from multiprocessing import Pool
 from pathlib import Path
