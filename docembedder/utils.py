@@ -5,7 +5,6 @@ import io
 from multiprocessing import Pool
 from pathlib import Path
 from typing import Optional, Dict, Any, Sequence, List, Tuple, Iterable
-from time import time
 
 import numpy as np
 from tqdm import tqdm
@@ -115,6 +114,7 @@ class SimulationSpecification():
 
     @property
     def year_ranges(self) -> Iterable[list[int]]:
+        """Year ranges for the simulation specification."""
         cur_start = self.year_start - ((self.year_start-STARTING_YEAR) % self.window_size)
         cur_end = self.year_start + self.window_size
         delta = (self.window_size+1)//2
@@ -301,9 +301,7 @@ class Job():
         # print("Do the run", [prep.logger.level for prep in self.preps.values()])
 
         last_prep = list(self.preps)[0]
-        start_time = time()
         patents = self.get_patents(last_prep)
-        print("read_patents", time()-start_time, self.job_data["name"])
         if self.need_window:
             patent_id, year = self.compute_patent_year(patents)
         else:
@@ -312,7 +310,6 @@ class Job():
                 patent_id, year = data.load_window(window_name)
 
         documents = [pat["contents"] for pat in patents if pat["patent"] in patent_id]
-        print("compute_window", time()-start_time, self.job_data["name"])
 
         all_embeddings = {}
         for cur_prep, cur_model in self.need_models:
@@ -323,13 +320,9 @@ class Job():
             combi_name = f"{cur_prep}-{cur_model}"
             all_embeddings[combi_name] = self.compute_embeddings(cur_model, documents)
 
-        print("get embeddings", time()-start_time, self.job_data["name"])
-
         # Compute the CPC correlations
         if self.need_cpc:
             cpc_cor = self.compute_cpc(patent_id)
-
-        print("compute cpc", time()-start_time), self.job_data["name"]
 
         # Store the computed results to the temporary file.
         if not isinstance(temp_fp, io.BytesIO):

@@ -1,18 +1,25 @@
+"""Functions to run models for hyperparameter optimization in parallel.
+"""
+
+from collections import defaultdict
 from multiprocessing import Pool
 from pathlib import Path
+from typing import Any
 
 from tqdm import tqdm
 import numpy as np
 
 from docembedder.analysis import _compute_cpc_cor
 from docembedder.classification import PatentClassification
-from collections import defaultdict
+from docembedder.utils import SimulationSpecification
+from docembedder.preprocessor.preprocessor import Preprocessor
+from docembedder.typing import PathType
 
 
 def _prep_worker(job) -> tuple[int, list[str], dict]:
     sim_spec, prep, patent_fp, year, cpc_fp = job
     pat_class = PatentClassification(cpc_fp)
-    empty_cpc = {"i_patents": [], "j_patents": [], "correlations": []}
+    empty_cpc: dict[str, Any] = {"i_patents": [], "j_patents": [], "correlations": []}
     try:
         patents = prep.preprocess_file(
             patent_fp, max_patents=sim_spec.debug_max_patents)
@@ -30,20 +37,43 @@ def _prep_worker(job) -> tuple[int, list[str], dict]:
     return year, documents, cpc_cor
 
 
-def get_patent_data_multi(sim_spec, prep, patent_dir, cpc_fp, n_jobs=10):
+def get_patent_data_multi(sim_spec: SimulationSpecification, prep: Preprocessor,  # pylint: disable=too-many-locals
+                          patent_dir: PathType, cpc_fp: PathType,
+                          n_jobs: int=10) -> tuple[list[list[str]], list[dict[str, Any]]]:
+    """Get all documents and cpc correlations in parallel.
+
+    Arguments
+    ---------
+    sim_spec:
+        Simulation specifications to get the patent data for.
+    prep:
+        Preprocessor to use.
+    patent_dir:
+        Directory where the patents are stored.
+    cpc_fp:
+        File where the CPC classifications are stored.
+    n_jobs:
+        Number of cores to use.
+
+    Returns
+    -------
+    documents, cpc_cors:
+        Documents and CPC correlations for each of the windows/year ranges.
+    """
     all_years = []
     for year_list in sim_spec.year_ranges:
         all_years.extend(year_list)
     all_years = list(set(all_years))
-    all_jobs = [(sim_spec, prep, Path(patent_dir, f"{year}.xz"), year, cpc_fp) for year in all_years]
+    all_jobs = [(sim_spec, prep, Path(patent_dir, f"{year}.xz"), year, cpc_fp)
+                for year in all_years]
     patent_dict = {}
     with Pool(processes=n_jobs) as pool:
-        for year, documents, cpc_cors in tqdm(pool.imap_unordered(_prep_worker, all_jobs),
-                                              total=len(all_jobs)):
-            patent_dict[year] = (documents, cpc_cors)
+        for year, cur_doc, cur_cpc_cors in tqdm(pool.imap_unordered(_prep_worker, all_jobs),
+                                                total=len(all_jobs)):
+            patent_dict[year] = (cur_doc, cur_cpc_cors)
 
-    documents = [[] for _ in range(len(list(sim_spec.year_ranges)))]
-    cpc_cors = [defaultdict(list) for _ in range(len(list(sim_spec.year_ranges)))]
+    documents: list[list[str]] = [[] for _ in range(len(list(sim_spec.year_ranges)))]
+    cpc_cors: list[dict] = [defaultdict(list) for _ in range(len(list(sim_spec.year_ranges)))]
 
     def extend(i_list, year):
         cur_len = len(documents[i_list])
@@ -59,18 +89,18 @@ def get_patent_data_multi(sim_spec, prep, patent_dir, cpc_fp, n_jobs=10):
         for key in cpc_cors[i_list]:
             cpc_cors[i_list][key] = np.array(cpc_cors[i_list][key])
         cpc_cors[i_list] = dict(cpc_cors[i_list])
-            # documents[i_list].extend(patent_dict[year][0])
-            # cpc_cors[i_list].extend(patent_dict[year][1])
     return documents, cpc_cors
 
 
-def get_patent_data(sim_spec, prep, patent_dir):
-    patent_dict = {}
+def get_patent_data_single(sim_spec: SimulationSpecification, prep: Preprocessor,
+                           patent_dir: PathType):
+    """Get documents and patent ids."""
+    patent_dict: dict[int, list[dict[str, Any]]] = {}
     documents = []
     patent_ids = []
     for year_list in sim_spec.year_ranges:
         cur_documents = []
-        cur_patent_ids = []
+        cur_patent_ids: list[int] = []
         for year in year_list:
             try:
                 if year in patent_dict:
@@ -88,7 +118,8 @@ def get_patent_data(sim_spec, prep, patent_dir):
     return documents, patent_ids
 
 
-def get_cpc_data(patent_ids, cpc_fp, seed=12345):
+def get_cpc_data(patent_ids: list[list[int]], cpc_fp: PathType, seed: int=12345):
+    """Get CPC correlations from a set of patent_ids."""
     pat_class = PatentClassification(cpc_fp)
 
     cpc_cor = [
@@ -102,6 +133,7 @@ def get_cpc_data(patent_ids, cpc_fp, seed=12345):
 
 
 def run_jobs(model, documents, cpc_cor, n_jobs=10):
+    """Get the mean correlation from model, documents and CPC correlations."""
     jobs = [(model, documents[i], cpc_cor[i]) for i in range(len(documents))]
     with Pool(processes=n_jobs) as pool:
         correlations = list(pool.imap_unordered(_pool_worker, jobs))

@@ -132,8 +132,6 @@ class PatentClassification():
         cpc_correlations:
             Dictionary containing three arrays that together from the tuples (i, j, correlation).
         """
-        from time import time
-        start = time()
         self.set_patent_ids(patent_ids)
         index_used_mask = np.array([pid in self._lookup for pid in patent_ids])
         index_used = np.where(index_used_mask)[0]
