@@ -2,23 +2,19 @@
 
 from typing import Optional, Any, Dict, Callable
 from pathlib import Path
-import io
 from collections import defaultdict
 import pickle
 
-import numpy as np
 from hyperopt import STATUS_OK, fmin, tpe, Trials
 
-from docembedder.utils import run_models
 from docembedder.utils import SimulationSpecification
-from docembedder import DataModel
-from docembedder.analysis import DocAnalysis
 from docembedder.preprocessor.preprocessor import Preprocessor
 from docembedder.models.base import BaseDocEmbedder
 from docembedder.typing import PathType
+from docembedder.hyperopt.parallel import run_jobs, get_patent_data_multi
 
 
-class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
+class ModelHyperopt():
     """
     ModelHyperopt class
 
@@ -32,20 +28,12 @@ class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
 
     """
     def __init__(self,  # pylint: disable=too-many-arguments
-                 year_start: int,
-                 year_end: int,
-                 window_size: int,
-                 n_jobs: int,
+                 sim_spec: SimulationSpecification,
                  preprocessors: Optional[Dict[str, Preprocessor]],
                  cpc_fp: Path,
                  patent_dir: Path,
-                 debug_max_patents: Optional[int]=1000,
                  ) -> None:
-        self.year_start = year_start
-        self.year_end = year_end
-        self.window_size = window_size
-        self.n_jobs = n_jobs
-        self.debug_max_patents = debug_max_patents
+        self.sim_spec = sim_spec
         self.preprocessors = preprocessors
         self.cpc_fp = cpc_fp
         self.patent_dir = patent_dir
@@ -58,13 +46,14 @@ class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
                  space: Optional[Dict]=None,
                  model: Optional[BaseDocEmbedder]=None,
                  max_evals: int = 10,
+                 n_jobs: int = 10,
                  pickle_fp: Optional[PathType] = None) -> None:
         """Hyperopt optimization function"""
 
         if objective_function is None:
             if model is None:
                 raise ValueError("Either give objective function or model.")
-            objective_function = self.get_objective_func(label=label, model=model)
+            objective_function = self.get_objective_func(label=label, model=model, n_jobs=n_jobs)
         if space is None:
             if model is None:
                 raise ValueError("Either give space or model.")
@@ -87,37 +76,18 @@ class ModelHyperopt():  # pylint: disable=too-many-instance-attributes
                 with open(pickle_fp, "wb") as handle:
                     pickle.dump(self, handle)
 
-    def get_objective_func(self, **kwargs) -> Callable[[Dict[str, Any]], Dict[str, Any]]:
+    def get_objective_func(self,
+                           n_jobs: int=10,
+                           **kwargs) -> Callable[[Dict[str, Any]], Dict[str, Any]]:
         """Creates general loss function"""
+        prep = Preprocessor()
+
+        documents, cpc_cor = get_patent_data_multi(self.sim_spec, prep, self.patent_dir,
+                                                   self.cpc_fp, n_jobs=n_jobs)
 
         def objective_func(params: Dict[str, Any]) -> Dict[str, Any]:
             """Hyperopt objective function"""
-            label = kwargs['label']
-
-            sim_spec = SimulationSpecification(
-                year_start=self.year_start,
-                year_end=self.year_end,
-                window_size=self.window_size,
-                debug_max_patents=self.debug_max_patents)
-
-            output_fp = io.BytesIO()
-
-            run_models(preprocessors=self.preprocessors,
-                       models={label: kwargs['model'](**params)},
-                       sim_spec=sim_spec,
-                       patent_dir=self.patent_dir,
-                       output_fp=output_fp,
-                       cpc_fp=self.cpc_fp,
-                       n_jobs=self.n_jobs,
-                       progress_bar=False)
-
-            pp_prefix = "default-"
-
-            with DataModel(output_fp, read_only=False) as data:
-                analysis = DocAnalysis(data)
-                correlations = analysis.cpc_correlations(models=f"{pp_prefix}{label}")
-
-            return {'loss': -np.mean(correlations[f"{pp_prefix}{label}"]["correlations"]),
-                    'status': STATUS_OK}
-
+            model = kwargs['model'](**params)
+            correlation = run_jobs(model, documents, cpc_cor, n_jobs)
+            return {"loss": -correlation, "status": STATUS_OK}
         return objective_func

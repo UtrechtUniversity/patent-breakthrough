@@ -161,5 +161,5 @@ class PatentClassification():
         return {
             "i_patents": i_patents,
             "j_patents": j_patents,
-            "correlations": correlations,
+            "correlations": np.array(correlations),
         }

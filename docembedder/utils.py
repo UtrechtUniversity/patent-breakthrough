@@ -4,7 +4,7 @@ from __future__ import annotations
 import io
 from multiprocessing import Pool
 from pathlib import Path
-from typing import Optional, Dict, Any, Sequence, List, Tuple
+from typing import Optional, Dict, Any, Sequence, List, Tuple, Iterable
 
 import numpy as np
 from tqdm import tqdm
@@ -79,13 +79,13 @@ class SimulationSpecification():
             Directory that contains the zipped (*.xz) patent files.
         """
         jobs = []
-        cur_start = self.year_start - ((self.year_start-STARTING_YEAR) % self.window_size)
-        cur_end = self.year_start + self.window_size
-        delta = (self.window_size+1)//2
+        # cur_start = self.year_start - ((self.year_start-STARTING_YEAR) % self.window_size)
+        # cur_end = self.year_start + self.window_size
+        # delta = (self.window_size+1)//2
         with DataModel(output_fp, read_only=True) as data:
-            while cur_start < self.year_end:
-                year_list = list(range(cur_start, cur_end))
-                job_name = f"{cur_start}-{cur_end-1}"
+            # while cur_start < self.year_end:
+            for year_list in self.year_ranges:
+                job_name = f"{year_list[0]}-{year_list[-1]}"
                 compute_window = not data.has_window(job_name)
                 compute_cpc = not data.has_cpc(job_name)
                 compute_models = [(prep, model)
@@ -110,9 +110,18 @@ class SimulationSpecification():
                         need_models=compute_models,
                         sim_spec=self,
                     ))
-                cur_start += delta
-                cur_end += delta
         return jobs
+
+    @property
+    def year_ranges(self) -> Iterable[list[int]]:
+        """Year ranges for the simulation specification."""
+        cur_start = self.year_start - ((self.year_start-STARTING_YEAR) % self.window_size)
+        cur_end = self.year_start + self.window_size
+        delta = (self.window_size+1)//2
+        while cur_start < self.year_end:
+            yield list(range(cur_start, cur_end))
+            cur_start += delta
+            cur_end += delta
 
     @property
     def name(self) -> str:
@@ -236,10 +245,6 @@ class Job():
                 size=min(len(patents), self.sim_spec.n_patents_per_window))
             patent_id = [patents[i]["patent"] for i in idx]
             year = [patents[i]["year"] for i in idx]
-            # train_id = np.random.choice(
-                # [pat["patent"] for pat in patents],
-                # size=).tolist()
-        # test_id = train_id
         return np.array(patent_id), np.array(year)
 
     def compute_embeddings(self, model_name: str, documents: Sequence[str]) -> AllEmbedType:
@@ -297,7 +302,6 @@ class Job():
 
         last_prep = list(self.preps)[0]
         patents = self.get_patents(last_prep)
-
         if self.need_window:
             patent_id, year = self.compute_patent_year(patents)
         else:
