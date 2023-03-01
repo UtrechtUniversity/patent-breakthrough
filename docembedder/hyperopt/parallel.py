@@ -40,7 +40,8 @@ def _prep_worker(job) -> tuple[int, list[str], dict]:
 
 def get_patent_data_multi(sim_spec: SimulationSpecification, prep: Preprocessor,  # pylint: disable=too-many-locals
                           patent_dir: PathType, cpc_fp: PathType,
-                          n_jobs: int=10) -> tuple[list[list[str]], list[dict[str, Any]]]:
+                          n_jobs: int=10,
+                          progress_bar=True) -> tuple[list[list[str]], list[dict[str, Any]]]:
     """Get all documents and cpc correlations in parallel.
 
     Arguments
@@ -70,7 +71,8 @@ def get_patent_data_multi(sim_spec: SimulationSpecification, prep: Preprocessor,
     patent_dict = {}
     with Pool(processes=n_jobs) as pool:
         for year, cur_doc, cur_cpc_cors in tqdm(pool.imap_unordered(_prep_worker, all_jobs),
-                                                total=len(all_jobs)):
+                                                total=len(all_jobs),
+                                                disable=not progress_bar):
             patent_dict[year] = (cur_doc, cur_cpc_cors)
 
     documents: list[list[str]] = [[] for _ in range(len(list(sim_spec.year_ranges)))]

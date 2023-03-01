@@ -1,6 +1,6 @@
 """Utils for model parameter optimization using hyperopt."""
 
-from typing import Optional, Any, Dict, Callable
+from typing import Optional, Any, Dict, Callable, Type
 from pathlib import Path
 from collections import defaultdict
 import pickle
@@ -32,32 +32,36 @@ class ModelHyperopt():
                  preprocessors: Optional[Dict[str, Preprocessor]],
                  cpc_fp: Path,
                  patent_dir: Path,
+                 trials: Optional[Trials]=None,
                  ) -> None:
         self.sim_spec = sim_spec
         self.preprocessors = preprocessors
         self.cpc_fp = cpc_fp
         self.patent_dir = patent_dir
         self.best: Dict = defaultdict(fmin)
-        self.trials: Dict = defaultdict(Trials)
+        if trials is None:
+            self.trials: Dict = defaultdict(Trials)
+        else:
+            self.trials = trials
 
-    def optimize(self,  # pylint: disable=too-many-arguments
-                 label: str,
-                 objective_function: Optional[Callable]=None,
-                 space: Optional[Dict]=None,
-                 model: Optional[BaseDocEmbedder]=None,
-                 max_evals: int = 10,
-                 n_jobs: int = 10,
-                 pickle_fp: Optional[PathType] = None) -> None:
+    def optimize_model(
+            self,  # pylint: disable=too-many-arguments
+            label: str,
+            model: Type[BaseDocEmbedder],
+            preprocessor: Optional[Preprocessor]=None,
+            max_evals: int = 10,
+            n_jobs: int = 10,
+            pickle_fp: Optional[PathType] = None) -> None:
         """Hyperopt optimization function"""
 
-        if objective_function is None:
-            if model is None:
-                raise ValueError("Either give objective function or model.")
-            objective_function = self.get_objective_func(label=label, model=model, n_jobs=n_jobs)
-        if space is None:
-            if model is None:
-                raise ValueError("Either give space or model.")
-            space = model.hyper_space()
+        if len(self.trials[label]) >= max_evals:
+            return
+
+        if preprocessor is None:
+            preprocessor = Preprocessor()
+
+        objective_function = self.get_model_objective_func(label=label, model=model, n_jobs=n_jobs)
+        space = model.hyper_space()
 
         if pickle_fp is None:
             self.best[label] = fmin(objective_function,
@@ -74,11 +78,36 @@ class ModelHyperopt():
                                         max_evals=new_evals,
                                         trials=self.trials[label])
                 with open(pickle_fp, "wb") as handle:
-                    pickle.dump(self, handle)
+                    pickle.dump(self.trials, handle)
 
-    def get_objective_func(self,
-                           n_jobs: int=10,
-                           **kwargs) -> Callable[[Dict[str, Any]], Dict[str, Any]]:
+    def optimize_preprocessor(
+            self,
+            label: str,
+            model: BaseDocEmbedder,
+            preprocessor: Type[Preprocessor],
+            max_evals: int = 10,
+            n_jobs: int = 10,
+            pickle_fp: Optional[PathType] = None) -> None:
+
+        if len(self.trials[label]) >= max_evals:
+            return
+
+        space = preprocessor.hyper_space()
+        objective_function = self.get_preprocessor_objective_func(preprocessor, model, n_jobs)
+        while len(self.trials[label]) < max_evals:
+            new_evals = min(max_evals, len(self.trials[label])+10)
+            self.best[label] = fmin(objective_function,
+                                    space=space,
+                                    algo=tpe.suggest,
+                                    max_evals=new_evals,
+                                    trials=self.trials[label])
+            if pickle_fp is not None:
+                with open(pickle_fp, "wb") as handle:
+                    pickle.dump(self.trials, handle)
+
+    def get_model_objective_func(self,
+                                 n_jobs: int=10,
+                                 **kwargs) -> Callable[[Dict[str, Any]], Dict[str, Any]]:
         """Creates general loss function"""
         prep = Preprocessor()
 
@@ -91,3 +120,18 @@ class ModelHyperopt():
             correlation = run_jobs(model, documents, cpc_cor, n_jobs)
             return {"loss": -correlation, "status": STATUS_OK}
         return objective_func
+
+    def get_preprocessor_objective_func(
+            self,
+            preprocessor: Type[Preprocessor],
+            model: BaseDocEmbedder,
+            n_jobs: int = 10,
+            ):
+        def _objective_func(params: Dict[str, Any]) -> Dict[str, Any]:
+            prep = preprocessor(**params)
+            documents, cpc_cor = get_patent_data_multi(
+                self.sim_spec, prep, self.patent_dir, self.cpc_fp, n_jobs,
+                progress_bar=False)
+            correlation = run_jobs(model, documents, cpc_cor, n_jobs)
+            return {"loss": -correlation, "status": STATUS_OK}
+        return _objective_func

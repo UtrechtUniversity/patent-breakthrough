@@ -35,7 +35,9 @@ class SimulationSpecification():
     year_end:
         End of the windows to run the models on.
     window_size:
-        Number of years in each window. Each consecutive window is shifted by
+        Number of years in each window.
+    window_shift:
+        Shift between consecutive windows. If None, each consecutive window is shifted by
         the window_size divided by 2 rounded up.
     cpc_samples_per_patent:
         Number of CPC correlation samples per patent.
@@ -50,12 +52,17 @@ class SimulationSpecification():
                  year_start: int,
                  year_end: int,
                  window_size: int=1,
+                 window_shift: Optional[int]=None,
                  cpc_samples_per_patent: int=10,
                  debug_max_patents: Optional[int]=None,
                  n_patents_per_window: Optional[int]=None):
         self.year_start = year_start
         self.year_end = year_end
         self.window_size = window_size
+        if window_shift is None:
+            self.window_shift = (self.window_size+1)//2
+        else:
+            self.window_shift = window_shift
         self.cpc_samples_per_patent = cpc_samples_per_patent
         self.debug_max_patents = debug_max_patents
         self.n_patents_per_window = n_patents_per_window
@@ -117,11 +124,10 @@ class SimulationSpecification():
         """Year ranges for the simulation specification."""
         cur_start = self.year_start - ((self.year_start-STARTING_YEAR) % self.window_size)
         cur_end = self.year_start + self.window_size
-        delta = (self.window_size+1)//2
         while cur_start < self.year_end:
             yield list(range(cur_start, cur_end))
-            cur_start += delta
-            cur_end += delta
+            cur_start += self.window_shift
+            cur_end += self.window_shift
 
     @property
     def name(self) -> str:
