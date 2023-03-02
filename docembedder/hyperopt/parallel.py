@@ -38,7 +38,8 @@ def _prep_worker(job) -> tuple[int, list[str], dict]:
     return year, documents, cpc_cor
 
 
-def get_patent_data_multi(sim_spec: SimulationSpecification, prep: Preprocessor,  # pylint: disable=too-many-locals
+def get_patent_data_multi(sim_spec: SimulationSpecification,  # pylint: disable=too-many-locals,too-many-arguments
+                          prep: Preprocessor,
                           patent_dir: PathType, cpc_fp: PathType,
                           n_jobs: int=10,
                           progress_bar=True) -> tuple[list[list[str]], list[dict[str, Any]]]:

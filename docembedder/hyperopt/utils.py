@@ -44,8 +44,8 @@ class ModelHyperopt():
         else:
             self.trials = trials
 
-    def optimize_model(
-            self,  # pylint: disable=too-many-arguments
+    def optimize_model(  # pylint: disable=too-many-arguments
+            self,
             label: str,
             model: Type[BaseDocEmbedder],
             preprocessor: Optional[Preprocessor]=None,
@@ -80,7 +80,7 @@ class ModelHyperopt():
                 with open(pickle_fp, "wb") as handle:
                     pickle.dump(self.trials, handle)
 
-    def optimize_preprocessor(
+    def optimize_preprocessor(  # pylint: disable=too-many-arguments
             self,
             label: str,
             model: BaseDocEmbedder,
@@ -88,7 +88,7 @@ class ModelHyperopt():
             max_evals: int = 10,
             n_jobs: int = 10,
             pickle_fp: Optional[PathType] = None) -> None:
-
+        """Optimize the preprocessor."""
         if len(self.trials[label]) >= max_evals:
             return
 
@@ -127,6 +127,7 @@ class ModelHyperopt():
             model: BaseDocEmbedder,
             n_jobs: int = 10,
             ):
+        """Create the objective function for the preprocessor optimization."""
         def _objective_func(params: Dict[str, Any]) -> Dict[str, Any]:
             prep = preprocessor(**params)
             documents, cpc_cor = get_patent_data_multi(
