@@ -100,6 +100,7 @@ class ModelHyperopt():
         return objective_func
 
     def dataframe(self, label, model_class):
+        """Create a dataframe for the trial results with a label."""
         trial_results = defaultdict(list)
         for trial in self.trials[label]:
             if "loss" not in trial["result"]:
@@ -112,6 +113,7 @@ class ModelHyperopt():
         return pd.DataFrame(trial_results).sort_values("loss")
 
     def best_model(self, label, model_class):
+        """Create the best model."""
         result_df = self.dataframe(label, model_class)
         best_prep_param = {
             key: list(value.values())[0] for key, value in result_df.head(1).to_dict().items()
@@ -180,9 +182,9 @@ class PreprocessorHyperopt():
                     trial_done = True
             if trial_done:
                 continue
-            prep = preprocessor(**params)
             documents, cpc_cor = get_patent_data_multi(
-                self.sim_spec, prep, self.patent_dir, self.cpc_fp, n_jobs,
+                self.sim_spec, preprocessor(**params),
+                self.patent_dir, self.cpc_fp, n_jobs,
                 progress_bar=False)
             correlation = run_jobs(model, documents, cpc_cor, n_jobs)
             self.trials[label].append({"loss": -correlation, "params": params})
@@ -191,6 +193,7 @@ class PreprocessorHyperopt():
                     pickle.dump(self.trials, handle)
 
     def dataframe(self, label):
+        """Create a dataframe for the trial results with a label."""
         data_dict = defaultdict(list)
         for trial in self.trials[label]:
             for key, value in trial["params"].items():
@@ -199,6 +202,7 @@ class PreprocessorHyperopt():
         return pd.DataFrame(data_dict).sort_values("loss")
 
     def best_preprocessor(self, label, prep_class):
+        """Create the best preprocessor."""
         result_df = self.dataframe(label)
         best_prep_param = {
             key: list(value.values())[0] for key, value in result_df.head(1).to_dict().items()
