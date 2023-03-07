@@ -147,3 +147,7 @@ class OldPreprocessor(Preprocessor):
             "keep_missing_years": self.keep_missing_years,
             "keep_empty_patents": self.keep_empty_patents,
         }
+
+    @classmethod
+    def hyper_space(cls):
+        return {}

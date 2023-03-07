@@ -434,8 +434,6 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-pub
     def hyper_space(cls) -> Dict[str, Any]:
         """Parameter space for hyperopt."""
         return {
-            "keep_empty_patents": hp.choice("keep_empty_patents", [True, False]),
-            "keep_missing_years": hp.choice("keep_missing_years", [True, False]),
             "keep_caps": hp.choice("keep_caps", [True, False]),
             "keep_start_section": hp.choice("keep_start_section", [True, False]),
             "remove_non_alpha": hp.choice("remove_non_alpha", [True, False]),
