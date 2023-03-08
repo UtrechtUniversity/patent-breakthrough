@@ -15,7 +15,7 @@ WHITESPACE = re.compile(r'\s+')
 
 
 def _parse_file_contents(contents: str) -> List[Dict]:
-    """Parse the contents of the raw file
+    """Parse the contents of the raw file in JSONL format
 
     Arguments
     ---------
