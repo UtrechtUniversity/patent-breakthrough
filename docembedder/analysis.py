@@ -43,6 +43,8 @@ def _compute_cpc_cor(embeddings: AllEmbedType,
 def _auto_cor(delta, embeddings):
     start = delta
     end = embeddings.shape[0] - delta
+    if isinstance(embeddings, np.ndarray):
+        return (embeddings[:end]*embeddings[start:]).sum(axis=1).flatten().mean()
     return np.array(embeddings[:end].multiply(embeddings[start:]).sum(axis=1)).flatten().mean()
 
 
