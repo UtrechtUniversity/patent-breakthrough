@@ -14,7 +14,6 @@ from docembedder.models.utils import create_model, create_preprocessor
 from docembedder.models.base import AllEmbedType, BaseDocEmbedder
 from docembedder.preprocessor.preprocessor import Preprocessor
 from docembedder.typing import FileType
-from docembedder._version import get_versions
 
 
 class DataModel():  # pylint: disable=too-many-public-methods
@@ -59,7 +58,7 @@ class DataModel():  # pylint: disable=too-many-public-methods
                 self.handle.create_group("preprocessors")
                 self.handle.create_group("cpc")
                 self.handle.create_group("impacts_novelties")
-                self.handle.attrs["docembedder-version"] = get_versions()["version"]
+                self.handle.attrs["docembedder-version"] = "unknown"  # Should be fixed in case
         else:
             self.handle = h5py.File(hdf5_file, "r")
 
