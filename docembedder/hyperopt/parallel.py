@@ -70,11 +70,15 @@ def get_patent_data_multi(sim_spec: SimulationSpecification,  # pylint: disable=
     all_jobs = [(sim_spec, prep, Path(patent_dir, f"{year}.xz"), year, cpc_fp)
                 for year in all_years]
     patent_dict = {}
-    with Pool(processes=n_jobs) as pool:
-        for year, cur_doc, cur_cpc_cors in tqdm(pool.imap_unordered(_prep_worker, all_jobs),
-                                                total=len(all_jobs),
-                                                disable=not progress_bar):
+    if n_jobs == 1:
+        for job in all_jobs:
+            year, cur_doc, cur_cpc_cors = _prep_worker(job)
             patent_dict[year] = (cur_doc, cur_cpc_cors)
+    else:
+        with Pool(processes=n_jobs) as pool:
+            for year, cur_doc, cur_cpc_cors in tqdm(pool.imap_unordered(_prep_worker, all_jobs),
+                                                    total=len(all_jobs)):
+                patent_dict[year] = (cur_doc, cur_cpc_cors)
 
     documents: list[list[str]] = [[] for _ in range(len(list(sim_spec.year_ranges)))]
     cpc_cors: list[dict] = [defaultdict(list) for _ in range(len(list(sim_spec.year_ranges)))]
@@ -139,8 +143,13 @@ def get_cpc_data(patent_ids: list[list[int]], cpc_fp: PathType, seed: int=12345)
 def run_jobs(model, documents, cpc_cor, n_jobs=10):
     """Get the mean correlation from model, documents and CPC correlations."""
     jobs = [(model, documents[i], cpc_cor[i]) for i in range(len(documents))]
-    with Pool(processes=n_jobs) as pool:
-        correlations = list(pool.imap_unordered(_pool_worker, jobs))
+    if n_jobs == 1:
+        correlations = []
+        for job in jobs:
+            correlations.append(_pool_worker(job))
+    else:
+        with Pool(processes=n_jobs) as pool:
+            correlations = list(pool.imap_unordered(_pool_worker, jobs))
     return np.mean(correlations)
 
 
