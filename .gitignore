@@ -132,3 +132,6 @@ dmypy.json
 **/.DS_Store
 /data
 .idea
+
+# local setup for example notebooks 
+examples/hyperopt/setup.ini
