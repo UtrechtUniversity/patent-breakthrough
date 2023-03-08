@@ -71,13 +71,14 @@ def get_patent_data_multi(sim_spec: SimulationSpecification,  # pylint: disable=
                 for year in all_years]
     patent_dict = {}
     if n_jobs == 1:
-        for job in all_jobs:
+        for job in tqdm(all_jobs, total=len(all_jobs), disable=not progress_bar):
             year, cur_doc, cur_cpc_cors = _prep_worker(job)
             patent_dict[year] = (cur_doc, cur_cpc_cors)
     else:
         with Pool(processes=n_jobs) as pool:
             for year, cur_doc, cur_cpc_cors in tqdm(pool.imap_unordered(_prep_worker, all_jobs),
-                                                    total=len(all_jobs)):
+                                                    total=len(all_jobs),
+                                                    disable=not progress_bar):
                 patent_dict[year] = (cur_doc, cur_cpc_cors)
 
     documents: list[list[str]] = [[] for _ in range(len(list(sim_spec.year_ranges)))]
