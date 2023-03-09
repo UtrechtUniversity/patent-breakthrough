@@ -11,6 +11,7 @@ from hyperopt import hp
 
 from docembedder.models.base import BaseDocEmbedder
 
+
 class BERTEmbedder(BaseDocEmbedder):
     """BERT embedding based on Hugging face pre-trained models.
     There are a number of pre-trained models on the patent data available.

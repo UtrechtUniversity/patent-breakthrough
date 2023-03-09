@@ -13,6 +13,7 @@ from docembedder.models.base import BaseDocEmbedder
 
 from hyperopt import hp
 
+
 class CountVecEmbedder(BaseDocEmbedder):
     """Sklearn TF-IDF class."""
     def __init__(self, method="sigmoid"):

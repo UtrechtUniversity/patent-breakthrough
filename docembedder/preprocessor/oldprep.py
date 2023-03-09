@@ -17,7 +17,7 @@ from docembedder.typing import PathType
 class OldPreprocessor(Preprocessor):
     def __init__(self, list_path=Path("..", "data"), keep_missing_years=False,
                  keep_empty_patents=False, job_id: Optional[str] = None):
-        self.list_path = list_path
+        self.list_path = str(list_path)
         self.keep_missing_years = keep_missing_years
         self.keep_empty_patents = keep_empty_patents
         self.import_lists()
@@ -72,8 +72,9 @@ class OldPreprocessor(Preprocessor):
 
     def import_lists(self):
         # compile a set of words that need deleting
+        list_path = Path(self.list_path)
         nltk.download('stopwords', quiet=True)
-        with open(self.list_path / 'stopwords.txt', mode='r') as f:
+        with open(list_path / 'stopwords.txt', mode='r') as f:
             self.STOPWORDS = set(
                 f.read().split() +
                 ['.sub.', '.sup.'] +
@@ -82,12 +83,12 @@ class OldPreprocessor(Preprocessor):
         # print(f'...read {len(self.STOPWORDS)} stopwords...')
 
         # these symbols are to be replaced with a single space
-        with open(self.list_path / 'symbols.txt', mode='r') as f:
+        with open(list_path / 'symbols.txt', mode='r') as f:
             symbols = [s.strip().split(',') for s in f.read().split()]
             self.SYMBOLS = set(chain(*symbols))
 
         # and these Greek words/characters are to be replaced with standards
-        greek = pd.read_csv(self.list_path / 'greek.txt')
+        greek = pd.read_csv(list_path / 'greek.txt')
         pairs = [[c, 'Version 3'] for c in ['letter', 'Version 1', 'Version 2']]
         subs = [greek[p].to_records(index=False) for p in pairs]
         GREEK = dict([t for t in chain(*subs) if t[0] != '-'])
@@ -146,6 +147,7 @@ class OldPreprocessor(Preprocessor):
         return {
             "keep_missing_years": self.keep_missing_years,
             "keep_empty_patents": self.keep_empty_patents,
+            "list_path": str(self.list_path),
         }
 
     @classmethod
