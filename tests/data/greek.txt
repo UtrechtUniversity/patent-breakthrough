@@ -1,0 +1,10 @@
+letter,Version 1,Version 2,Version 3
+?,Î±,&agr;,.alpha.,alpha
+?,Î²,&bgr;,.beta.,beta
+?,Î³,&ggr;,.gamma.,gamma
+?,Î¶,&zgr;,.zeta.,zeta
+?,Î´,&dgr;,.delta.,delta
+?,Îµ,&egr;,.epsilon.,epsilon
+?,Î·,&eegr;,.eta.,eta
+?,Ï,&pgr;,.pi.,pi
+?,Î¼,&mgr;,.mu.,mu
