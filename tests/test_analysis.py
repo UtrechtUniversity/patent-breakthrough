@@ -21,10 +21,10 @@ def create_dataset(dense=True):
     with DataModel(data_fp, read_only=False) as data:
         patents_1 = 2*np.arange(5)
         patents_2 = 10+2*np.arange(5)
-        data.store_window("window_1", patents_1, np.arange(5//2))
+        data.store_window("window_1", patents_1, np.arange(5)//2)
         data.store_embeddings("window_1", "model_1", mat_type([[0, 1], [0, 1], [0, 1], [1, 0], [1, 0]]))
         data.store_embeddings("window_1", "model_2", mat_type([[0, 1], [1, 0], [1, 0], [0, 1], [0, 1]]))
-        data.store_window("window_2", patents_2, 5+np.arange(5//2))
+        data.store_window("window_2", patents_2, 5+np.arange(5)//2)
         data.store_embeddings("window_2", "model_1", mat_type([[0, 1], [0, 1], [1, 0], [1, 0], [0, 1]]))
         data.store_embeddings("window_2", "model_2", mat_type([[0, 1], [1, 0], [1, 0], [0, 1], [0, 1]]))
         cpc_cor_1 = {
