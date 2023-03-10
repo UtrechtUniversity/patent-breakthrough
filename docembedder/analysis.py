@@ -60,11 +60,16 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
         patent_ids, patent_years = self.data.load_window(window_name)
         embeddings = self.data.load_embeddings(window_name, model_name)
         patent_indices = np.array(range(len(patent_ids)))
+        min_year = np.amin(patent_years)
+        max_year = np.amax(patent_years)
+        focal_year = int((min_year+max_year)/2)
 
         impact_arr: npt.NDArray[np.float_] = np.full(len(patent_years), np.nan)
         novelty_arr: npt.NDArray[np.float_] = np.full(len(patent_years), np.nan)
 
         for cur_index in range(len(patent_ids)):
+            if patent_years[cur_index] != focal_year:
+                continue
             cur_embedding = embeddings[cur_index]
             if len(cur_embedding.shape) == 1:
                 cur_embedding = cur_embedding.reshape(1, -1)
