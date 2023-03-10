@@ -26,8 +26,6 @@ def _prep_worker(job) -> tuple[int, list[str], dict]:
             patent_fp, max_patents=sim_spec.debug_max_patents)
     except FileNotFoundError:
         return year, [], empty_cpc
-    if len(patents) < 10:
-        return year, [], empty_cpc
     documents = [pat["contents"] for pat in patents]
     patent_ids = [pat["patent"] for pat in patents]
     cpc_cor = pat_class.sample_cpc_correlations(
@@ -40,7 +38,8 @@ def _prep_worker(job) -> tuple[int, list[str], dict]:
 
 def get_patent_data_multi(sim_spec: SimulationSpecification,  # pylint: disable=too-many-locals,too-many-arguments
                           prep: Preprocessor,
-                          patent_dir: PathType, cpc_fp: PathType,
+                          patent_dir: PathType,
+                          cpc_fp: PathType,
                           n_jobs: int=10,
                           progress_bar=True) -> tuple[list[list[str]], list[dict[str, Any]]]:
     """Get all documents and cpc correlations in parallel.
@@ -68,7 +67,7 @@ def get_patent_data_multi(sim_spec: SimulationSpecification,  # pylint: disable=
         all_years.extend(year_list)
     all_years = list(set(all_years))
     all_jobs = [(sim_spec, prep, Path(patent_dir, f"{year}.xz"), year, cpc_fp)
-                for year in all_years]
+                for year in all_years if Path(patent_dir, f"{year}.xz").is_file()]
     patent_dict = {}
     if n_jobs == 1:
         for job in tqdm(all_jobs, total=len(all_jobs), disable=not progress_bar):
@@ -81,23 +80,30 @@ def get_patent_data_multi(sim_spec: SimulationSpecification,  # pylint: disable=
                                                     disable=not progress_bar):
                 patent_dict[year] = (cur_doc, cur_cpc_cors)
 
-    documents: list[list[str]] = [[] for _ in range(len(list(sim_spec.year_ranges)))]
-    cpc_cors: list[dict] = [defaultdict(list) for _ in range(len(list(sim_spec.year_ranges)))]
+    documents: list[list[str]] = []
+    cpc_cors: list[dict] = []
 
-    def extend(i_list, year):
-        cur_len = len(documents[i_list])
-        documents[i_list].extend(patent_dict[year][0])
+    def extend(docs, cpc, year):
+        if year not in patent_dict:
+            return
+        cur_len = len(docs)
+        docs.extend(patent_dict[year][0])
         cur_cpc = patent_dict[year][1]
-        cpc_cors[i_list]["i_patents"].extend([x + cur_len for x in cur_cpc["i_patents"]])
-        cpc_cors[i_list]["j_patents"].extend([x + cur_len for x in cur_cpc["j_patents"]])
-        cpc_cors[i_list]["correlations"].extend(cur_cpc["correlations"])
+        cpc["i_patents"].extend([x + cur_len for x in cur_cpc["i_patents"]])
+        cpc["j_patents"].extend([x + cur_len for x in cur_cpc["j_patents"]])
+        cpc["correlations"].extend(cur_cpc["correlations"])
 
-    for i_list, year_list in enumerate(sim_spec.year_ranges):
+    for year_list in sim_spec.year_ranges:
+        new_docs: list[str] = []
+        new_cpc: dict[str, Any] = defaultdict(list)
         for year in year_list:
-            extend(i_list, year)
-        for key in cpc_cors[i_list]:
-            cpc_cors[i_list][key] = np.array(cpc_cors[i_list][key])
-        cpc_cors[i_list] = dict(cpc_cors[i_list])
+            extend(new_docs, new_cpc, year)
+        if len(new_docs) == 0:
+            continue
+        documents.append(new_docs)
+        for key in new_cpc:
+            new_cpc[key] = np.array(new_cpc[key])
+        cpc_cors.append(dict(new_cpc))
     return documents, cpc_cors
 
 

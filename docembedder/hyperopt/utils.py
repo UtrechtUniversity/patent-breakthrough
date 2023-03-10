@@ -164,7 +164,8 @@ class PreprocessorHyperopt():
             label: str,
             model: BaseDocEmbedder,
             preprocessor: Type[Preprocessor],
-            n_jobs: int = 10) -> None:
+            n_jobs: int = 10,
+            **kwargs) -> None:
         """Optimize the preprocessor."""
         space = preprocessor.hyper_space()
         assert np.all([sub_space.name == "switch" for sub_space in space.values()])
@@ -182,8 +183,9 @@ class PreprocessorHyperopt():
                     trial_done = True
             if trial_done:
                 continue
+            prep = preprocessor(**params, **kwargs)
             documents, cpc_cor = get_patent_data_multi(
-                self.sim_spec, preprocessor(**params),
+                self.sim_spec, prep,
                 self.patent_dir, self.cpc_fp, n_jobs,
                 progress_bar=False)
             correlation = run_jobs(model, documents, cpc_cor, n_jobs)
@@ -201,10 +203,10 @@ class PreprocessorHyperopt():
             data_dict["loss"].append(trial["loss"])
         return pd.DataFrame(data_dict).sort_values("loss")
 
-    def best_preprocessor(self, label, prep_class):
+    def best_preprocessor(self, label, prep_class, **kwargs):
         """Create the best preprocessor."""
         result_df = self.dataframe(label)
         best_prep_param = {
             key: list(value.values())[0] for key, value in result_df.head(1).to_dict().items()
             if key != "loss"}
-        return prep_class(**best_prep_param)
+        return prep_class(**best_prep_param, **kwargs)

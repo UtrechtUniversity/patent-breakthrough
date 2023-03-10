@@ -71,6 +71,7 @@ class TfidfEmbedder(BaseDocEmbedder):  # pylint: disable=too-many-instance-attri
 
     def fit(self, documents: Sequence[str]) -> None:
         min_df = min(self.min_df, len(documents))
+        max_df = max(min_df/len(documents), self.max_df)
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
             self._model = TfidfVectorizer(
@@ -80,7 +81,7 @@ class TfidfEmbedder(BaseDocEmbedder):  # pylint: disable=too-many-instance-attri
                 min_df=min_df,
                 norm=self.norm,
                 sublinear_tf=self.sublinear_tf,
-                max_df=self.max_df)
+                max_df=max_df)
             self._model.fit(documents)
 
     def transform(self, documents: Union[str, Sequence[str]]) -> Union[
