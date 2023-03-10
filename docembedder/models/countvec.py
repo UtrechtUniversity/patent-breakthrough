@@ -38,10 +38,6 @@ class CountVecEmbedder(BaseDocEmbedder):
         return normalize(X, norm="l2").tocsr()
 
     @property
-    def embedding_size(self) -> int:
-        return len(self._model.vocabulary_)
-
-    @property
     def settings(self) -> dict[str, Any]:
         return {"method": self.method}
 

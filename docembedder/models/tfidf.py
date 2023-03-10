@@ -90,12 +90,6 @@ class TfidfEmbedder(BaseDocEmbedder):  # pylint: disable=too-many-instance-attri
         return self._model.transform(documents).tocsr()
 
     @property
-    def embedding_size(self) -> int:
-        if self._model is None:
-            return 0
-        return len(self._model.vocabulary_)
-
-    @property
     def settings(self) -> Dict[str, Any]:
         return {
             "ngram_max": self.ngram_max,

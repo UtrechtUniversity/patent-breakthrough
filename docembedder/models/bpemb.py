@@ -7,12 +7,11 @@ from typing import Iterable, Union, Dict, Optional, Sequence, Any
 
 import numpy as np
 from numpy import typing as npt
-
 from hyperopt import hp
-
 from bpemb import BPEmb
 
 from docembedder.models.base import BaseDocEmbedder
+
 
 def _get_prefac(model: BPEmb, documents: Union[Iterable[str], Sequence[str]]) -> Dict[str, float]:
     """Compute the prefactor for each (sub)word.
@@ -90,10 +89,6 @@ class BPembEmbedder(BaseDocEmbedder):
         return doc_vecs
 
     @property
-    def embedding_size(self) -> int:
-        return self.vector_size
-
-    @property
     def settings(self) -> Dict[str, Any]:
         return {
             "vector_size": 300,
@@ -106,5 +101,5 @@ class BPembEmbedder(BaseDocEmbedder):
         return {
             "vector_size": hp.choice("vector_size", [25, 50, 100, 200, 300]),
             "vocab_size": hp.choice("vocab_size",
-                [1000, 3000, 5000, 10000, 25000, 50000, 100000, 200000]),
+                                    [1000, 3000, 5000, 10000, 25000, 50000, 100000, 200000]),
         }

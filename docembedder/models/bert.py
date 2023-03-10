@@ -33,10 +33,6 @@ class BERTEmbedder(BaseDocEmbedder):
         return self._sbert_model.encode(documents)
 
     @property
-    def embedding_size(self) -> int:
-        return 0
-
-    @property
     def settings(self) -> Dict[str, Any]:
         return {
             "pretrained_model": self.pretrained_model
