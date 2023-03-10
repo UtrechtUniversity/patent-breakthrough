@@ -59,3 +59,37 @@ def test_run_prep(prep_class, kwargs, n_jobs):
     n_param = len(prep_class.hyper_space())
     assert len(hyper.dataframe(label)) == 2**n_param
     assert isinstance(hyper.best_preprocessor(label, prep_class, **kwargs), prep_class)
+
+
+def test_trials_models(tmp_path):
+    trials_fp = Path(tmp_path, "test.pkl")
+    sim_spec = SimulationSpecification(1850, 1880)
+    patent_dir = Path("tests", "data", "input")
+    cpc_fp = Path("tests", "data", "test_GPCPs.txt")
+    label = "model"
+    mp.set_start_method("spawn", force=True)
+    hyper = ModelHyperopt(sim_spec, cpc_fp, patent_dir, trials=trials_fp)
+    hyper.optimize(label, TfidfEmbedder, max_evals=1, n_jobs=1)
+    assert len(hyper.dataframe(label, TfidfEmbedder)) == 1
+
+    hyper = ModelHyperopt(sim_spec, cpc_fp, patent_dir, trials=trials_fp)
+    assert len(hyper.dataframe(label, TfidfEmbedder)) == 1
+
+    hyper.optimize(label, TfidfEmbedder, max_evals=2, n_jobs=1)
+    assert len(hyper.dataframe(label, TfidfEmbedder)) == 2
+
+
+def test_trials_prep(tmp_path):
+    trials_fp = Path(tmp_path, "test.pkl")
+    sim_spec = SimulationSpecification(1850, 1880)
+    patent_dir = Path("tests", "data", "input")
+    cpc_fp = Path("tests", "data", "test_GPCPs.txt")
+    label = "model"
+    mp.set_start_method("spawn", force=True)
+    hyper = PreprocessorHyperopt(sim_spec, cpc_fp, patent_dir, trials=trials_fp)
+    hyper.optimize(label, TfidfEmbedder(), OldPreprocessor, n_jobs=1,
+                   list_path=Path("tests", "data"))
+    assert len(hyper.dataframe(label)) == 1
+
+    hyper = PreprocessorHyperopt(sim_spec, cpc_fp, patent_dir, trials=trials_fp)
+    assert len(hyper.dataframe(label)) == 1

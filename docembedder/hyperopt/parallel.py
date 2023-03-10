@@ -20,12 +20,8 @@ from docembedder.typing import PathType
 def _prep_worker(job) -> tuple[int, list[str], dict]:
     sim_spec, prep, patent_fp, year, cpc_fp = job
     pat_class = PatentClassification(cpc_fp)
-    empty_cpc: dict[str, Any] = {"i_patents": [], "j_patents": [], "correlations": []}
-    try:
-        patents = prep.preprocess_file(
-            patent_fp, max_patents=sim_spec.debug_max_patents)
-    except FileNotFoundError:
-        return year, [], empty_cpc
+    patents = prep.preprocess_file(
+        patent_fp, max_patents=sim_spec.debug_max_patents)
     documents = [pat["contents"] for pat in patents]
     patent_ids = [pat["patent"] for pat in patents]
     cpc_cor = pat_class.sample_cpc_correlations(
@@ -105,46 +101,6 @@ def get_patent_data_multi(sim_spec: SimulationSpecification,  # pylint: disable=
             new_cpc[key] = np.array(new_cpc[key])
         cpc_cors.append(dict(new_cpc))
     return documents, cpc_cors
-
-
-def get_patent_data_single(sim_spec: SimulationSpecification, prep: Preprocessor,
-                           patent_dir: PathType):
-    """Get documents and patent ids."""
-    patent_dict: dict[int, list[dict[str, Any]]] = {}
-    documents = []
-    patent_ids = []
-    for year_list in sim_spec.year_ranges:
-        cur_documents = []
-        cur_patent_ids: list[int] = []
-        for year in year_list:
-            try:
-                if year in patent_dict:
-                    patents = patent_dict[year]
-                else:
-                    patent_fp = Path(patent_dir, f"{year}.xz")
-                    patents = prep.preprocess_file(patent_fp,
-                                                   max_patents=sim_spec.debug_max_patents)
-                cur_documents.extend([pat["contents"] for pat in patents])
-                cur_patent_ids.extend(pat["patent"] for pat in patents)
-            except FileNotFoundError:
-                pass
-        documents.append(cur_documents)
-        patent_ids.append(cur_patent_ids)
-    return documents, patent_ids
-
-
-def get_cpc_data(patent_ids: list[list[int]], cpc_fp: PathType, seed: int=12345):
-    """Get CPC correlations from a set of patent_ids."""
-    pat_class = PatentClassification(cpc_fp)
-
-    cpc_cor = [
-        pat_class.sample_cpc_correlations(
-            cur_patent_ids,
-            samples_per_patent=10,
-            seed=seed)
-        for cur_patent_ids in patent_ids
-    ]
-    return cpc_cor
 
 
 def run_jobs(model, documents, cpc_cor, n_jobs=10):
