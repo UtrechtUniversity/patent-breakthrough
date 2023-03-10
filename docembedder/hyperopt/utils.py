@@ -159,7 +159,7 @@ class PreprocessorHyperopt():
         else:
             raise ValueError(f"Unknown trials type: '{type(trials)}'")
 
-    def optimize(
+    def optimize(  # pylint: disable=too-many-locals
             self,
             label: str,
             model: BaseDocEmbedder,
