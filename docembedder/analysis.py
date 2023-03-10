@@ -103,7 +103,9 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
             if average_forward_similarity and average_backward_similarity:
                 impact_arr[cur_index] = average_backward_similarity / average_forward_similarity
 
-        return impact_arr, novelty_arr
+        impact_arr = impact_arr[~np.isnan(impact_arr)]
+        novelty_arr = novelty_arr[~np.isnan(novelty_arr)]
+        return impact_arr, novelty_arr, focal_year
 
     def auto_correlation(self, window_name, model_name):
         """Compute autocorrelations for embeddings."""
@@ -121,8 +123,8 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
         try:
             impacts = self.data.load_impacts(window_name, model_name)
         except KeyError:
-            impacts, novelties = self._compute_impact_novelty(window_name, model_name)
-            self.data.store_impact_novelty(window_name, model_name, impacts, novelties)
+            impacts, novelties, focal_year = self._compute_impact_novelty(window_name, model_name)
+            self.data.store_impact_novelty(window_name, model_name, focal_year, impacts, novelties)
         return impacts
 
     def patent_novelties(self, window_name, model_name):
@@ -131,8 +133,8 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
         try:
             novelties = self.data.load_novelties(window_name, model_name)
         except KeyError:
-            impacts, novelties = self._compute_impact_novelty(window_name, model_name)
-            self.data.store_impact_novelty(window_name, model_name, impacts, novelties)
+            impacts, novelties, focal_year = self._compute_impact_novelty(window_name, model_name)
+            self.data.store_impact_novelty(window_name, model_name, focal_year, impacts, novelties)
         return novelties
 
     def cpc_correlations(self, models: Optional[Union[str, List[str]]]=None

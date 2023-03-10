@@ -296,6 +296,7 @@ class DataModel():  # pylint: disable=too-many-public-methods
             self,
             window_name: str,
             model_name: str,
+            focal_year: int,
             impacts: np.ndarray,
             novelties: np.ndarray,
             overwrite: bool = False):
@@ -314,7 +315,7 @@ class DataModel():  # pylint: disable=too-many-public-methods
                     If True, overwrite embeddings if they exist.
                 """
 
-        dataset_group_str = f"/impacts_novelties/{model_name}/{window_name}"
+        dataset_group_str = f"/impacts_novelties/{model_name}/{window_name}/{focal_year}"
         if dataset_group_str in self.handle and overwrite:
             del self.handle[dataset_group_str]
         elif dataset_group_str in self.handle:
