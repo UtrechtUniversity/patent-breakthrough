@@ -14,7 +14,6 @@ from docembedder.models.utils import create_model, create_preprocessor
 from docembedder.models.base import AllEmbedType, BaseDocEmbedder
 from docembedder.preprocessor.preprocessor import Preprocessor
 from docembedder.typing import FileType
-from docembedder._version import get_versions
 
 
 class DataModel():  # pylint: disable=too-many-public-methods
@@ -59,7 +58,7 @@ class DataModel():  # pylint: disable=too-many-public-methods
                 self.handle.create_group("preprocessors")
                 self.handle.create_group("cpc")
                 self.handle.create_group("impacts_novelties")
-                self.handle.attrs["docembedder-version"] = get_versions()["version"]
+                self.handle.attrs["docembedder-version"] = "unknown"  # Should be fixed in case
         else:
             self.handle = h5py.File(hdf5_file, "r")
 
@@ -79,6 +78,10 @@ class DataModel():  # pylint: disable=too-many-public-methods
         year:
             Year of each of the patents in the window.
         """
+
+        if len(patent_id) != len(year):
+            raise ValueError("Cannot store window with patent_id of different length"
+                             " than year.")
 
         # Create the new window/year group
         try:
@@ -134,6 +137,9 @@ class DataModel():  # pylint: disable=too-many-public-methods
         overwrite:
             If True, overwrite embeddings if they exist.
         """
+        if not isinstance(embeddings, (np.ndarray, csr_matrix)):
+            raise ValueError(f"Not implemented datatype {type(embeddings)}")
+
         dataset_group_str = f"/embeddings/{model_name}/{window_name}"
         if dataset_group_str in self.handle and overwrite:
             del self.handle[dataset_group_str]
@@ -150,8 +156,6 @@ class DataModel():  # pylint: disable=too-many-public-methods
             dataset_group.create_dataset("indptr", data=embeddings.indptr)
             dataset_group.attrs["dtype"] = "csr_matrix"
             dataset_group.attrs["shape"] = embeddings.shape
-        else:
-            raise ValueError(f"Not implemented datatype {type(embeddings)}")
 
     def load_embeddings(self, window_name: str, model_name: str) -> AllEmbedType:
         """Load embeddings for a window/year.
@@ -507,6 +511,7 @@ class DataModel():  # pylint: disable=too-many-public-methods
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._remove_detect_stale()
+        self.handle.flush()
         if not isinstance(self.hdf5_file, io.BytesIO):
             self.handle.close()
         return exc_type is None

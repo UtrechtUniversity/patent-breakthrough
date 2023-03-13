@@ -43,6 +43,8 @@ def _compute_cpc_cor(embeddings: AllEmbedType,
 def _auto_cor(delta, embeddings):
     start = delta
     end = embeddings.shape[0] - delta
+    if isinstance(embeddings, np.ndarray):
+        return (embeddings[:end]*embeddings[start:]).sum(axis=1).flatten().mean()
     return np.array(embeddings[:end].multiply(embeddings[start:]).sum(axis=1)).flatten().mean()
 
 
@@ -131,7 +133,7 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
         return novelties
 
     def cpc_correlations(self, models: Optional[Union[str, List[str]]]=None
-                         ) -> Dict[str, Dict[str, List[float]]]:
+                         ) -> Dict[str, Dict[str, Any]]:
         """Compute the correlations with the CPC classifications.
 
         It computes the correlations for each window/year in which the embeddings
@@ -150,10 +152,10 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
             models = self.data.model_names
         elif isinstance(models, str):
             models = [models]
-        else:
+        elif not isinstance(models, list):
             raise TypeError("models argument must be a string or a list of strings.")
 
-        correlations: DefaultDict[str, Dict[str, List[float]]] = defaultdict(
+        correlations: DefaultDict[str, Dict[str, Any]] = defaultdict(
             lambda: {"year": [], "correlations": []})
 
         for window, model_name in self.data.iterate_window_models():
@@ -168,9 +170,13 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
                 if not self.data.read_only:
                     self.data.store_cpc_spearmanr(window, model_name, correlation)
             try:
-                year = float(window)
+                year: Union[float, str] = float(window)
             except ValueError:
-                year = float(np.mean([float(x) for x in window.split("-")]))
+                year_list = window.split("-")
+                if len(year_list) == 2:
+                    year = float(np.mean([float(x) for x in year_list]))
+                else:
+                    year = window
 
             correlations[model_name]["year"].append(year)
             correlations[model_name]["correlations"].append(correlation)

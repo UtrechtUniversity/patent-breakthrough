@@ -11,6 +11,7 @@ from hyperopt import hp
 
 from docembedder.models.base import BaseDocEmbedder
 
+
 class BERTEmbedder(BaseDocEmbedder):
     """BERT embedding based on Hugging face pre-trained models.
     There are a number of pre-trained models on the patent data available.
@@ -30,10 +31,6 @@ class BERTEmbedder(BaseDocEmbedder):
 
     def transform(self, documents: Union[str, Iterable[str]]) -> npt.NDArray[np.float_]:
         return self._sbert_model.encode(documents)
-
-    @property
-    def embedding_size(self) -> int:
-        return 0
 
     @property
     def settings(self) -> Dict[str, Any]:

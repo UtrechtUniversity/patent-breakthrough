@@ -20,6 +20,14 @@ from docembedder.typing import PathType, AllEmbedType, IntSequence, FileType
 STARTING_YEAR = 1838  # First year of the patents dataset
 
 
+def _data_exists(patent_dir: PathType, year_list: list[int]) -> bool:
+    for year in year_list:
+        year_fp = Path(patent_dir) / (str(year) + ".xz")
+        if year_fp.is_file():
+            return True
+    return False
+
+
 class SimulationSpecification():
     """Specification for doing runs.
 
@@ -92,6 +100,8 @@ class SimulationSpecification():
         with DataModel(output_fp, read_only=True) as data:
             # while cur_start < self.year_end:
             for year_list in self.year_ranges:
+                if not _data_exists(patent_dir, year_list):
+                    continue
                 job_name = f"{year_list[0]}-{year_list[-1]}"
                 compute_window = not data.has_window(job_name)
                 compute_cpc = not data.has_cpc(job_name)
@@ -316,7 +326,6 @@ class Job():
                 patent_id, year = data.load_window(window_name)
 
         documents = [pat["contents"] for pat in patents if pat["patent"] in patent_id]
-
         all_embeddings = {}
         for cur_prep, cur_model in self.need_models:
             if cur_prep != last_prep:
@@ -392,6 +401,7 @@ def run_jobs_multi(jobs: Sequence[Job],
     if len(jobs) == 0:
         return
 
+    n_jobs = min(n_jobs, len(jobs))
     # Process all jobs.
     all_files = []
     with Pool(processes=n_jobs) as pool:

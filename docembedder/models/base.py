@@ -20,17 +20,10 @@ class BaseDocEmbedder(ABC):
 
     @property
     @abstractmethod
-    def embedding_size(self) -> int:
-        """Vector size of the embedding."""
-
-    @property
-    @abstractmethod
     def settings(self) -> Dict[str, Any]:
         """Settings of the document embedder."""
-        return {}
 
     @classmethod
     @abstractmethod
     def hyper_space(cls) -> Dict[str, Any]:
         """Parameter space for hyperopt."""
-        return {}

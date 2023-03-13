@@ -16,6 +16,7 @@ from hyperopt.pyll.base import scope
 
 from docembedder.models.base import BaseDocEmbedder
 
+
 class D2VEmbedder(BaseDocEmbedder):
     """ Doc2Vec
     class for representing each Document as a Vector using Genism Doc2Vec model
@@ -85,10 +86,6 @@ class D2VEmbedder(BaseDocEmbedder):
             for d in documents]
 
         return np.array(vectors)
-
-    @property
-    def embedding_size(self) -> int:
-        return self.vector_size
 
     @property
     def settings(self) -> Dict[str, Any]:
