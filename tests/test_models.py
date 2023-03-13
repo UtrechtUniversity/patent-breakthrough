@@ -1,4 +1,4 @@
-""" pytest file for doc2vec.py"""
+"""Testing for all the models."""
 import pytest
 
 import numpy as np
@@ -33,7 +33,7 @@ def check_settings(model, param_names):
     ]
 )
 def test_doc2vec(param):
-    """ Function to test doc2vec.py functionality
+    """Function to test doc2vec.py functionality
     """
     embedder = D2VEmbedder(**param)
     embedder.fit(documents)
