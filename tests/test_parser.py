@@ -14,7 +14,6 @@ year_lookup = {100001: 1960, 100002: 1961, 100003: 1962,
 
 def test_parser():
     patents = parse_raw(raw_fp, year_lookup)
-    print(patents)
     assert len(patents) == 3
     assert isinstance(patents, list)
     for pat in patents:

@@ -415,7 +415,7 @@ class DataModel():  # pylint: disable=too-many-public-methods
             Window or year of the CPC.
         """
         return f"/cpc/{window_name}" in self.handle
-
+ 
     def has_window(self, window_name: str) -> bool:
         """Compute whether there is already an entry for a window/year.
 
@@ -484,7 +484,6 @@ class DataModel():  # pylint: disable=too-many-public-methods
         """
         if not (isinstance(data_fp, io.BytesIO) or Path(data_fp).is_file()):
             raise FileNotFoundError(f"Cannot find file {data_fp} to add to datamodel.")
-        print(data_fp)
         with self.__class__(data_fp, read_only=False) as other:
             new_models = list(set(other.model_names) - set(self.model_names))
             for cur_model in new_models:

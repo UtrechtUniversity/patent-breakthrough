@@ -28,7 +28,6 @@ def check_correlations(cor_dict, n_samples):
 
 def test_classification():
     pc = PatentClassification(class_fp)
-    print(pc.class_df)
     assert pc.get_similarity(100001, 100001) == 1
     assert pc.get_similarity(100001, 100002) == 0
     assert pc.get_similarity(100001, 100002) < 1

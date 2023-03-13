@@ -49,7 +49,6 @@ def test_window(real_file):
 
         with pytest.raises(AssertionError):
             data.store_window("test", patent_id, year_2)
-        print(str(data))
 
 
 def assert_same(array_a, array_b, dense):
