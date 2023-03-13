@@ -415,7 +415,7 @@ class DataModel():  # pylint: disable=too-many-public-methods
             Window or year of the CPC.
         """
         return f"/cpc/{window_name}" in self.handle
- 
+
     def has_window(self, window_name: str) -> bool:
         """Compute whether there is already an entry for a window/year.
 
