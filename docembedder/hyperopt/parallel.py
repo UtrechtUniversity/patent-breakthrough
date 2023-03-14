@@ -24,6 +24,9 @@ def _prep_worker(job) -> tuple[int, list[str], dict]:
         patent_fp, max_patents=sim_spec.debug_max_patents)
     documents = [pat["contents"] for pat in patents]
     patent_ids = [pat["patent"] for pat in patents]
+    if len(patent_ids) < 3:
+        print(year)
+        print(documents)
     cpc_cor = pat_class.sample_cpc_correlations(
         patent_ids,
         samples_per_patent=10,

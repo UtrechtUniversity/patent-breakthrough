@@ -2,13 +2,14 @@
 Preprocessor for patent texts
 """
 import argparse
+from collections import defaultdict
 import json
 import re
 from typing import List, Dict, Iterable, Tuple, Set, Optional, Union, overload, Any
 from pathlib import Path
 
 from typing_extensions import Literal
-
+import numpy as np
 from hyperopt import hp  # type: ignore
 
 from docembedder.preprocessor.parser import read_xz
@@ -45,7 +46,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-pub
 
         self.valid_single_letter_words = ['a', 'i']
         self.min_assembly_length = 5
-        self.dictionary = self.read_dictionary(lexicon_path)
+        self.dictionary, self.len_dist = self.read_dictionary(lexicon_path)
 
     @classmethod
     def from_arguments(cls):
@@ -99,10 +100,11 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-pub
         return list(input_dir.glob("*.jsonl")) + list(input_dir.glob("*.xz"))
 
     @staticmethod
-    def read_dictionary(lexicon_path) -> Set[str]:
+    def read_dictionary(lexicon_path) -> tuple[dict[str, int], dict[int, np.float_]]:
         """Reads words from dictionary file"""
+        # https://www.kaggle.com/datasets/rtatman/english-word-frequency?resource=download
         if lexicon_path is None:
-            return set([])
+            return {}, {}
 
         path = Path(lexicon_path)
         assert path.is_file(), \
@@ -116,8 +118,20 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-pub
         with open(lexicon_path, encoding="utf-8") as file:
             dictionary = file.readlines()
 
-        dictionary = [line.strip() for line in dictionary]
-        return set(dictionary)
+        word_freq = {}
+        len_freq_list = defaultdict(list)
+        for line in dictionary[1:]:
+            word, freq = line.split(",")
+            word_freq[word] = int(freq)
+            len_freq_list[len(word)].append(int(freq))
+        len_freq = {cur_len: np.mean(freq_list) for cur_len, freq_list in len_freq_list.items()}
+        return word_freq, len_freq
+
+        # if "," in dictionary[0]:
+            # dictionary = [line.split(",")[0] for line in dictionary[1:]]
+        # else:
+            # dictionary = [line.strip() for line in dictionary]
+        # return set(dictionary)
 
     def preprocess_files(self) -> Tuple[List[Dict], Dict[str, int]]:
         """Iterates all input JSONL-files and calls preprocessing for each"""
@@ -174,6 +188,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-pub
         processed = 0
         skipped_empty = 0
         skipped_no_year = 0
+        words_reassembled = 0
         processed_patents: List[Dict] = []
 
         for patent in self.yield_document(file):
@@ -197,11 +212,12 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-pub
                     continue
 
             body = self.remove_unprintable(body)
-            body = self.reassemble_words(body)
+            body, n_reassembled = self.reassemble_words(body)
             body = self.remove_start_section(body)
             body = self.clean_document(body)
             body = self.remove_remains(body)
 
+            words_reassembled += n_reassembled
             patent['contents'] = body
             processed += 1
             processed_patents.append(patent)
@@ -216,6 +232,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-pub
             "processed": processed,
             "skipped_empty": skipped_empty,
             "skipped_no_year": skipped_no_year,
+            "words_reassembled": words_reassembled,
         }
         if return_stats:
             return processed_patents, stats
@@ -371,56 +388,74 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-pub
         joined_start_section = " ".join(start_section)
         return joined_start_section
 
-    def reassemble_words(self, body: str) -> str:
+    def reassemble_words(self, body: str) -> tuple[str, int]:
         """Tokenize, walk through tokens and attempts to reassemble split
         words"""
+        import string
+        translation = str.maketrans('', '', string.punctuation)
+
+        def strip_punctuation(some_str):
+            return some_str.translate(translation).lower()
+
+        def split_token(assembly, min_freq=4):
+            best = (min_freq-1, "", "")
+            for i_split in range(1, len(assembly)-1):
+                new_token_start = assembly[:i_split]
+                new_token_end = assembly[i_split:]
+                freq_start = self.dictionary.get(new_token_start, 0)/self.len_dist.get(len(new_token_start), 1)
+                freq_end = self.dictionary.get(new_token_end, 0)/self.len_dist.get(len(new_token_end), 1)
+                freq = min(freq_start, freq_end)
+                if min(freq_start, freq_end) > best[0]:
+                    best = (freq, new_token_start, new_token_end)
+            if best[0] >= min_freq:
+                return best[1:]
+            return None
+
         if len(self.dictionary) == 0:
-            return body
+            return body, 0
 
         word_list = body.split()
         new_word_list = []
         skip = False
+        words_reassembled = 0
 
         for key, token in enumerate(word_list):
             if skip:
                 skip = False
                 continue
 
-            if token in self.dictionary or not token.isalpha():
-                # word exist as it is or is not just letters
-                new_word_list.append(token)
-                continue
-
-            if key >= len(word_list)-1:
-                # last in list, no next token to attempt reassembly
+            strip_token = strip_punctuation(token)
+            if not strip_token.isalpha() or key >= len(word_list)-1:
                 new_word_list.append(token)
                 continue
 
             # get the next token
             next_token = word_list[key+1]
-
-            if next_token not in self.dictionary or (len(next_token) == 1
-               and next_token not in self.valid_single_letter_words):
-                # if it's not a word in itself, combine with current token
-                assembly = token+next_token
-                if len(assembly) >= self.min_assembly_length \
-                   and assembly in self.dictionary:
-                    # we reassembled a word!
-                    new_word_list.append(assembly)
-                    # self.logger.debug("%s + %s -> %s", token, next_token,
-                    # assembly)
-
-                    self.total_docs['words_reassembled'] += 1
-
-                    # make sure to skip over the next token, which is now
-                    # part of the newly reassembled word
-                    skip = True
+            strip_next = strip_punctuation(next_token)
+            assembly = strip_token + strip_next
+            token_weight = self.dictionary.get(strip_token, 0)/self.len_dist.get(len(strip_token), 1)
+            next_weight = self.dictionary.get(strip_next, 0)/self.len_dist.get(len(strip_next), 1)
+            assembly_weight = self.dictionary.get(assembly, 0)/self.len_dist.get(len(assembly), 1)
+            if assembly_weight > 10*max(next_weight, token_weight):
+                if next_token[-1] in string.punctuation:
+                    assembly += next_token[-1]
+                new_word_list.append(assembly)
+                words_reassembled += 1
+                skip = True
+            else:
+                if strip_token not in self.dictionary:
+                    new_words = split_token(token)
+                    if new_words is not None:
+                        new_word_list.append(new_words[0])
+                        if token[-1] in string.punctuation:
+                            new_word_list.append(new_words[1] + token[-1])
+                        else:
+                            new_word_list.append(new_words[1])
+                    else:
+                        new_word_list.append(token)
                 else:
                     new_word_list.append(token)
-            else:
-                new_word_list.append(token)
-
-        return " ".join(new_word_list)
+        return " ".join(new_word_list), words_reassembled
 
     @property
     def settings(self):
