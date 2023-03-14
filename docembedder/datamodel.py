@@ -319,7 +319,7 @@ class DataModel():  # pylint: disable=too-many-public-methods
                     If True, overwrite embeddings if they exist.
                 """
 
-        dataset_group_str = f"/impacts_novelties/{model_name}/{window_name}/{focal_year}"
+        dataset_group_str = f"/impacts_novelties/{model_name}/{window_name}"
         if dataset_group_str in self.handle and overwrite:
             del self.handle[dataset_group_str]
         elif dataset_group_str in self.handle:
