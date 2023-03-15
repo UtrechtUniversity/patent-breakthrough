@@ -321,9 +321,11 @@ class DataModel():  # pylint: disable=too-many-public-methods
         elif dataset_group_str in self.handle:
             return
         dataset_group = self.handle.create_group(dataset_group_str)
+        dataset_group.attrs['focal_year'] = focal_year
 
         dataset_group.create_dataset("impact", data=impacts)
         dataset_group.create_dataset("novelty", data=novelties)
+
 
     def load_impacts(self, window_name: str, model_name: str) -> List[float]:
         """Load impacts for a window/year.
