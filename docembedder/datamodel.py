@@ -330,7 +330,6 @@ class DataModel():  # pylint: disable=too-many-public-methods
         dataset_group.create_dataset("impact", data=impacts)
         dataset_group.create_dataset("novelty", data=novelties)
 
-
     def load_impacts(self, window_name: str, model_name: str) -> List[float]:
         """Load impacts for a window/year.
 

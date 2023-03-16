@@ -1,13 +1,10 @@
 """Test analysis.py functionality"""
 import io
 
-from pandas.testing import assert_frame_equal
-import pandas as pd
 import numpy as np
 from pytest import mark
 
 from docembedder import DocAnalysis
-from docembedder.models import D2VEmbedder
 from docembedder.datamodel import DataModel
 from scipy.sparse import csr_matrix
 
