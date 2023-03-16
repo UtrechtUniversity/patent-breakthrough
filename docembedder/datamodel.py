@@ -330,7 +330,7 @@ class DataModel():  # pylint: disable=too-many-public-methods
         dataset_group.create_dataset("impact", data=impacts)
         dataset_group.create_dataset("novelty", data=novelties)
 
-    def load_impacts(self, window_name: str, model_name: str) -> List[float]:
+    def load_impacts(self, window_name: str, model_name: str) -> npt.NDArray[np.float_]:
         """Load impacts for a window/year.
 
         Arguments
@@ -347,7 +347,7 @@ class DataModel():  # pylint: disable=too-many-public-methods
         """
         return self.handle[f"/impacts_novelties/{model_name}/{window_name}/impact"][...]
 
-    def load_novelties(self, window_name: str, model_name: str) -> List[float]:
+    def load_novelties(self, window_name: str, model_name: str) -> npt.NDArray[np.float_]:
         """Load novelties for a window/year.
 
         Arguments

@@ -40,7 +40,7 @@ def _compute_cpc_cor(embeddings: AllEmbedType,
     return spearmanr(model_cor, cpc_res["correlations"]).correlation
 
 
-def _auto_cor(delta, embeddings):
+def _auto_cor(delta: int, embeddings: AllEmbedType):
     start = delta
     end = embeddings.shape[0] - delta
     if isinstance(embeddings, np.ndarray):
@@ -58,7 +58,10 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
     def __init__(self, data: DataModel):
         self.data = data
 
-    def _compute_impact_novelty(self, window_name, model_name):  # pylint: disable=too-many-locals
+    def _compute_impact_novelty(  # pylint: disable=too-many-locals
+            self,
+            window_name: str,
+            model_name: str) -> tuple[npt.NDArray[np.float_], npt.NDArray[np.float_], int]:
         patent_ids, patent_years = self.data.load_window(window_name)
         embeddings = self.data.load_embeddings(window_name, model_name)
         patent_indices = np.array(range(len(patent_ids)))
@@ -109,7 +112,9 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
         novelty_arr = novelty_arr[~np.isnan(novelty_arr)]
         return impact_arr, novelty_arr, focal_year
 
-    def auto_correlation(self, window_name, model_name):
+    def auto_correlation(self,
+                         window_name: str,
+                         model_name: str) -> tuple[npt.NDArray[np.float_], npt.NDArray[np.float_]]:
         """Compute autocorrelations for embeddings."""
         embeddings = normalize(self.data.load_embeddings(window_name, model_name))
         patent_ids, _ = self.data.load_window(window_name)
@@ -119,7 +124,7 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
         auto_correlations = np.array([_auto_cor(i, embeddings) for i in delta_count])
         return delta_year, auto_correlations
 
-    def patent_impacts(self, window_name, model_name):
+    def patent_impacts(self, window_name: str, model_name: str) -> npt.NDArray[np.float_]:
         """Compute impact using cosine similarity between document vectors
         """
         try:
@@ -129,7 +134,7 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
             self.data.store_impact_novelty(window_name, model_name, focal_year, impacts, novelties)
         return impacts
 
-    def patent_novelties(self, window_name, model_name):
+    def patent_novelties(self, window_name: str, model_name: str) -> npt.NDArray[np.float_]:
         """Compute novelty using cosine similarity between document vectors
         """
         try:
