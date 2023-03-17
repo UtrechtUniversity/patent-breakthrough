@@ -2,7 +2,6 @@
 Preprocessor for patent texts
 """
 import argparse
-import glob
 import json
 import re
 from typing import List, Dict, Iterable, Tuple, Set, Optional, Union, overload, Any
@@ -28,7 +27,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-pub
             keep_caps: bool = False,
             keep_start_section: bool = False,
             remove_non_alpha: bool = False,
-            input_dir: Optional[str] = None,
+            input_dir: Optional[PathType] = None,
             output_dir: Optional[str] = None,
             lexicon_path: Optional[str] = None
             ):
@@ -92,11 +91,12 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-pub
         )
 
     @property
-    def file_list(self) -> List[str]:
+    def file_list(self) -> List[Path]:
         """Reads files from input directory"""
         if self.input_dir is None:
             return []
-        return sorted(glob.glob(self.input_dir))
+        input_dir = Path(self.input_dir)
+        return list(input_dir.glob("*.jsonl")) + list(input_dir.glob("*.xz"))
 
     @staticmethod
     def read_dictionary(lexicon_path) -> Set[str]:
@@ -119,15 +119,18 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-pub
         dictionary = [line.strip() for line in dictionary]
         return set(dictionary)
 
-    def preprocess_files(self):
+    def preprocess_files(self) -> Tuple[List[Dict], Dict[str, int]]:
         """Iterates all input JSONL-files and calls preprocessing for each"""
+        all_patents = []
         for file in self.file_list:
-            processed_patents, stats = self.preprocess_file(  # pylint: disable=unpacking-non-sequence
+            processed_patents, stats = self.preprocess_file(  # type: ignore # pylint: disable=unpacking-non-sequence
                 file, return_stats=True)
 
+            all_patents.extend(processed_patents)
             self.total_docs['processed'] += len(processed_patents)
             self.total_docs['skipped_empty'] += stats["skipped_empty"]
             self.total_docs['skipped_no_year'] += stats["skipped_no_year"]
+        return all_patents, self.total_docs
 
     def yield_document(self, file: PathType) -> Iterable[Dict]:
         """Generator yielding single JSON-doc from input file"""
@@ -136,7 +139,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-pub
             return self.patent_get_jsonl(file)
         if suffix == ".xz":
             return self.patent_get_xz(file)
-        raise ValueError(f"Unsupported format for documents: {suffix}")
+        raise ValueError(f"Unsupported format for document '{file}': '{suffix}'")
 
     def patent_get_jsonl(self, file: PathType) -> Iterable[Dict]:
         """Generate patents from a JSONL file"""
@@ -405,7 +408,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-pub
                     # we reassembled a word!
                     new_word_list.append(assembly)
                     # self.logger.debug("%s + %s -> %s", token, next_token,
-                                      # assembly)
+                    # assembly)
 
                     self.total_docs['words_reassembled'] += 1
 

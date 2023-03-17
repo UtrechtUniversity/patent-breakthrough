@@ -40,9 +40,11 @@ def _compute_cpc_cor(embeddings: AllEmbedType,
     return spearmanr(model_cor, cpc_res["correlations"]).correlation
 
 
-def _auto_cor(delta, embeddings):
+def _auto_cor(delta: int, embeddings: AllEmbedType):
     start = delta
     end = embeddings.shape[0] - delta
+    if isinstance(embeddings, np.ndarray):
+        return (embeddings[:end]*embeddings[start:]).sum(axis=1).flatten().mean()
     return np.array(embeddings[:end].multiply(embeddings[start:]).sum(axis=1)).flatten().mean()
 
 
@@ -56,7 +58,10 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
     def __init__(self, data: DataModel):
         self.data = data
 
-    def _compute_impact_novelty(self, window_name, model_name):  # pylint: disable=too-many-locals
+    def _compute_impact_novelty(  # pylint: disable=too-many-locals
+            self,
+            window_name: str,
+            model_name: str) -> tuple[npt.NDArray[np.float_], npt.NDArray[np.float_], int]:
         patent_ids, patent_years = self.data.load_window(window_name)
         embeddings = self.data.load_embeddings(window_name, model_name)
         patent_indices = np.array(range(len(patent_ids)))
@@ -107,7 +112,9 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
         novelty_arr = novelty_arr[~np.isnan(novelty_arr)]
         return impact_arr, novelty_arr, focal_year
 
-    def auto_correlation(self, window_name, model_name):
+    def auto_correlation(self,
+                         window_name: str,
+                         model_name: str) -> tuple[npt.NDArray[np.float_], npt.NDArray[np.float_]]:
         """Compute autocorrelations for embeddings."""
         embeddings = normalize(self.data.load_embeddings(window_name, model_name))
         patent_ids, _ = self.data.load_window(window_name)
@@ -117,7 +124,7 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
         auto_correlations = np.array([_auto_cor(i, embeddings) for i in delta_count])
         return delta_year, auto_correlations
 
-    def patent_impacts(self, window_name, model_name):
+    def patent_impacts(self, window_name: str, model_name: str) -> npt.NDArray[np.float_]:
         """Compute impact using cosine similarity between document vectors
         """
         try:
@@ -127,7 +134,7 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
             self.data.store_impact_novelty(window_name, model_name, focal_year, impacts, novelties)
         return impacts
 
-    def patent_novelties(self, window_name, model_name):
+    def patent_novelties(self, window_name: str, model_name: str) -> npt.NDArray[np.float_]:
         """Compute novelty using cosine similarity between document vectors
         """
         try:
@@ -138,7 +145,7 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
         return novelties
 
     def cpc_correlations(self, models: Optional[Union[str, List[str]]]=None
-                         ) -> Dict[str, Dict[str, List[float]]]:
+                         ) -> Dict[str, Dict[str, Any]]:
         """Compute the correlations with the CPC classifications.
 
         It computes the correlations for each window/year in which the embeddings
@@ -157,10 +164,10 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
             models = self.data.model_names
         elif isinstance(models, str):
             models = [models]
-        else:
+        elif not isinstance(models, list):
             raise TypeError("models argument must be a string or a list of strings.")
 
-        correlations: DefaultDict[str, Dict[str, List[float]]] = defaultdict(
+        correlations: DefaultDict[str, Dict[str, Any]] = defaultdict(
             lambda: {"year": [], "correlations": []})
 
         for window, model_name in self.data.iterate_window_models():
@@ -175,9 +182,13 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
                 if not self.data.read_only:
                     self.data.store_cpc_spearmanr(window, model_name, correlation)
             try:
-                year = float(window)
+                year: Union[float, str] = float(window)
             except ValueError:
-                year = float(np.mean([float(x) for x in window.split("-")]))
+                year_list = window.split("-")
+                if len(year_list) == 2:
+                    year = float(np.mean([float(x) for x in year_list]))
+                else:
+                    year = window
 
             correlations[model_name]["year"].append(year)
             correlations[model_name]["correlations"].append(correlation)

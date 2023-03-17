@@ -13,6 +13,7 @@ from docembedder.models.base import BaseDocEmbedder
 
 from hyperopt import hp
 
+
 class CountVecEmbedder(BaseDocEmbedder):
     """Sklearn TF-IDF class."""
     def __init__(self, method="sigmoid"):
@@ -35,10 +36,6 @@ class CountVecEmbedder(BaseDocEmbedder):
         X = self._model.transform(documents)
         X = X.multiply(self.weights)
         return normalize(X, norm="l2").tocsr()
-
-    @property
-    def embedding_size(self) -> int:
-        return len(self._model.vocabulary_)
 
     @property
     def settings(self) -> dict[str, Any]:

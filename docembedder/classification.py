@@ -104,8 +104,8 @@ class PatentClassification():
             )
         )
         if patent_ids is not None:
-            query = query.join(pat_df.lazy(), on="pat", how="inner")
-        df_filtered = query.collect()
+            query = query.join(pat_df.lazy(), on="pat", how="inner")  # type: ignore
+        df_filtered = query.collect()  # type: ignore
         self._lookup = dict(zip(df_filtered["pat"], df_filtered["CPC"].to_list()))  # type: ignore
 
     def sample_cpc_correlations(self,  # pylint: disable=too-many-locals
