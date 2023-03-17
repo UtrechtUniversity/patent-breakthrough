@@ -78,7 +78,6 @@ class TestParametrized:
         with DataModel(dense_data_fp) as data_dense, DataModel(sparse_data_fp) as data_sparse:
             analysis_dense = DocAnalysis(data_dense)
             analysis_sparse = DocAnalysis(data_sparse)
-
             impact_dense = analysis_dense.patent_impacts(window, model)
             impact_sparse = analysis_sparse.patent_impacts(window, model)
             assert isinstance(impact_dense, np.ndarray)
