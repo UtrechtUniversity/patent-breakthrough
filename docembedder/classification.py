@@ -18,7 +18,7 @@ class PatentClassification():
         coarse levels. Should be between 0 and 1.
     """
     def __init__(self, classification_file: PathType, similarity_exponent=2./3.):
-        self.class_df = pl.read_csv(classification_file, sep="\t")
+        self.class_df = pl.read_csv(classification_file, separator="\t")
         self.similarity_exponent = similarity_exponent
         self._lookup: Dict[int, List[str]] = {}
         self._initialized = False

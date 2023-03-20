@@ -126,17 +126,17 @@ def test_impact_novelty(real_file):
     novelty = np.random.rand(100)
     impact = np.random.rand(100)
     with DataModel(hdf5_fp, read_only=False) as data:
-        data.store_impact_novelty("window", "model", impact, novelty)
+        data.store_impact_novelty("window", "model", 1850, impact, novelty)
         new_impact = data.load_impacts("window", "model")
         new_novelty = data.load_novelties("window", "model")
         assert np.all(new_impact == impact) and np.all(new_novelty == novelty)
 
-        data.store_impact_novelty("window", "model", impact+1, novelty+1, overwrite=False)
+        data.store_impact_novelty("window", "model", 1850, impact+1, novelty+1, overwrite=False)
         new_impact = data.load_impacts("window", "model")
         new_novelty = data.load_novelties("window", "model")
         assert np.all(new_impact == impact) and np.all(new_novelty == novelty)
 
-        data.store_impact_novelty("window", "model", impact+1, novelty+1, overwrite=True)
+        data.store_impact_novelty("window", "model", 1850, impact+1, novelty+1, overwrite=True)
         new_impact = data.load_impacts("window", "model")
         new_novelty = data.load_novelties("window", "model")
         assert np.all(new_impact == impact+1) and np.all(new_novelty == novelty+1)
@@ -148,6 +148,7 @@ def test_impact_novelty(real_file):
                       TfidfEmbedder(ngram_max=2, stop_words=None),
                       BERTEmbedder("anferico/bert-for-patents"),
                       CountVecEmbedder("prop"),
+                      BPembEmbedder(25, 1000),
                       D2VEmbedder(30, 1, 3, 4)
                   ])
 def test_model_store(real_file, model):

@@ -40,7 +40,7 @@ def _compute_cpc_cor(embeddings: AllEmbedType,
     return spearmanr(model_cor, cpc_res["correlations"]).correlation
 
 
-def _auto_cor(delta, embeddings):
+def _auto_cor(delta: int, embeddings: AllEmbedType):
     start = delta
     end = embeddings.shape[0] - delta
     if isinstance(embeddings, np.ndarray):
@@ -58,15 +58,23 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
     def __init__(self, data: DataModel):
         self.data = data
 
-    def _compute_impact_novelty(self, window_name, model_name):  # pylint: disable=too-many-locals
+    def _compute_impact_novelty(  # pylint: disable=too-many-locals
+            self,
+            window_name: str,
+            model_name: str) -> tuple[npt.NDArray[np.float_], npt.NDArray[np.float_], int]:
         patent_ids, patent_years = self.data.load_window(window_name)
         embeddings = self.data.load_embeddings(window_name, model_name)
         patent_indices = np.array(range(len(patent_ids)))
+        min_year = np.amin(patent_years)
+        max_year = np.amax(patent_years)
+        focal_year = int((min_year+max_year)/2)
 
         impact_arr: npt.NDArray[np.float_] = np.full(len(patent_years), np.nan)
         novelty_arr: npt.NDArray[np.float_] = np.full(len(patent_years), np.nan)
 
         for cur_index in range(len(patent_ids)):
+            if patent_years[cur_index] != focal_year:
+                continue
             cur_embedding = embeddings[cur_index]
             if len(cur_embedding.shape) == 1:
                 cur_embedding = cur_embedding.reshape(1, -1)
@@ -100,9 +108,13 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
             if average_forward_similarity and average_backward_similarity:
                 impact_arr[cur_index] = average_backward_similarity / average_forward_similarity
 
-        return impact_arr, novelty_arr
+        impact_arr = impact_arr[~np.isnan(impact_arr)]
+        novelty_arr = novelty_arr[~np.isnan(novelty_arr)]
+        return impact_arr, novelty_arr, focal_year
 
-    def auto_correlation(self, window_name, model_name):
+    def auto_correlation(self,
+                         window_name: str,
+                         model_name: str) -> tuple[npt.NDArray[np.float_], npt.NDArray[np.float_]]:
         """Compute autocorrelations for embeddings."""
         embeddings = normalize(self.data.load_embeddings(window_name, model_name))
         patent_ids, _ = self.data.load_window(window_name)
@@ -112,24 +124,24 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
         auto_correlations = np.array([_auto_cor(i, embeddings) for i in delta_count])
         return delta_year, auto_correlations
 
-    def patent_impacts(self, window_name, model_name):
+    def patent_impacts(self, window_name: str, model_name: str) -> npt.NDArray[np.float_]:
         """Compute impact using cosine similarity between document vectors
         """
         try:
             impacts = self.data.load_impacts(window_name, model_name)
         except KeyError:
-            impacts, novelties = self._compute_impact_novelty(window_name, model_name)
-            self.data.store_impact_novelty(window_name, model_name, impacts, novelties)
+            impacts, novelties, focal_year = self._compute_impact_novelty(window_name, model_name)
+            self.data.store_impact_novelty(window_name, model_name, focal_year, impacts, novelties)
         return impacts
 
-    def patent_novelties(self, window_name, model_name):
+    def patent_novelties(self, window_name: str, model_name: str) -> npt.NDArray[np.float_]:
         """Compute novelty using cosine similarity between document vectors
         """
         try:
             novelties = self.data.load_novelties(window_name, model_name)
         except KeyError:
-            impacts, novelties = self._compute_impact_novelty(window_name, model_name)
-            self.data.store_impact_novelty(window_name, model_name, impacts, novelties)
+            impacts, novelties, focal_year = self._compute_impact_novelty(window_name, model_name)
+            self.data.store_impact_novelty(window_name, model_name, focal_year, impacts, novelties)
         return novelties
 
     def cpc_correlations(self, models: Optional[Union[str, List[str]]]=None

@@ -300,6 +300,7 @@ class DataModel():  # pylint: disable=too-many-public-methods
             self,
             window_name: str,
             model_name: str,
+            focal_year: int,
             impacts: np.ndarray,
             novelties: np.ndarray,
             overwrite: bool = False):
@@ -324,11 +325,13 @@ class DataModel():  # pylint: disable=too-many-public-methods
         elif dataset_group_str in self.handle:
             return
         dataset_group = self.handle.create_group(dataset_group_str)
+        dataset_group.attrs['focal_year'] = focal_year
 
         dataset_group.create_dataset("impact", data=impacts)
         dataset_group.create_dataset("novelty", data=novelties)
 
-    def load_impacts(self, window_name: str, model_name: str) -> List[float]:
+
+    def load_impacts(self, window_name: str, model_name: str) -> npt.NDArray[np.float_]:
         """Load impacts for a window/year.
 
         Arguments
@@ -345,7 +348,7 @@ class DataModel():  # pylint: disable=too-many-public-methods
         """
         return self.handle[f"/impacts_novelties/{model_name}/{window_name}/impact"][...]
 
-    def load_novelties(self, window_name: str, model_name: str) -> List[float]:
+    def load_novelties(self, window_name: str, model_name: str) -> npt.NDArray[np.float_]:
         """Load novelties for a window/year.
 
         Arguments
