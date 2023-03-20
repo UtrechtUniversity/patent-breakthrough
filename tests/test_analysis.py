@@ -69,6 +69,7 @@ class TestParametrized:
             assert isinstance(auto_correlations_sparse, np.ndarray)
             assert np.all(np.isclose(delta_year_dense, delta_year_sparse))
             assert np.all(np.isclose(auto_correlations_dense, auto_correlations_sparse))
+
     def test_patent_impacts(self, window, model):
         dense_data_fp = create_dataset(dense=True)
         sparse_data_fp = create_dataset(dense=False)
@@ -100,3 +101,4 @@ class TestParametrized:
             assert np.all(~np.isnan(novelty_sparse))
             assert scipy.sparse.issparse(novelty_dense) == False
             assert scipy.sparse.issparse(novelty_sparse) == False
+
