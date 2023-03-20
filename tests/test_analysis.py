@@ -52,26 +52,23 @@ def test_cpc_correlations(dense):
         cpc_cor_2 = analysis.cpc_correlations(["model_1", "model_2"])
         assert cpc_cor == cpc_cor_2
 
-def test_auto_correlation():
-    dense_data_fp = create_dataset(dense=True)
-    sparse_data_fp = create_dataset(dense=False)
-    with DataModel(dense_data_fp) as data_dense, DataModel(sparse_data_fp) as data_sparse:
-        analysis_dense = DocAnalysis(data_dense)
-        analysis_sparse = DocAnalysis(data_sparse)
-        for window in ["window_1", "window_2"]:
-            for model in ["model_1", "model_2"]:
-                delta_year_dense, auto_correlations_dense = analysis_dense.auto_correlation(window, model)
-                delta_year_sparse, auto_correlations_sparse = analysis_sparse.auto_correlation(window, model)
-                assert isinstance(delta_year_dense, np.ndarray)
-                assert isinstance(auto_correlations_dense, np.ndarray)
-                assert isinstance(delta_year_sparse, np.ndarray)
-                assert isinstance(auto_correlations_sparse, np.ndarray)
-                assert np.all(np.isclose(delta_year_dense, delta_year_sparse))
-                assert np.all(np.isclose(auto_correlations_dense, auto_correlations_sparse))
-
 @mark.parametrize("model", ["model_1", "model_2"])
 @mark.parametrize("window", ["window_1", "window_2"])
 class TestParametrized:
+    def test_auto_correlation(self, window, model):
+        dense_data_fp = create_dataset(dense=True)
+        sparse_data_fp = create_dataset(dense=False)
+        with DataModel(dense_data_fp) as data_dense, DataModel(sparse_data_fp) as data_sparse:
+            analysis_dense = DocAnalysis(data_dense)
+            analysis_sparse = DocAnalysis(data_sparse)
+            delta_year_dense, auto_correlations_dense = analysis_dense.auto_correlation(window, model)
+            delta_year_sparse, auto_correlations_sparse = analysis_sparse.auto_correlation(window, model)
+            assert isinstance(delta_year_dense, np.ndarray)
+            assert isinstance(auto_correlations_dense, np.ndarray)
+            assert isinstance(delta_year_sparse, np.ndarray)
+            assert isinstance(auto_correlations_sparse, np.ndarray)
+            assert np.all(np.isclose(delta_year_dense, delta_year_sparse))
+            assert np.all(np.isclose(auto_correlations_dense, auto_correlations_sparse))
     def test_patent_impacts(self, window, model):
         dense_data_fp = create_dataset(dense=True)
         sparse_data_fp = create_dataset(dense=False)
