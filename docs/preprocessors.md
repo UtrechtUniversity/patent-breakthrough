@@ -1,23 +1,33 @@
+# Conversion of text to JSON
+
+First, one needs to convert the raw text files into something that can be more
+easily read by the computer. This is done by functions in the `docembedder.preprocessor.parser`
+module:
+
+```python
+from docembedder.preprocessor.parser import compress_raw
+compress_raw("file_with_raw_input.txt", "year.csv", "some_output_dir")
+``` 
+
+The files are packaged in LZMA-compressed archives (.xz files), and arranged
+by year of the patent (1858.xz, etc). "year.csv" is a file that contains
+the year of each (hopefully) of the patents.
+
+
 # Patents Preprocessor
-This collection of scripts converts and cleans US patent texts in order to
-make them more suitable for training and analysis with NLP machine learning
-models, such as BERT.
 
+The preprocessing steps improve the raw text into a more suitable form for training
+and analysis with NLP machine learning models, such as BERT and TF-IDF.
 
-## Conversion of text to JSON
-Use `parser.py` to convert raw text files containing US patent texts to
-structured JSONL-files, packaged in LZMA-compressed archives (.xz files).
-By calling the function `compress_raw()` with as attributes file pointers to
-the text file with raw patents, and a file containing a key for translating
-patent number to year, patents are divided according to the year of their
-original application, and each .xz file covers one year.
-
-Depending on the data, it might be necessary to alter the regular expression
-`PATENT_FILE_PATTERN` to make it correctly recognize the start of each pattern.
+There are two Preprocessor classes available: `Preprocessor` and `OldPreprocessor`.
+The newer `Preprocessor` class has more options to improve the text in the preprocessing
+fase.
 
 
 ## Preprocessor
-The `preprocessor.py` script performs the following cleaning actions. Some are
+
+The `Preprocessor` class in `docembedder.preprocessor.preprocessor` performs the
+following cleaning actions. Some are
 specific to use on historical US patent texts, while others are are more
 generally applicable:
 
@@ -45,23 +55,20 @@ such errors.
 Optionally, the program converts all text to lowercase (optional; default True).
 
 ### Parameters
-+ log_level: id. (default: logging.INFO)
-+ log_file: path to logfile (default: None = only logging to Stdout)
-+ log_format: id. (default: %(asctime)s [%(levelname)s] %(message)s)
-+ keep_empty_patents: whether to retain patents that have no body text
++ `keep_empty_patents`: whether to retain patents that have no body text
   (default: False)
-+ keep_missing_years: idem, if year is missing (default: False)
-+ keep_caps: keep capital letters, do not make everything lower case
++ `keep_missing_years`: idem, if year is missing (default: False)
++ `keep_caps`: keep capital letters, do not make everything lower case
   (default: False)
-+ keep_start_section: do not remove the boilerplate text at the (default: False)
-+ remove_non_alpha: whether to remove all non-alpha characters (default: False)
-+ input_dir: input; see below (default: None).
-+ output_dir: output; see below (default: None).
-+ lexicon_path: path to lexicon; see below (default: None). Specifying a
++ `keep_start_section`: do not remove the boilerplate text at the (default: False)
++ `remove_non_alpha`: whether to remove all non-alpha characters (default: False)
++ `input_dir`: input; see below (default: None).
++ `output_dir`: output; see below (default: None).
++ `lexicon_path`: path to lexicon; see below (default: None). Specifying a
   lexicon path automatically implies the application of word reassembly.
 
 ### Input
-The program expects a JSONL-file, or a folder with JSONL-file(s) as input.
+The program expects a JSONL or XZ-file, or a folder with JSONL or XZ-file(s) as input.
 When specifying a folder with files, use a pattern that is recognized by glob;
 so `/data/*.jsonl`, rather than `/data/`.
 
