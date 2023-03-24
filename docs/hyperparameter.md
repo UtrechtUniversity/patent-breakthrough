@@ -24,7 +24,8 @@ hyper.optimize("tfidf", TfidfEmbedder, max_evals=100, n_jobs=4)
 hyper.dataframe("tfidf", TfidfEmbedder)
 ```
 
-Using the trials keyword argument saves the trial runs with their parameters.
+Using the trials keyword argument saves the trial runs with their parameters. For an explanation of
+the sim_spec paramter, see [simulation_specifications](simulation_specifications.md)
 
 
 ## Preprocessing optimization
