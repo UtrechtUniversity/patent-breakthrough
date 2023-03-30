@@ -134,7 +134,7 @@ class SimulationSpecification():
         """Year ranges for the simulation specification."""
         cur_start = self.year_start - ((self.year_start-STARTING_YEAR) % self.window_size)
         cur_end = self.year_start + self.window_size
-        while cur_start < self.year_end:
+        while cur_end <= self.year_end:
             yield list(range(cur_start, cur_end))
             cur_start += self.window_shift
             cur_end += self.window_shift
