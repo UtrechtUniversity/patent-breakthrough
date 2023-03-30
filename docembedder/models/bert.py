@@ -1,6 +1,6 @@
 """ Huggingface BERT class."""
 
-from typing import Iterable, Union, Dict, Any
+from typing import Iterable, Union, Dict, Any, Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -24,12 +24,15 @@ class BERTEmbedder(BaseDocEmbedder):
                  pretrained_model: str = "prithivida/bert-for-patents-64d",
                  ):
         self.pretrained_model = pretrained_model
-        self._sbert_model = SentenceTransformer(pretrained_model)
+        self._sbert_model: Optional[SentenceTransformer] = None
 
     def fit(self, documents: Iterable[str]) -> None:
         pass
 
     def transform(self, documents: Union[str, Iterable[str]]) -> npt.NDArray[np.float_]:
+        if self._sbert_model is None:
+            self._sbert_model = SentenceTransformer(self.pretrained_model)
+
         return self._sbert_model.encode(documents)
 
     @property
