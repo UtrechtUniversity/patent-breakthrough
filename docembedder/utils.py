@@ -303,7 +303,9 @@ class Job():
             seed=avg_year)
         return cpc_cor
 
-    def get_patent_ids(self, patents, window_name):
+    def get_patent_ids(self, patents: list[dict], window_name: str
+                       ) -> tuple[npt.NDArray, npt.NDArray]:
+        """Get the patent numbers and years to be used."""
         if self.need_window:
             patent_id, patent_year = self.compute_patent_year(patents)
         else:
@@ -312,9 +314,9 @@ class Job():
                 patent_id, patent_year = data.load_window(window_name)
         return patent_id, patent_year
 
-    def store_results(self, out_fp, window_name, patent_id, patent_year,
+    def store_results(self, out_fp, window_name, patent_id, patent_year,  # pylint: disable=too-many-arguments
                       cpc_cor, all_embeddings, unlink=True):
-        # Store the computed results to the temporary file.
+        """Store the computed results to a file."""
         if not isinstance(out_fp, io.BytesIO) and unlink:
             Path(out_fp).unlink(missing_ok=True)
         with DataModel(out_fp, read_only=False) as data:
@@ -356,6 +358,8 @@ class Job():
             cpc_cor = self.compute_cpc(patent_id)
         else:
             cpc_cor = None
+
+        # Store the results in a temporary file to be merged later.
         self.store_results(temp_fp, window_name, patent_id, patent_year, cpc_cor, all_embeddings)
         return temp_fp
 

@@ -1,6 +1,7 @@
 """General utilities for performing runs."""
 
 from __future__ import annotations
+from collections import defaultdict
 from pathlib import Path
 from typing import Optional
 
@@ -11,10 +12,9 @@ from docembedder.preprocessor.preprocessor import Preprocessor
 from docembedder.models.base import BaseDocEmbedder
 from docembedder.typing import PathType, FileType
 from docembedder.utils import SimulationSpecification, insert_models
-from collections import defaultdict
 
 
-def _compute_embeddings(jobs, progress_bar=True):
+def _compute_embeddings(jobs, progress_bar=True):  # pylint: disable=too-many-locals
     patent_cache = defaultdict(dict)
     embed_cache = defaultdict(dict)
     model_cache = {}
@@ -72,8 +72,8 @@ def _compute_embeddings(jobs, progress_bar=True):
                                   cpc_cor, {prep_model_name: embeddings}, unlink=False)
 
 
-def pretrained_run_models(
-        preprocessors: Optional[dict[str, Preprocessor]],  # pylint: disable=too-many-arguments
+def pretrained_run_models(  # pylint: disable=too-many-arguments
+        preprocessors: Optional[dict[str, Preprocessor]],
         models: dict[str, BaseDocEmbedder],
         sim_spec: SimulationSpecification,
         patent_dir: PathType,
@@ -98,7 +98,7 @@ def pretrained_run_models(
         Number of jobs to be run in parallel.
     progress_bar:
         Whether to show a progress bar.
-    """
+    """  # pylint: disable=duplicate-code
     if not sim_spec.check_file(output_fp):
         raise ValueError("Simulation specifications do not match existing specifications.")
 
