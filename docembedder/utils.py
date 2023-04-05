@@ -303,6 +303,30 @@ class Job():
             seed=avg_year)
         return cpc_cor
 
+    def get_patent_ids(self, patents: list[dict], window_name: str
+                       ) -> tuple[npt.NDArray, npt.NDArray]:
+        """Get the patent numbers and years to be used."""
+        if self.need_window:
+            patent_id, patent_year = self.compute_patent_year(patents)
+        else:
+            # Retrieve the train/test id's if the have been computed.
+            with DataModel(self.job_data["output_fp"], read_only=True) as data:
+                patent_id, patent_year = data.load_window(window_name)
+        return patent_id, patent_year
+
+    def store_results(self, out_fp, window_name, patent_id, patent_year,  # pylint: disable=too-many-arguments
+                      cpc_cor, all_embeddings, unlink=True):
+        """Store the computed results to a file."""
+        if not isinstance(out_fp, io.BytesIO) and unlink:
+            Path(out_fp).unlink(missing_ok=True)
+        with DataModel(out_fp, read_only=False) as data:
+            if self.need_window:
+                data.store_window(window_name, patent_id, patent_year)
+            if self.need_cpc:
+                data.store_cpc_correlations(window_name, cpc_cor)
+            for model_name, embeddings in all_embeddings.items():
+                data.store_embeddings(window_name, model_name, embeddings)
+
     def run(self) -> FileType:  # pylint: disable=too-many-locals
         """Run the job.
 
@@ -318,13 +342,7 @@ class Job():
 
         last_prep = list(self.preps)[0]
         patents = self.get_patents(last_prep)
-        if self.need_window:
-            patent_id, year = self.compute_patent_year(patents)
-        else:
-            # Retrieve the train/test id's if the have been computed.
-            with DataModel(self.job_data["output_fp"], read_only=True) as data:
-                patent_id, year = data.load_window(window_name)
-
+        patent_id, patent_year = self.get_patent_ids(patents, window_name)
         documents = [pat["contents"] for pat in patents if pat["patent"] in patent_id]
         all_embeddings = {}
         for cur_prep, cur_model in self.need_models:
@@ -338,17 +356,11 @@ class Job():
         # Compute the CPC correlations
         if self.need_cpc:
             cpc_cor = self.compute_cpc(patent_id)
+        else:
+            cpc_cor = None
 
-        # Store the computed results to the temporary file.
-        if not isinstance(temp_fp, io.BytesIO):
-            Path(temp_fp).unlink(missing_ok=True)
-        with DataModel(temp_fp, read_only=False) as data:
-            if self.need_window:
-                data.store_window(window_name, patent_id, year)
-            if self.need_cpc:
-                data.store_cpc_correlations(window_name, cpc_cor)
-            for model_name, embeddings in all_embeddings.items():
-                data.store_embeddings(window_name, model_name, embeddings)
+        # Store the results in a temporary file to be merged later.
+        self.store_results(temp_fp, window_name, patent_id, patent_year, cpc_cor, all_embeddings)
         return temp_fp
 
     def __str__(self):
