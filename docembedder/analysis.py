@@ -48,7 +48,7 @@ def _auto_cor(delta: int, embeddings: AllEmbedType):
     return np.array(embeddings[:end].multiply(embeddings[start:]).sum(axis=1)).flatten().mean()
 
 
-class DocAnalysis():  # pylint: disable=too-few-public-methods
+class DocAnalysis():
     """Analysis class that can analyse embeddings.
 
     Arguments
@@ -61,55 +61,40 @@ class DocAnalysis():  # pylint: disable=too-few-public-methods
     def _compute_impact_novelty(  # pylint: disable=too-many-locals
             self,
             window_name: str,
-            model_name: str) -> tuple[npt.NDArray[np.float_], npt.NDArray[np.float_], int]:
+            model_name: str,
+            window: Optional[Union[int, tuple[int, int]]] = None
+            ) -> tuple[npt.NDArray[np.float_], npt.NDArray[np.float_], int]:
+
         patent_ids, patent_years = self.data.load_window(window_name)
-        embeddings = self.data.load_embeddings(window_name, model_name)
-        patent_indices = np.array(range(len(patent_ids)))
         min_year = np.amin(patent_years)
         max_year = np.amax(patent_years)
         focal_year = int((min_year+max_year)/2)
+        if window is None:
+            window = (1, int(max(focal_year-min_year, max_year - focal_year)))
+        elif isinstance(window, int):
+            window = (1, window)
+        embeddings = self.data.load_embeddings(window_name, model_name)
+        focal_idx = np.where(patent_years == focal_year)[0]
+        back_idx = np.where((patent_years <= focal_year - window[0])
+                            & (patent_years >= focal_year-window[1]))
+        forw_idx = np.where((patent_years >= focal_year + window[0])
+                            & (patent_years <= focal_year+window[1]))
 
-        impact_arr: npt.NDArray[np.float_] = np.full(len(patent_years), np.nan)
-        novelty_arr: npt.NDArray[np.float_] = np.full(len(patent_years), np.nan)
+        impact_arr: npt.NDArray[np.float_] = np.zeros(len(focal_idx))
+        novelty_arr: npt.NDArray[np.float_] = np.zeros(len(focal_idx))
+        embeddings_backward = embeddings[back_idx]
+        embeddings_forward = embeddings[forw_idx]
 
-        for cur_index in range(len(patent_ids)):
-            if patent_years[cur_index] != focal_year:
-                continue
+        for i_cur_index, cur_index in enumerate(focal_idx):
             cur_embedding = embeddings[cur_index]
             if len(cur_embedding.shape) == 1:
                 cur_embedding = cur_embedding.reshape(1, -1)
-            cur_year = patent_years[cur_index]
 
-            other_indices = np.delete(patent_indices, cur_index)
-            other_embeddings = embeddings[other_indices, :]
-            other_years = np.delete(patent_years, cur_index)
+            backward_similarity = np.mean(cosine_similarity(cur_embedding, embeddings_backward))
+            forward_similarity = np.mean(cosine_similarity(cur_embedding, embeddings_forward))
+            novelty_arr[i_cur_index] = 1-backward_similarity
+            impact_arr[i_cur_index] = forward_similarity / (backward_similarity+1e-12)
 
-            embeddings_backward = other_embeddings[other_years < cur_year]
-            embeddings_forward = other_embeddings[other_years > cur_year]
-
-            if embeddings_backward.size:
-                backward_similarity = cosine_similarity(cur_embedding, embeddings_backward)
-                backward_dissimilarity = 1 - cosine_similarity(cur_embedding, embeddings_backward)
-            else:
-                backward_similarity = np.nan
-                backward_dissimilarity = np.nan
-
-            average_backward_similarity = np.mean(backward_similarity)
-            average_backward_dissimilarity = np.mean(backward_dissimilarity)
-
-            novelty_arr[cur_index] = average_backward_dissimilarity
-
-            if embeddings_forward.size:
-                forward_similarity = cosine_similarity(cur_embedding, embeddings_forward)
-            else:
-                forward_similarity = np.nan
-            average_forward_similarity = np.mean(forward_similarity)
-
-            if average_forward_similarity and average_backward_similarity:
-                impact_arr[cur_index] = average_backward_similarity / average_forward_similarity
-
-        impact_arr = impact_arr[~np.isnan(impact_arr)]
-        novelty_arr = novelty_arr[~np.isnan(novelty_arr)]
         return impact_arr, novelty_arr, focal_year
 
     def auto_correlation(self,
