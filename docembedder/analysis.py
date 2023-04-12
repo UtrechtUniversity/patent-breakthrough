@@ -58,14 +58,26 @@ class DocAnalysis():
     def __init__(self, data: DataModel):
         self.data = data
 
-    def _compute_impact_novelty(  # pylint: disable=too-many-locals
+    def compute_impact_novelty(  # pylint: disable=too-many-locals
             self,
             window_name: str,
             model_name: str,
             window: Optional[Union[int, tuple[int, int]]] = None
             ) -> tuple[npt.NDArray[np.float_], npt.NDArray[np.float_], int]:
+        """Compute the impact and novelty for a window/model name.
 
-        patent_ids, patent_years = self.data.load_window(window_name)
+        Arguments
+        ---------
+        window_name:
+            Name of the window to compute.
+        model_name:
+            Name of the model.
+        window:
+            Size in years of the window to use. If an integer, range will be
+            [-window, window].
+        """
+
+        _patent_ids, patent_years = self.data.load_window(window_name)
         min_year = np.amin(patent_years)
         max_year = np.amax(patent_years)
         focal_year = int((min_year+max_year)/2)
@@ -115,7 +127,7 @@ class DocAnalysis():
         try:
             impacts = self.data.load_impacts(window_name, model_name)
         except KeyError:
-            impacts, novelties, focal_year = self._compute_impact_novelty(window_name, model_name)
+            impacts, novelties, focal_year = self.compute_impact_novelty(window_name, model_name)
             self.data.store_impact_novelty(window_name, model_name, focal_year, impacts, novelties)
         return impacts
 
@@ -125,7 +137,7 @@ class DocAnalysis():
         try:
             novelties = self.data.load_novelties(window_name, model_name)
         except KeyError:
-            impacts, novelties, focal_year = self._compute_impact_novelty(window_name, model_name)
+            impacts, novelties, focal_year = self.compute_impact_novelty(window_name, model_name)
             self.data.store_impact_novelty(window_name, model_name, focal_year, impacts, novelties)
         return novelties
 

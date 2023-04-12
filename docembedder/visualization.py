@@ -1,9 +1,13 @@
 """Functions to visualize the results of document embeddings."""
+from typing import Optional, Union
+from collections import defaultdict
+
 from matplotlib import pyplot as plt
 import numpy as np
 from scipy.stats import spearmanr
 from tqdm import tqdm
-from collections import defaultdict
+
+from docembedder.analysis import DocAnalysis
 
 
 def plot_cpc_correlations(correlations):
@@ -14,14 +18,38 @@ def plot_cpc_correlations(correlations):
     plt.legend()
 
 
-def plot_window_difference(analysis, window_1, window_2, impact=True, show_max=100,
-                           model=None):
-    results_1 = defaultdict(list)
-    results_2 = defaultdict(list)
-    for window, model in tqdm(analysis.data.iterate_window_models(model_name=model)):
-        cur_impact_1, cur_novelty_1, _ = analysis._compute_impact_novelty(
+def plot_window_difference(  # pylint: disable=too-many-arguments,too-many-locals
+        analysis: DocAnalysis,
+        window_1: Optional[Union[int, tuple[int, int]]],
+        window_2: Optional[Union[int, tuple[int, int]]],
+        impact: bool=True,
+        show_max: int = 100,
+        model_name: Optional[str]=None):
+    """Plot the effect on novelty/impact of having a different window size.
+
+    Arguments
+    ---------
+    analysis:
+        Analysis object to get the data from.
+    window_1:
+        First window to compare.
+    window_2:
+        Second window to compare.
+    impact:
+        If true, plot the impacts, if false, plot the novelties.
+    show_max:
+        Maximum number of points to show in the plot. Doesn't affect the
+        correlation.
+    model:
+        Model name to plot. If None, plot all available models in the same
+        plot.
+    """
+    results_1: dict[str, list] = defaultdict(list)
+    results_2: dict[str, list] = defaultdict(list)
+    for window, model in tqdm(analysis.data.iterate_window_models(model_name=model_name)):
+        cur_impact_1, cur_novelty_1, _ = analysis.compute_impact_novelty(
             window, model, window=(1, 5))
-        cur_impact_2, cur_novelty_2, _ = analysis._compute_impact_novelty(
+        cur_impact_2, cur_novelty_2, _ = analysis.compute_impact_novelty(
             window, model, window=(6, 10))
         if impact:
             results_1[model].extend(cur_impact_1)
