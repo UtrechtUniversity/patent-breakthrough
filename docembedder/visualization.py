@@ -1,4 +1,6 @@
 """Functions to visualize the results of document embeddings."""
+
+from __future__ import annotations
 from typing import Optional, Union
 from collections import defaultdict
 
