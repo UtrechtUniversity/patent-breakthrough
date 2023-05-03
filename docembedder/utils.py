@@ -4,7 +4,7 @@ from __future__ import annotations
 import io
 from multiprocessing import Pool
 from pathlib import Path
-from typing import Optional, Dict, Any, Sequence, List, Tuple, Iterable
+from typing import Optional, Dict, Any, Sequence, List, Tuple
 
 import numpy as np
 from tqdm import tqdm
@@ -15,163 +15,7 @@ from docembedder.preprocessor.preprocessor import Preprocessor
 from docembedder.classification import PatentClassification
 from docembedder.models.base import BaseDocEmbedder
 from docembedder.typing import PathType, AllEmbedType, IntSequence, FileType
-
-
-STARTING_YEAR = 1838  # First year of the patents dataset
-
-
-def _data_exists(patent_dir: PathType, year_list: list[int]) -> bool:
-    for year in year_list:
-        year_fp = Path(patent_dir) / (str(year) + ".xz")
-        if year_fp.is_file():
-            return True
-    return False
-
-
-class SimulationSpecification():
-    """Specification for doing runs.
-
-    It uses the starting year so that windows start regularly and always
-    from the same years, independent of where the run itself starts. All years
-    between the year_start and year_end will be present in at least one of the windows.
-    It is possible that some years will be included that are outside this interval.
-
-    Arguments
-    ---------
-    year_start:
-        Start of the windows to run the models on.
-    year_end:
-        End of the windows to run the models on.
-    window_size:
-        Number of years in each window.
-    window_shift:
-        Shift between consecutive windows. If None, each consecutive window is shifted by
-        the window_size divided by 2 rounded up.
-    cpc_samples_per_patent:
-        Number of CPC correlation samples per patent.
-    debug_max_patents:
-        Only read the first x patents from the file to speed up computation.
-        Leave at None for not skipping anything.
-    n_patents_per_window:
-        Number of patents to be drawn for each window. If None, all patents
-        are used.
-    """
-    def __init__(self,  # pylint: disable=too-many-arguments
-                 year_start: int,
-                 year_end: int,
-                 window_size: int=1,
-                 window_shift: Optional[int]=None,
-                 cpc_samples_per_patent: int=10,
-                 debug_max_patents: Optional[int]=None,
-                 n_patents_per_window: Optional[int]=None):
-        self.year_start = year_start
-        self.year_end = year_end
-        self.window_size = window_size
-        if window_shift is None:
-            self.window_shift = (self.window_size+1)//2
-        else:
-            self.window_shift = window_shift
-        self.cpc_samples_per_patent = cpc_samples_per_patent
-        self.debug_max_patents = debug_max_patents
-        self.n_patents_per_window = n_patents_per_window
-
-    def create_jobs(self, output_fp: FileType,  # pylint: disable=too-many-arguments, too-many-locals
-                    models: Dict[str, BaseDocEmbedder],
-                    preprocessors: Dict[str, Preprocessor],
-                    cpc_fp: PathType,
-                    patent_dir: PathType):
-        """Create jobs to run the simulation specification.
-
-        Arguments
-        ---------
-        output_fp:
-            HDF5 File to store/load embedding data to/from.
-        models:
-            Dictionary containing the models to be run.
-        cpc_fp:
-            File that contains the CPC classifcation data (GPCPCs.txt).
-        patent_dir:
-            Directory that contains the zipped (*.xz) patent files.
-        """
-        jobs = []
-        # cur_start = self.year_start - ((self.year_start-STARTING_YEAR) % self.window_size)
-        # cur_end = self.year_start + self.window_size
-        # delta = (self.window_size+1)//2
-        with DataModel(output_fp, read_only=True) as data:
-            # while cur_start < self.year_end:
-            for year_list in self.year_ranges:
-                if not _data_exists(patent_dir, year_list):
-                    continue
-                job_name = f"{year_list[0]}-{year_list[-1]}"
-                compute_window = not data.has_window(job_name)
-                compute_cpc = not data.has_cpc(job_name)
-                compute_models = [(prep, model)
-                                  for prep in preprocessors
-                                  for model in models
-                                  if not data.has_run(prep, model, job_name)]
-                if compute_window or compute_cpc or len(compute_models) > 0:
-                    if isinstance(output_fp, io.BytesIO):
-                        temp_fp: FileType = io.BytesIO()
-                    else:
-                        temp_fp = Path(output_fp).parent / f"temp_{job_name}.h5"
-                    jobs.append(Job(
-                        job_data={
-                            "name": job_name,
-                            "output_fp": output_fp, "cpc_fp": cpc_fp,
-                            "temp_fp": temp_fp,
-                            "year_list": year_list,
-                            "patent_dir": patent_dir,
-                        },
-                        need_window=compute_window,
-                        need_cpc=compute_cpc,
-                        need_models=compute_models,
-                        sim_spec=self,
-                    ))
-        return jobs
-
-    @property
-    def year_ranges(self) -> Iterable[list[int]]:
-        """Year ranges for the simulation specification."""
-        cur_start = self.year_start - ((self.year_start-STARTING_YEAR) % self.window_size)
-        cur_end = self.year_start + self.window_size
-        while cur_end <= self.year_end:
-            yield list(range(cur_start, cur_end))
-            cur_start += self.window_shift
-            cur_end += self.window_shift
-
-    @property
-    def name(self) -> str:
-        """Identifier of the simulation specifications.
-
-        This is mainly used to check whether a new run is compatible.
-        Different values for `year_start` and `year_end` should be compatible.
-        """
-        return (f"s{STARTING_YEAR}-w{self.window_size}-"
-                f"c{self.cpc_samples_per_patent}-d{self.debug_max_patents}-"
-                f"n{self.n_patents_per_window}")
-
-    def check_file(self, output_fp: FileType) -> bool:
-        """Check whether the output file has a simulation specification.
-
-        If it doesn't have one, insert the supplied specification.
-
-        Arguments
-        ---------
-        output_fp:
-            File to check.
-        sim_spec:
-            Specification to check.
-
-        Returns
-        -------
-            Whether the file now has the same specification.
-        """
-        with DataModel(output_fp, read_only=False) as data:
-            try:
-                return data.handle.attrs["sim_spec"] == self.name
-            except KeyError:
-                data.handle.attrs["sim_spec"] = self.name
-        return True
+from docembedder.simspec import SimulationSpecification
 
 
 class Job():
@@ -368,6 +212,68 @@ class Job():
                 f", models: {self.need_models}")
 
 
+def _data_exists(patent_dir: PathType, year_list: list[int]) -> bool:
+    for year in year_list:
+        year_fp = Path(patent_dir) / (str(year) + ".xz")
+        if year_fp.is_file():
+            return True
+    return False
+
+
+def create_jobs(sim_spec: SimulationSpecification,  # pylint: disable=too-many-arguments, too-many-locals
+                output_fp: FileType,
+                models: Dict[str, BaseDocEmbedder],
+                preprocessors: Dict[str, Preprocessor],
+                cpc_fp: PathType,
+                patent_dir: PathType) -> list[Job]:
+    """Create jobs to run the simulation specification.
+
+    Arguments
+    ---------
+    sim_spec:
+        Specification of the windows/ranges, etc.
+    output_fp:
+        HDF5 File to store/load embedding data to/from.
+    models:
+        Dictionary containing the models to be run.
+    cpc_fp:
+        File that contains the CPC classifcation data (GPCPCs.txt).
+    patent_dir:
+        Directory that contains the zipped (*.xz) patent files.
+    """
+    jobs = []
+    with DataModel(output_fp, read_only=True) as data:
+        for year_list in sim_spec.year_ranges:
+            if not _data_exists(patent_dir, year_list):
+                continue
+            job_name = f"{year_list[0]}-{year_list[-1]}"
+            compute_window = not data.has_window(job_name)
+            compute_cpc = not data.has_cpc(job_name)
+            compute_models = [(prep, model)
+                              for prep in preprocessors
+                              for model in models
+                              if not data.has_run(prep, model, job_name)]
+            if compute_window or compute_cpc or len(compute_models) > 0:
+                if isinstance(output_fp, io.BytesIO):
+                    temp_fp: FileType = io.BytesIO()
+                else:
+                    temp_fp = Path(output_fp).parent / f"temp_{job_name}.h5"
+                jobs.append(Job(
+                    job_data={
+                        "name": job_name,
+                        "output_fp": output_fp, "cpc_fp": cpc_fp,
+                        "temp_fp": temp_fp,
+                        "year_list": year_list,
+                        "patent_dir": patent_dir,
+                    },
+                    need_window=compute_window,
+                    need_cpc=compute_cpc,
+                    need_models=compute_models,
+                    sim_spec=sim_spec,
+                ))
+    return jobs
+
+
 def insert_models(models: Dict[str, BaseDocEmbedder],
                   preprocessors: dict[str, Preprocessor],
                   output_fp: FileType):
@@ -492,7 +398,7 @@ def run_models(preprocessors: Optional[dict[str, Preprocessor]],  # pylint: disa
     if preprocessors is None:
         preprocessors = {"default": Preprocessor()}
     insert_models(models, preprocessors, output_fp)
-    jobs = sim_spec.create_jobs(output_fp, models, preprocessors, cpc_fp, patent_dir)
+    jobs = create_jobs(sim_spec, output_fp, models, preprocessors, cpc_fp, patent_dir)
     if n_jobs == 1:
         run_jobs_single(jobs, output_fp, progress_bar=progress_bar)
     else:

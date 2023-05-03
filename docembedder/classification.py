@@ -1,10 +1,15 @@
 """Module containing patent classifications"""
 
-from typing import Dict, List, Optional
+import re
+from typing import Dict, List, Optional, Any
 
 import polars as pl
+import pandas as pd
 import numpy as np
-from docembedder.typing import PathType, IntSequence
+from tqdm import tqdm
+
+from docembedder.typing import PathType, IntSequence, FileType
+from docembedder.simspec import SimulationSpecification
 
 
 class PatentClassification():
@@ -163,3 +168,134 @@ class PatentClassification():
             "j_patents": j_patents,
             "correlations": np.array(correlations),
         }
+
+
+similarity_levels = 1-(2./3.)**np.arange(6)
+
+
+def _cpc_inproduct(vec, cpc_vectors):
+    inprod = np.empty(cpc_vectors.shape[0], dtype=float)
+    indices = np.arange(cpc_vectors.shape[0])
+
+    for i in range(0, cpc_vectors.shape[1]):
+        disable = (vec[i] != cpc_vectors[indices, i])
+        inprod[indices[disable]] = similarity_levels[i]
+        indices = indices[~disable]
+    inprod[indices] = 1
+    return inprod
+
+
+def _max_avg_inproduct(cpc_vectors, pat_ids, idx_back, idx_focal):
+    n_focal = len(idx_focal)
+    n_back = len(idx_back)
+    inprod_cache = np.empty((n_focal, n_back), dtype=float)
+    for i_focal in range(n_focal):
+        inprod_cache[i_focal] = _cpc_inproduct(cpc_vectors[idx_focal[i_focal]],
+                                               cpc_vectors[idx_back])
+
+    pat_lines = np.where(pat_ids[idx_back[1:]]-pat_ids[idx_back[:-1]] > 0)[0] + 1
+    max_inprod_cache = np.empty((n_focal, len(np.unique(pat_ids[idx_back]))), dtype=float)
+    prev_idx = 0
+    for i_dest, idx in enumerate(pat_lines):
+        max_inprod_cache[:, i_dest] = np.max(inprod_cache[:, prev_idx:idx], axis=1)
+        idx = prev_idx
+
+    max_inprod_cache[:, -1] = np.max(inprod_cache[:, prev_idx:], axis=1)
+
+    avg_inprod_cache = np.empty((len(np.unique(pat_ids[idx_focal])), max_inprod_cache.shape[1]),
+                                dtype=float)
+
+    pat_lines = np.where(pat_ids[idx_focal[1:]] - pat_ids[idx_focal[:-1]] > 0)[0] + 1
+    prev_idx = 0
+    for i_dest, idx in enumerate(pat_lines):
+        avg_inprod_cache[i_dest] = np.mean(max_inprod_cache[prev_idx:idx], axis=0)
+        prev_idx = idx
+    avg_inprod_cache[-1] = np.mean(max_inprod_cache[prev_idx:], axis=0)
+    return avg_inprod_cache
+
+
+def _vectorize_classification(cpc_class, regex):
+    vector = np.empty(6, dtype=int)
+    mat = regex.match(cpc_class)
+    vector[0] = ord(mat.group(1))
+    vector[1] = mat.group(2)
+    vector[2] = mat.group(3)
+    vector[3] = ord(mat.group(4))
+    vector[4] = mat.group(5)
+    vector[5] = mat.group(6)
+    return vector
+
+
+def get_cpc_data(year_fp: FileType, cpc_fp: FileType,
+                 progress_bar: bool=True) -> dict[str, Any]:
+    """Get CPC data for usage in determining novelty and impact.
+
+    Arguments
+    ---------
+    year_fp:
+        Data file that contains the year of issue for each patent.
+    cpc_fp:
+        Data file containing the CPC classifications for each patent.
+    progress_bar:
+        Whether to enable a progress bar.
+
+    Returns
+    -------
+    cpc_data:
+        Dictionary with numpy arrays containing "year", "pat_ids", and vectorized
+        cpc classifications "cpc_vectors".
+    """
+    year_df = pd.read_csv(year_fp, sep="\t")
+    pat_class = PatentClassification(cpc_fp)
+    combined_df = pat_class.class_df.to_pandas().merge(year_df, on="pat", how="left")
+    combined_df = combined_df.dropna()
+    combined_df = combined_df.astype({"year": int}).sort_values(by=["year", "pat", "progr"])
+
+    regex = re.compile(r"([A-Z])(\d)(\d)([A-Z])(\d+)\/(\d+)")
+    all_vectors = np.empty((len(pat_class.class_df), 6), dtype=int)
+    for i_class, classification in enumerate(tqdm(combined_df["CPC"].values,
+                                                  disable=not progress_bar)):
+        all_vectors[i_class] = _vectorize_classification(classification, regex)
+
+    return {"year": combined_df["year"].values,
+            "pat_ids": combined_df["pat"].values,
+            "cpc_vectors": all_vectors}
+
+
+def cpc_nov_impact(cpc_data: dict[str, Any],  # pylint: disable=too-many-locals
+                   sim_spec: SimulationSpecification,
+                   exponents: list[float]):
+    """Compute the novelty and impact using CPC codes.
+
+    Parameters
+    ----------
+    combined_df:
+    """
+    year, pat_ids, cpc_vectors = cpc_data["year"], cpc_data["pat_ids"], cpc_data["cpc_vectors"]
+    all_results = {}
+
+    for all_years in sim_spec.year_ranges:
+        start_year = min(all_years)
+        end_year = max(all_years)+1
+        focal_year = (end_year + start_year)//2
+        idx_back = np.where(year < focal_year)[0]
+        idx_forw = np.where((year > focal_year) &
+                            (year < end_year))[0]
+        idx_focal = np.where(year == focal_year)[0]
+        # n_focal, n_back, n_forw = len(idx_focal), len(idx_back), len(idx_forw)
+        inproduct_back = _max_avg_inproduct(cpc_vectors, pat_ids, idx_back, idx_focal)
+        inproduct_forw = _max_avg_inproduct(cpc_vectors, pat_ids, idx_forw, idx_focal)
+        pat_ids_focal = np.unique(pat_ids[idx_focal])
+        for expon in exponents:
+            similarity_back = np.mean(inproduct_back**expon, axis=1)**(1/expon)
+            similarity_forw = np.mean(inproduct_forw**expon, axis=1)**(1/expon)
+            key = f"{start_year}-{end_year}-{expon}"
+            all_results[key] = {
+                "novelty": similarity_back,
+                "impact": similarity_forw/(similarity_back+1e-12),
+                "patent_ids": pat_ids_focal,
+                "exponent": expon,
+                "start_year": start_year,
+                "end_year": end_year,
+            }
+    return all_results
