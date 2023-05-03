@@ -11,7 +11,7 @@ from tqdm import tqdm
 from docembedder.preprocessor.preprocessor import Preprocessor
 from docembedder.models.base import BaseDocEmbedder
 from docembedder.typing import PathType, FileType
-from docembedder.utils import SimulationSpecification, insert_models
+from docembedder.utils import SimulationSpecification, insert_models, create_jobs
 
 
 def _compute_embeddings(jobs, progress_bar=True):  # pylint: disable=too-many-locals
@@ -105,7 +105,7 @@ def pretrained_run_models(  # pylint: disable=too-many-arguments
     if preprocessors is None:
         preprocessors = {"default": Preprocessor()}
     insert_models(models, preprocessors, output_fp)
-    jobs = sim_spec.create_jobs(output_fp, models, preprocessors, cpc_fp, patent_dir)
+    jobs = create_jobs(sim_spec, output_fp, models, preprocessors, cpc_fp, patent_dir)
     if len(jobs) == 0:
         return
     _compute_embeddings(jobs, progress_bar=progress_bar)

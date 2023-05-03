@@ -226,7 +226,7 @@ def _vectorize_classification(cpc_class, regex):
     return vector
 
 
-def get_cpc_data(year_fp: FileType, cpc_fp: FileType,
+def get_cpc_data(year_fp: PathType, cpc_fp: PathType,
                  progress_bar: bool=True) -> dict[str, Any]:
     """Get CPC data for usage in determining novelty and impact.
 
