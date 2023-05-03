@@ -1,5 +1,7 @@
 """Module containing patent classifications"""
 
+from __future__ import annotations
+
 import re
 from typing import Dict, List, Optional, Any
 
@@ -8,7 +10,7 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 
-from docembedder.typing import PathType, IntSequence, FileType
+from docembedder.typing import PathType, IntSequence
 from docembedder.simspec import SimulationSpecification
 
 
