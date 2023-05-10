@@ -218,6 +218,7 @@ def _max_avg_inproduct(cpc_vectors, pat_ids, idx_back, idx_focal):
 
 
 def _vectorize_classification(cpc_class, regex):
+    """Convert the CPC class to a vector using a regex (reused)."""
     vector = np.empty(6, dtype=int)
     mat = regex.match(cpc_class)
     vector[0] = ord(mat.group(1))
@@ -254,6 +255,7 @@ def get_cpc_data(year_fp: PathType, cpc_fp: PathType,
     combined_df = combined_df.dropna()
     combined_df = combined_df.astype({"year": int}).sort_values(by=["year", "pat", "progr"])
 
+    # Create a matrix that has all the vectorized versions of CPC codes
     regex = re.compile(r"([A-Z])(\d)(\d)([A-Z])(\d+)\/(\d+)")
     all_vectors = np.empty((len(pat_class.class_df), 6), dtype=int)
     for i_class, classification in enumerate(tqdm(combined_df["CPC"].values,
@@ -266,6 +268,8 @@ def get_cpc_data(year_fp: PathType, cpc_fp: PathType,
 
 
 def _separate_focal_idx(idx_focal, pat_ids, max_forw_back, max_mat_size):
+    # Seperate focal indices so that we can use parallel processing
+    # but also to use less memory at the same time.
     n_blocks = round(max_forw_back*len(idx_focal)/max_mat_size)
     if n_blocks <= 1:
         return [idx_focal]
@@ -273,16 +277,21 @@ def _separate_focal_idx(idx_focal, pat_ids, max_forw_back, max_mat_size):
     blocks = []
     start_block = 0
     for i_block in range(n_blocks-1):
+        # Partition it into equal parts
         end_block = round(((i_block+1)/n_blocks) * len(idx_focal))
+        # We must ensure that patent ids are kept together.
         while pat_ids[idx_focal[end_block]] == pat_ids[idx_focal[end_block-1]]:
             end_block -= 1
         blocks.append(idx_focal[start_block:end_block])
         start_block = end_block
+
+    # Add the last block
     blocks.append(idx_focal[start_block:])
     return blocks
 
 
-def _compute_similarity(job):
+def _compute_similarity(job: tuple):
+    # Compute the impact and novelty for the provided focal indices.
     cpc_vectors, pat_ids, idx_back, idx_forw, idx_focal, exponents = job
     inproduct_back = _max_avg_inproduct(cpc_vectors, pat_ids, idx_back, idx_focal)
     inproduct_forw = _max_avg_inproduct(cpc_vectors, pat_ids, idx_forw, idx_focal)
@@ -302,6 +311,7 @@ def _compute_similarity(job):
 
 
 def _gather_results(raw_results):
+    # Reformat list of results.
     all_keys = [key for key in raw_results[0] if key != "exponent"]
     gathered_results = {}
     all_exponents = np.unique([x["exponent"] for x in raw_results])
@@ -316,12 +326,27 @@ def _gather_results(raw_results):
 def cpc_nov_impact(cpc_data: dict[str, Any],  # pylint: disable=too-many-locals
                    sim_spec: SimulationSpecification,
                    exponents: list[float],
-                   max_mat_size: int=100000000):
+                   max_mat_size: int=100000000,
+                   n_jobs: int=10):
     """Compute the novelty and impact using CPC codes.
 
     Parameters
     ----------
-    combined_df:
+    cpc_data:
+        Dictionary with the data containing the CPC codes, patent ids and year of issue.
+    sim_spec:
+        Simulation specification that determines which years/window sizes are used.
+    exponents:
+        List of exponents for the kind of averaging that is being used.
+        Generally we use (\sum_ij (x_i*x_j)**exponent)**(1/exponent), where x_i*x_j is the
+        similarity between two classifications of patent i and j.
+    max_mat_size:
+        Determines how the problem is split up, preventing using too much memory and enabling
+        parallel processing. Higher numbers mean using more memory, but potentially being more
+        efficient. Take care not to make it too small. A size of 1e7 seems to use about 2GB per
+        process.
+    n_jobs:
+        Number of parallel jobs.
     """
     year, pat_ids, cpc_vectors = cpc_data["year"], cpc_data["pat_ids"], cpc_data["cpc_vectors"]
     all_results = []
@@ -330,37 +355,26 @@ def cpc_nov_impact(cpc_data: dict[str, Any],  # pylint: disable=too-many-locals
         start_year = min(all_years)
         end_year = max(all_years)+1
         focal_year = (end_year - 1 + start_year)//2
+
+        # Get the forward/backward/focal year CPC codes (not patent_ids)
         idx_back = np.where(year < focal_year)[0]
         idx_forw = np.where((year > focal_year) &
                             (year < end_year))[0]
         idx_focal = np.where(year == focal_year)[0]
 
+        # Split the problem in multiple pieces,
+        # The split will seperate the focal patents into multiple groups.
         max_forw_back = max(len(idx_back), len(idx_forw))
         split_idx_focal = _separate_focal_idx(idx_focal, pat_ids, max_forw_back, max_mat_size)
-        # inproduct_back = []
-        # inproduct_forw = []
+
+        # Create the jobs
         jobs = [(cpc_vectors, pat_ids, idx_back, idx_forw, sub_idx_focal, exponents)
                 for sub_idx_focal in split_idx_focal]
 
-        with Pool(processes=4) as pool:
+        # Use multiprocessing pooling to create the results.
+        with Pool(processes=n_jobs) as pool:
             for data_part in tqdm(pool.imap_unordered(_compute_similarity, jobs), total=len(jobs)):
                 all_results.extend(data_part)
 
+    # Gather/reorganize the results before returning them.
     return _gather_results(all_results)
-        # for sub_idx_focal in tqdm(split_idx_focal):
-        #     inproduct_back.extend(_max_avg_inproduct(cpc_vectors, pat_ids, idx_back, sub_idx_focal))
-        #     inproduct_forw.extend(_max_avg_inproduct(cpc_vectors, pat_ids, idx_forw, sub_idx_focal))
-        # pat_ids_focal = np.unique(pat_ids[sub_idx_focal])
-        # for expon in exponents:
-        #     similarity_back = np.mean(np.array(inproduct_back)**expon, axis=1)**(1/expon)
-        #     similarity_forw = np.mean(np.array(inproduct_forw)**expon, axis=1)**(1/expon)
-        #     key = f"{start_year}-{end_year}-{expon}"
-        #     all_results[key] = {
-        #         "novelty": similarity_back,
-        #         "impact": similarity_forw/(similarity_back+1e-12),
-        #         "patent_ids": pat_ids_focal,
-        #         "exponent": expon,
-        #         "start_year": start_year,
-        #         "end_year": end_year,
-        #     }
-    # return all_results
