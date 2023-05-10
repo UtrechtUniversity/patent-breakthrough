@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from multiprocessing import Pool
 import re
 from typing import Dict, List, Optional, Any
 
@@ -12,7 +13,6 @@ from tqdm import tqdm
 
 from docembedder.typing import PathType, IntSequence
 from docembedder.simspec import SimulationSpecification
-from multiprocessing import Pool
 
 
 class PatentClassification():
@@ -338,7 +338,7 @@ def cpc_nov_impact(cpc_data: dict[str, Any],  # pylint: disable=too-many-locals
         Simulation specification that determines which years/window sizes are used.
     exponents:
         List of exponents for the kind of averaging that is being used.
-        Generally we use (\sum_ij (x_i*x_j)**exponent)**(1/exponent), where x_i*x_j is the
+        Generally we use (sum_ij (x_i*x_j)**exponent)**(1/exponent), where x_i*x_j is the
         similarity between two classifications of patent i and j.
     max_mat_size:
         Determines how the problem is split up, preventing using too much memory and enabling
