@@ -12,6 +12,7 @@ from tqdm import tqdm
 
 from docembedder.typing import PathType, IntSequence
 from docembedder.simspec import SimulationSpecification
+from multiprocessing import Pool
 
 
 class PatentClassification():
@@ -200,7 +201,7 @@ def _max_avg_inproduct(cpc_vectors, pat_ids, idx_back, idx_focal):
     prev_idx = 0
     for i_dest, idx in enumerate(pat_lines):
         max_inprod_cache[:, i_dest] = np.max(inprod_cache[:, prev_idx:idx], axis=1)
-        idx = prev_idx
+        prev_idx = idx
 
     max_inprod_cache[:, -1] = np.max(inprod_cache[:, prev_idx:], axis=1)
 
@@ -264,9 +265,58 @@ def get_cpc_data(year_fp: PathType, cpc_fp: PathType,
             "cpc_vectors": all_vectors}
 
 
+def _separate_focal_idx(idx_focal, pat_ids, max_forw_back, max_mat_size):
+    n_blocks = round(max_forw_back*len(idx_focal)/max_mat_size)
+    if n_blocks <= 1:
+        return [idx_focal]
+
+    blocks = []
+    start_block = 0
+    for i_block in range(n_blocks-1):
+        end_block = round(((i_block+1)/n_blocks) * len(idx_focal))
+        while pat_ids[idx_focal[end_block]] == pat_ids[idx_focal[end_block-1]]:
+            end_block -= 1
+        blocks.append(idx_focal[start_block:end_block])
+        start_block = end_block
+    blocks.append(idx_focal[start_block:])
+    return blocks
+
+
+def _compute_similarity(job):
+    cpc_vectors, pat_ids, idx_back, idx_forw, idx_focal, exponents = job
+    inproduct_back = _max_avg_inproduct(cpc_vectors, pat_ids, idx_back, idx_focal)
+    inproduct_forw = _max_avg_inproduct(cpc_vectors, pat_ids, idx_forw, idx_focal)
+
+    results = []
+    for expon in exponents:
+        similarity_back = np.mean(np.array(inproduct_back)**expon, axis=1)**(1/expon)
+        similarity_forw = np.mean(np.array(inproduct_forw)**expon, axis=1)**(1/expon)
+        results.append({
+            "novelty": similarity_back,
+            "impact": similarity_forw/(similarity_back+1e-12),
+            "patent_ids": np.unique(pat_ids[idx_focal]),
+            "exponent": expon,
+        })
+
+    return results
+
+
+def _gather_results(raw_results):
+    all_keys = [key for key in raw_results[0] if key != "exponent"]
+    gathered_results = {}
+    all_exponents = np.unique([x["exponent"] for x in raw_results])
+    for expon in all_exponents:
+        new_res = {}
+        for key in all_keys:
+            new_res[key] = np.concatenate([x[key] for x in raw_results if x["exponent"] == expon])
+        gathered_results[expon] = new_res
+    return gathered_results
+
+
 def cpc_nov_impact(cpc_data: dict[str, Any],  # pylint: disable=too-many-locals
                    sim_spec: SimulationSpecification,
-                   exponents: list[float]):
+                   exponents: list[float],
+                   max_mat_size: int=100000000):
     """Compute the novelty and impact using CPC codes.
 
     Parameters
@@ -274,30 +324,43 @@ def cpc_nov_impact(cpc_data: dict[str, Any],  # pylint: disable=too-many-locals
     combined_df:
     """
     year, pat_ids, cpc_vectors = cpc_data["year"], cpc_data["pat_ids"], cpc_data["cpc_vectors"]
-    all_results = {}
+    all_results = []
 
     for all_years in sim_spec.year_ranges:
         start_year = min(all_years)
         end_year = max(all_years)+1
-        focal_year = (end_year + start_year)//2
+        focal_year = (end_year - 1 + start_year)//2
         idx_back = np.where(year < focal_year)[0]
         idx_forw = np.where((year > focal_year) &
                             (year < end_year))[0]
         idx_focal = np.where(year == focal_year)[0]
-        # n_focal, n_back, n_forw = len(idx_focal), len(idx_back), len(idx_forw)
-        inproduct_back = _max_avg_inproduct(cpc_vectors, pat_ids, idx_back, idx_focal)
-        inproduct_forw = _max_avg_inproduct(cpc_vectors, pat_ids, idx_forw, idx_focal)
-        pat_ids_focal = np.unique(pat_ids[idx_focal])
-        for expon in exponents:
-            similarity_back = np.mean(inproduct_back**expon, axis=1)**(1/expon)
-            similarity_forw = np.mean(inproduct_forw**expon, axis=1)**(1/expon)
-            key = f"{start_year}-{end_year}-{expon}"
-            all_results[key] = {
-                "novelty": similarity_back,
-                "impact": similarity_forw/(similarity_back+1e-12),
-                "patent_ids": pat_ids_focal,
-                "exponent": expon,
-                "start_year": start_year,
-                "end_year": end_year,
-            }
-    return all_results
+
+        max_forw_back = max(len(idx_back), len(idx_forw))
+        split_idx_focal = _separate_focal_idx(idx_focal, pat_ids, max_forw_back, max_mat_size)
+        # inproduct_back = []
+        # inproduct_forw = []
+        jobs = [(cpc_vectors, pat_ids, idx_back, idx_forw, sub_idx_focal, exponents)
+                for sub_idx_focal in split_idx_focal]
+
+        with Pool(processes=4) as pool:
+            for data_part in tqdm(pool.imap_unordered(_compute_similarity, jobs), total=len(jobs)):
+                all_results.extend(data_part)
+
+    return _gather_results(all_results)
+        # for sub_idx_focal in tqdm(split_idx_focal):
+        #     inproduct_back.extend(_max_avg_inproduct(cpc_vectors, pat_ids, idx_back, sub_idx_focal))
+        #     inproduct_forw.extend(_max_avg_inproduct(cpc_vectors, pat_ids, idx_forw, sub_idx_focal))
+        # pat_ids_focal = np.unique(pat_ids[sub_idx_focal])
+        # for expon in exponents:
+        #     similarity_back = np.mean(np.array(inproduct_back)**expon, axis=1)**(1/expon)
+        #     similarity_forw = np.mean(np.array(inproduct_forw)**expon, axis=1)**(1/expon)
+        #     key = f"{start_year}-{end_year}-{expon}"
+        #     all_results[key] = {
+        #         "novelty": similarity_back,
+        #         "impact": similarity_forw/(similarity_back+1e-12),
+        #         "patent_ids": pat_ids_focal,
+        #         "exponent": expon,
+        #         "start_year": start_year,
+        #         "end_year": end_year,
+        #     }
+    # return all_results
