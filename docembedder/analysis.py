@@ -13,6 +13,8 @@ from sklearn.preprocessing import normalize
 
 from docembedder.datamodel import DataModel
 from docembedder.models.base import AllEmbedType
+from multiprocessing import Pool
+from tqdm import tqdm
 
 
 def _compute_cpc_cor(embeddings: AllEmbedType,
@@ -48,6 +50,79 @@ def _auto_cor(delta: int, embeddings: AllEmbedType):
     return np.array(embeddings[:end].multiply(embeddings[start:]).sum(axis=1)).flatten().mean()
 
 
+def _multi_compute_impact(job):
+    return _compute_impact(*job)
+
+
+def _gather_results(raw_results):
+    # Reformat list of results.
+    all_keys = [key for key in raw_results[0] if key != "exponent"]
+    gathered_results = {}
+    all_exponents = np.unique([x["exponent"] for x in raw_results])
+    for expon in all_exponents:
+        new_res = {}
+        for key in all_keys:
+            new_res[key] = np.concatenate([x[key] for x in raw_results if x["exponent"] == expon])
+        gathered_results[expon] = new_res
+    return gathered_results
+
+
+def _compute_impact(embedding_back, embedding_focal, embedding_forw, exponent=1.0):
+    if isinstance(embedding_focal, csr_matrix):
+        sim_back = (embedding_focal.dot(embedding_back.T).toarray()+1)/2
+        sim_forw = (embedding_focal.dot(embedding_forw.T).toarray()+1)/2
+    else:
+        sim_back = (np.dot(embedding_focal, embedding_back.T)+1)/2
+        sim_forw = (np.dot(embedding_focal, embedding_forw.T)+1)/2
+    avg_sim_back = (sim_back**exponent).mean(axis=1)**(1/exponent)
+    avg_sim_forw = (sim_forw**exponent).mean(axis=1)**(1/exponent)
+    novelty = 1-avg_sim_back
+    impact = avg_sim_forw / (avg_sim_back+1e-12)
+    return {
+        "novelty": novelty,
+        "impact": impact,
+        "exponent": exponent,
+    }
+
+
+def compute_impact_novelty(
+        embeddings,
+        back_idx, focal_idx, forw_idx,
+        n_jobs: int = 10,
+        max_mat_size: int = int(1e7),
+        exponents=1.0
+        ):
+    if isinstance(exponents, float):
+        exponents = [exponents]
+
+    embeddings_backward = normalize(embeddings[back_idx])
+    # embeddings_focal = normalize(embeddings[focal_idx])
+    embeddings_forward = normalize(embeddings[forw_idx])
+
+    max_back_forw_len = max(embeddings_backward.shape[0], embeddings_forward.shape[0])
+    mem_split = round((len(focal_idx)*max_back_forw_len)/max_mat_size)
+    n_split = min(n_jobs, len(focal_idx))
+    n_split = max(n_split, mem_split)
+
+    split_focal_idx = np.array_split(focal_idx, n_split)
+    jobs = [
+        (embeddings_backward, normalize(embeddings[cur_focal_idx]), embeddings_forward, expon)
+        for cur_focal_idx in split_focal_idx
+        for expon in exponents]
+
+    if n_jobs == 1:
+        results = [_compute_impact(*job) for job in jobs]
+    else:
+        results = []
+        with Pool(processes=n_jobs) as pool:
+            # for job in jobs:
+                # res = _compute_impact(*job)
+            # for res in tqdm(pool.imap_unordered(_multi_compute_impact, jobs)):
+            for res in pool.starmap(_compute_impact, jobs):
+                results.append(res)
+    return _gather_results(results)
+
+
 class DocAnalysis():
     """Analysis class that can analyse embeddings.
 
@@ -62,7 +137,10 @@ class DocAnalysis():
             self,
             window_name: str,
             model_name: str,
-            window: Optional[Union[int, tuple[int, int]]] = None
+            window: Optional[Union[int, tuple[int, int]]] = None,
+            exponents: Union[float, list[float]] = 1.0,
+            n_jobs: int = 10,
+            max_mat_size: int = int(1e8),
             ) -> tuple[npt.NDArray[np.float_], npt.NDArray[np.float_], int]:
         """Compute the impact and novelty for a window/model name.
 
@@ -76,6 +154,8 @@ class DocAnalysis():
             Size in years of the window to use. If an integer, range will be
             [-window, window].
         """
+        if isinstance(exponents, float):
+            exponents = [exponents]
 
         _patent_ids, patent_years = self.data.load_window(window_name)
         min_year = np.amin(patent_years)
@@ -92,22 +172,10 @@ class DocAnalysis():
         forw_idx = np.where((patent_years >= focal_year + window[0])
                             & (patent_years <= focal_year+window[1]))
 
-        impact_arr: npt.NDArray[np.float_] = np.zeros(len(focal_idx))
-        novelty_arr: npt.NDArray[np.float_] = np.zeros(len(focal_idx))
-        embeddings_backward = embeddings[back_idx]
-        embeddings_forward = embeddings[forw_idx]
-
-        for i_cur_index, cur_index in enumerate(focal_idx):
-            cur_embedding = embeddings[cur_index]
-            if len(cur_embedding.shape) == 1:
-                cur_embedding = cur_embedding.reshape(1, -1)
-
-            backward_similarity = np.mean(cosine_similarity(cur_embedding, embeddings_backward))
-            forward_similarity = np.mean(cosine_similarity(cur_embedding, embeddings_forward))
-            novelty_arr[i_cur_index] = 1-backward_similarity
-            impact_arr[i_cur_index] = forward_similarity / (backward_similarity+1e-12)
-
-        return impact_arr, novelty_arr, focal_year
+        results = compute_impact_novelty(
+            embeddings, back_idx, focal_idx, forw_idx, n_jobs, max_mat_size,
+            exponents)
+        return results
 
     def auto_correlation(self,
                          window_name: str,
