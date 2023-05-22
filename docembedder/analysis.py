@@ -135,7 +135,7 @@ def compute_impact_novelty(  # pylint: disable=too-many-arguments, too-many-loca
         results = []
         with Pool(processes=n_jobs) as pool:
             for res in tqdm(pool.imap(_multi_compute_impact, jobs),
-                            disable=not progress_bar):
+                            disable=not progress_bar, total=len(jobs)):
                 # for res in pool.starmap(_compute_impact, jobs):
                 results.append(res)
     return _gather_results(results)
