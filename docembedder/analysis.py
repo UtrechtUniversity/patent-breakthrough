@@ -14,6 +14,7 @@ from tqdm import tqdm
 
 from docembedder.datamodel import DataModel
 from docembedder.models.base import AllEmbedType
+from docembedder.embedding_utils import _gather_results
 
 
 def _compute_cpc_cor(embeddings: AllEmbedType,
@@ -51,19 +52,6 @@ def _auto_cor(delta: int, embeddings: AllEmbedType):
 
 def _multi_compute_impact(job):
     return _compute_impact(*job)
-
-
-def _gather_results(raw_results):
-    # Reformat list of results.
-    all_keys = [key for key in raw_results[0] if key != "exponent"]
-    gathered_results = {}
-    all_exponents = np.unique([x["exponent"] for x in raw_results])
-    for expon in all_exponents:
-        new_res = {}
-        for key in all_keys:
-            new_res[key] = np.concatenate([x[key] for x in raw_results if x["exponent"] == expon])
-        gathered_results[expon] = new_res
-    return gathered_results
 
 
 def _compute_impact(embedding_back, embedding_focal, embedding_forw, exponent=1.0):
