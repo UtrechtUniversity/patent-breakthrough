@@ -2,19 +2,18 @@
 
 from __future__ import annotations
 from collections import defaultdict
+from multiprocessing import Pool
 from typing import List, Union, Dict, Any, Optional, DefaultDict
 
 import numpy as np
 from numpy import typing as npt
 from scipy.stats import spearmanr
 from scipy.sparse import csr_matrix
-from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import normalize
+from tqdm import tqdm
 
 from docembedder.datamodel import DataModel
 from docembedder.models.base import AllEmbedType
-from multiprocessing import Pool
-from tqdm import tqdm
 
 
 def _compute_cpc_cor(embeddings: AllEmbedType,
@@ -85,40 +84,59 @@ def _compute_impact(embedding_back, embedding_focal, embedding_forw, exponent=1.
     }
 
 
-def compute_impact_novelty(
-        embeddings,
-        back_idx, focal_idx, forw_idx,
+def compute_impact_novelty(  # pylint: disable=too-many-arguments, too-many-locals
+        embeddings: AllEmbedType,
+        back_idx: npt.NDArray[int], focal_idx: npt.NDArray[int], forw_idx: npt.NDArray[int],
         n_jobs: int = 10,
         max_mat_size: int = int(1e7),
-        exponents=1.0
-        ):
+        exponents: Union[float, list[float]] = 1.0,
+        progress_bar: bool = False):
+    """Compute the impact and novelty scores from embeddings.
+
+    Arguments
+    ---------
+    embeddings:
+        Document embeddings to compute the novelty and impact for.
+    back_idx:
+        Indices containing the backward patents.
+    focal_idx:
+        Indices containing the focal patents.
+    forw_idx:
+        Indices containing the forward patents (in the future).
+    n_jobs:
+        Parallelize over this many jobs.
+    exponents:
+        Exponents to use for computing the (weighted) average similarity.
+    """
     if isinstance(exponents, float):
         exponents = [exponents]
 
+    # Normalize the embeddings.
     embeddings_backward = normalize(embeddings[back_idx])
-    # embeddings_focal = normalize(embeddings[focal_idx])
     embeddings_forward = normalize(embeddings[forw_idx])
 
+    # Figure out over how many jobs the focal embeddings should be split.
     max_back_forw_len = max(embeddings_backward.shape[0], embeddings_forward.shape[0])
     mem_split = round((len(focal_idx)*max_back_forw_len)/max_mat_size)
     n_split = min(n_jobs, len(focal_idx))
     n_split = max(n_split, mem_split)
 
+    # Split the jobs on the focal indices and the exponents.
     split_focal_idx = np.array_split(focal_idx, n_split)
     jobs = [
         (embeddings_backward, normalize(embeddings[cur_focal_idx]), embeddings_forward, expon)
         for cur_focal_idx in split_focal_idx
         for expon in exponents]
 
+    # Compute the results
     if n_jobs == 1:
         results = [_compute_impact(*job) for job in jobs]
     else:
         results = []
         with Pool(processes=n_jobs) as pool:
-            # for job in jobs:
-                # res = _compute_impact(*job)
-            # for res in tqdm(pool.imap_unordered(_multi_compute_impact, jobs)):
-            for res in pool.starmap(_compute_impact, jobs):
+            for res in tqdm(pool.imap(_multi_compute_impact, jobs),
+                            disable=not progress_bar):
+                # for res in pool.starmap(_compute_impact, jobs):
                 results.append(res)
     return _gather_results(results)
 
@@ -133,7 +151,7 @@ class DocAnalysis():
     def __init__(self, data: DataModel):
         self.data = data
 
-    def compute_impact_novelty(  # pylint: disable=too-many-locals
+    def compute_impact_novelty(  # pylint: disable=too-many-locals,too-many-arguments
             self,
             window_name: str,
             model_name: str,
@@ -175,7 +193,7 @@ class DocAnalysis():
         results = compute_impact_novelty(
             embeddings, back_idx, focal_idx, forw_idx, n_jobs, max_mat_size,
             exponents)
-        return results
+        return results["impact"], results["novelty"], focal_year
 
     def auto_correlation(self,
                          window_name: str,
