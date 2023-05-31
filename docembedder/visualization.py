@@ -46,19 +46,20 @@ def plot_window_difference(  # pylint: disable=too-many-arguments,too-many-local
         Model name to plot. If None, plot all available models in the same
         plot.
     """
+    exponent = 1.0
     results_1: dict[str, list] = defaultdict(list)
     results_2: dict[str, list] = defaultdict(list)
     for window, model in tqdm(analysis.data.iterate_window_models(model_name=model_name)):
-        cur_impact_1, cur_novelty_1, _ = analysis.compute_impact_novelty(
-            window, model, window=(1, 5))
-        cur_impact_2, cur_novelty_2, _ = analysis.compute_impact_novelty(
+        imp_res_1 = analysis.compute_impact_novelty(
+            window, model, window=(1, 5), exponents=[exponent])
+        imp_res_2 = analysis.compute_impact_novelty(
             window, model, window=(6, 10))
         if impact:
-            results_1[model].extend(cur_impact_1)
-            results_2[model].extend(cur_impact_2)
+            results_1[model].extend(imp_res_1[exponent]["impact"])
+            results_2[model].extend(imp_res_1[exponent]["novelty"])
         else:
-            results_1[model].extend(cur_novelty_1)
-            results_2[model].extend(cur_novelty_2)
+            results_1[model].extend(imp_res_2[exponent]["impact"])
+            results_2[model].extend(imp_res_2[exponent]["novelty"])
     plt.figure(dpi=100)
     for model in results_1:
         result_r = spearmanr(results_1[model], results_2[model])

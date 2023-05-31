@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from pathlib import Path
-from typing import Iterable, Optional, Union
+from typing import Iterable, Optional
 import io
 
 import h5py
@@ -297,7 +297,7 @@ class DataModel():  # pylint: disable=too-many-public-methods
         return prep
 
     def store_impact_novelty(self, window_name: str, model_name: str,
-                             data: npt.NDArray[float],
+                             data: dict,
                              overwrite: bool = False):
         """Store impact and novelty for a window/year.
 
@@ -353,80 +353,6 @@ class DataModel():  # pylint: disable=too-many-public-methods
             "exponent": exponent,
         }
         return results
-
-
-    # def store_impact(  # pylint: disable=too-many-arguments
-    #         self,
-    #         window_name: str,
-    #         model_name: str,
-    #         focal_year: int,
-    #         impacts: np.ndarray,
-    #         exponent: Union[float, str],
-    #         overwrite: bool = False):
-    #     """Store impacts for a window/year.
-    #
-    #     Arguments
-    #     ---------
-    #     window_name:
-    #         Year or window name.
-    #     model_name:
-    #         Name of the model that generated the embeddings.
-    #     impacts:
-    #         An array containing the impacts per model/window.
-    #     exponent:
-    #         Exponent used to compute the impact.
-    #     overwrite:
-    #         If True, overwrite embeddings if they exist.
-    #     """
-    #     dataset_group_str = f"/impact/{model_name}/{window_name}"
-    #     if dataset_group_str not in self.handle:
-    #         dataset_group = self.handle.create_group(dataset_group_str)
-    #     else:
-    #         dataset_group = self.handle[dataset_group_str]
-    #
-    #     if str(exponent) in dataset_group and overwrite:
-    #         del dataset_group[f"{exponent}"]
-    #     elif dataset_group_str in self.handle:
-    #         return
-    #     dataset_group.attrs['focal_year'] = focal_year
-    #     dataset_group.create_dataset(f"{exponent}", data=impacts)
-    #
-    # def store_novelty(  # pylint: disable=too-many-arguments
-    #         self,
-    #         window_name: str,
-    #         model_name: str,
-    #         focal_year: int,
-    #         novelties: np.ndarray,
-    #         patent_ids: npt.NDArray[int],
-    #         exponent: float,
-    #         overwrite: bool = False):
-    #     """Store novelty for a window/year/exponent.
-    #             Arguments
-    #             ---------
-    #     window_name:
-    #         Year or window name.
-    #     model_name:
-    #         Name of the model that generated the embeddings.
-    #     novelties:
-    #         An array containing the novelties per model/window
-    #     exponent:
-    #         Exponent used to compute the impact.
-    #     overwrite:
-    #         If True, overwrite embeddings if they exist.
-    #     """
-    #     dataset_group_str = f"/novelty/{model_name}/{window_name}"
-    #     if dataset_group_str not in self.handle:
-    #         dataset_group = self.handle.create_group(dataset_group_str)
-    #     else:
-    #         dataset_group = self.handle[dataset_group_str]
-    #
-    #     if str(exponent) in dataset_group and overwrite:
-    #         del dataset_group[f"{exponent}"]
-    #     elif dataset_group_str in self.handle:
-    #         return
-    #     dataset_group.attrs['focal_year'] = focal_year
-    #     dataset_group.create_dataset(f"{exponent}", data=novelties)
-    #     if patent_ids 
 
     def load_impacts(self, window_name: str, model_name: str, exponent: float
                      ) -> npt.NDArray[np.float_]:

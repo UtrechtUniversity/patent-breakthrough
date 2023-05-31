@@ -27,7 +27,6 @@ if __name__ == "__main__":
         for window, model in data.iterate_window_models():
             results = analysis.impact_novelty_results(
                 window, model, exponents, n_jobs=8)
-            # impact_novel[model]["patent_ids"].extend(results["patent_ids"])
             for expon, res in results.items():
                 if expon == exponents[0]:
                     impact_novel[model]["patent_ids"].extend(res["patent_ids"])
