@@ -354,42 +354,6 @@ class DataModel():  # pylint: disable=too-many-public-methods
         }
         return results
 
-    # def load_impacts(self, window_name: str, model_name: str, exponent: float
-    #                  ) -> npt.NDArray[np.float_]:
-    #     """Load impacts for a window/year.
-    #
-    #     Arguments
-    #     ---------
-    #     window_name:
-    #         Year or window name.
-    #     model_name:
-    #         Name of the model.
-    #
-    #     Returns
-    #     -------
-    #     Impacts:
-    #         list of impacts for that window/model.
-    #     """
-    #     return self.handle[f"/impact/{model_name}/{window_name}/{exponent}"][...]
-    #
-    # def load_novelties(self, window_name: str, model_name: str,
-    #                    exponent: float) -> npt.NDArray[np.float_]:
-    #     """Load novelties for a window/year.
-    #
-    #     Arguments
-    #     ---------
-    #     window_name:
-    #         Year or window name.
-    #     model_name:
-    #         Name of the model.
-    #
-    #     Returns
-    #     -------
-    #     Impacts:
-    #         list of novelties for that window/model.
-    #     """
-    #     return self.handle[f"/novelty/{model_name}/{window_name}/{exponent}"][...]
-
     @property
     def model_names(self) -> list[str]:
         """Names of all stored models."""
