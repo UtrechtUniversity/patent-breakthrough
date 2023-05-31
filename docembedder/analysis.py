@@ -3,7 +3,7 @@
 from __future__ import annotations
 from collections import defaultdict
 from multiprocessing import Pool
-from typing import List, Union, Dict, Any, Optional, DefaultDict
+from typing import List, Union, Dict, Any, Optional, DefaultDict, Union
 
 import numpy as np
 from numpy import typing as npt
@@ -163,7 +163,7 @@ class DocAnalysis():
         if isinstance(exponents, float):
             exponents = [exponents]
 
-        _patent_ids, patent_years = self.data.load_window(window_name)
+        patent_ids, patent_years = self.data.load_window(window_name)
         min_year = np.amin(patent_years)
         max_year = np.amax(patent_years)
         focal_year = int((min_year+max_year)/2)
@@ -181,7 +181,11 @@ class DocAnalysis():
         results = compute_impact_novelty(
             embeddings, back_idx, focal_idx, forw_idx, n_jobs, max_mat_size,
             exponents)
-        return results["impact"], results["novelty"], focal_year
+        for expon in exponents:
+            results[expon]["focal_year"] = focal_year
+            results[expon]["patent_ids"] = patent_ids[focal_idx]
+            results[expon]["exponent"] = expon
+        return results
 
     def auto_correlation(self,
                          window_name: str,
@@ -195,25 +199,47 @@ class DocAnalysis():
         auto_correlations = np.array([_auto_cor(i, embeddings) for i in delta_count])
         return delta_year, auto_correlations
 
-    def patent_impacts(self, window_name: str, model_name: str) -> npt.NDArray[np.float_]:
-        """Compute impact using cosine similarity between document vectors
-        """
+    def impact_novelty_results(self, window_name: str, model_name: str,
+                               exponents: Union[float, list[float]],
+                               **kwargs) -> dict:
+        if isinstance(exponents, float):
+            exponents = list(float)
         try:
-            impacts = self.data.load_impacts(window_name, model_name)
+            results = {}
+            for expon in exponents:
+                results[expon] = self.data.load_impact_novelty(window_name, model_name, expon)
         except KeyError:
-            impacts, novelties, focal_year = self.compute_impact_novelty(window_name, model_name)
-            self.data.store_impact_novelty(window_name, model_name, focal_year, impacts, novelties)
-        return impacts
+            results = self.compute_impact_novelty(window_name, model_name, exponents=exponents,
+                                                  **kwargs)
+            for expon in exponents:
+                self.data.store_impact_novelty(window_name, model_name, results[expon],
+                                               overwrite=True)
+        return results
 
-    def patent_novelties(self, window_name: str, model_name: str) -> npt.NDArray[np.float_]:
-        """Compute novelty using cosine similarity between document vectors
-        """
-        try:
-            novelties = self.data.load_novelties(window_name, model_name)
-        except KeyError:
-            impacts, novelties, focal_year = self.compute_impact_novelty(window_name, model_name)
-            self.data.store_impact_novelty(window_name, model_name, focal_year, impacts, novelties)
-        return novelties
+    # def patent_impacts(self, window_name: str, model_name: str,
+    #                    exponents: Union[float, list[float]]) -> npt.NDArray[np.float_]:
+    #     """Compute impact using cosine similarity between document vectors
+    #     """
+    #     results = self._get_impact_novelty_results(window_name, model_name, exponents)
+    #     return {
+    #
+    #     }
+    #     try:
+    #         results = self.data.load_impact_novelty(window_name, model_name)
+    #     except KeyError:
+    #         results = self.compute_impact_novelty(window_name, model_name)
+    #         self.data.store_impact_novelty(window_name, model_name, focal_year, impacts, novelties)
+    #     return impacts
+    #
+    # def patent_novelties(self, window_name: str, model_name: str) -> npt.NDArray[np.float_]:
+    #     """Compute novelty using cosine similarity between document vectors
+    #     """
+    #     try:
+    #         novelties = self.data.load_novelties(window_name, model_name)
+    #     except KeyError:
+    #         impacts, novelties, focal_year = self.compute_impact_novelty(window_name, model_name)
+    #         self.data.store_impact_novelty(window_name, model_name, focal_year, impacts, novelties)
+    #     return novelties
 
     def cpc_correlations(self, models: Optional[Union[str, List[str]]]=None
                          ) -> Dict[str, Dict[str, Any]]:
