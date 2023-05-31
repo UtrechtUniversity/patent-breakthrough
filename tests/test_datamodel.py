@@ -125,21 +125,24 @@ def test_impact_novelty(real_file):
     hdf5_fp = get_file(real_file)
     novelty = np.random.rand(100)
     impact = np.random.rand(100)
+    patent_ids = np.arange(100)
+    results = {"exponent": 1.0, "patent_ids": patent_ids, "impact": impact,
+               "novelty": novelty, "focal_year": 1850}
+    results_2 = {"exponent": 1.0, "patent_ids": patent_ids, "impact": impact+1,
+                 "novelty": novelty+1, "focal_year": 1850}
     with DataModel(hdf5_fp, read_only=False) as data:
-        data.store_impact_novelty("window", "model", 1850, impact, novelty)
-        new_impact = data.load_impacts("window", "model")
-        new_novelty = data.load_novelties("window", "model")
-        assert np.all(new_impact == impact) and np.all(new_novelty == novelty)
+        data.store_impact_novelty("window", "model", results)
+        new_results = data.load_impact_novelty("window", "model", 1.0)
+        assert np.all(new_results["impact"] == impact) and np.all(new_results["novelty"] == novelty)
 
-        data.store_impact_novelty("window", "model", 1850, impact+1, novelty+1, overwrite=False)
-        new_impact = data.load_impacts("window", "model")
-        new_novelty = data.load_novelties("window", "model")
-        assert np.all(new_impact == impact) and np.all(new_novelty == novelty)
+        data.store_impact_novelty("window", "model", results_2, overwrite=False)
+        new_results = data.load_impact_novelty("window", "model", 1.0)
+        assert np.all(new_results["impact"] == impact) and np.all(new_results["novelty"] == novelty)
 
-        data.store_impact_novelty("window", "model", 1850, impact+1, novelty+1, overwrite=True)
-        new_impact = data.load_impacts("window", "model")
-        new_novelty = data.load_novelties("window", "model")
-        assert np.all(new_impact == impact+1) and np.all(new_novelty == novelty+1)
+        data.store_impact_novelty("window", "model", results_2, overwrite=True)
+        new_results = data.load_impact_novelty("window", "model", 1.0)
+
+        assert np.all(new_results["impact"] == impact+1) and np.all(new_results["novelty"] == novelty+1)
 
 
 @mark.parametrize("real_file", [True, False])
