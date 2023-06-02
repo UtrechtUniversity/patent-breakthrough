@@ -202,6 +202,7 @@ class DocAnalysis():
 
     def impact_novelty_results(self, window_name: str, model_name: str,
                                exponents: Union[float, list[float]],
+                               cache: bool = True,
                                **kwargs) -> dict:
         """Get the impact and novelty results for a window/model.
 
@@ -230,9 +231,10 @@ class DocAnalysis():
         except KeyError:
             results = self.compute_impact_novelty(window_name, model_name, exponents=exponents,
                                                   **kwargs)
-            for expon in exponents:
-                self.data.store_impact_novelty(window_name, model_name, results[expon],
-                                               overwrite=True)
+            if cache:
+                for expon in exponents:
+                    self.data.store_impact_novelty(window_name, model_name, results[expon],
+                                                   overwrite=True)
         return results
 
     def cpc_correlations(self, models: Optional[Union[str, List[str]]]=None
