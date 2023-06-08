@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-from configparser import ConfigParser
+from argparse import ArgumentParser
 from pathlib import Path
+
 from docembedder.simspec import SimulationSpecification
 from docembedder.models import TfidfEmbedder
 from docembedder.preprocessor.preprocessor import Preprocessor
@@ -8,7 +9,19 @@ from docembedder.models.doc2vec import D2VEmbedder
 from docembedder.utils import run_models
 
 
-if __name__ == "__main__":
+def parse_arguments():
+    parser = ArgumentParser(
+        prog="create_novelty_impact.py",
+        description="Create novelty and impact scores")
+    parser.add_argument("--patent_dir", required=True)
+    parser.add_argument("--embedding", required=True)
+    parser.add_argument("--cpc_fp", required=True)
+    # parser.add_argument("--year_start", required=True, type=int)
+    # parser.add_argument("--year_end", required=True, type=int)
+    return parser.parse_args()
+
+
+def compute_embeddings(patent_dir, output_fp, cpc_fp):
     year_start = 1838
     year_end = 1844
     # set simulation specification
@@ -19,13 +32,6 @@ if __name__ == "__main__":
         window_shift=1,
         debug_max_patents=100,
     )
-
-    # read local config
-    config = ConfigParser()
-    _ = config.read("setup.ini")
-    patent_dir = Path(config["DATA"]["patent_dir"])
-    output_fp = Path("test.h5")
-    cpc_fp = Path(config["DATA"]["cpc_file"])
 
     model_tfidf = {
         "tfidf": TfidfEmbedder(),
@@ -47,3 +53,9 @@ if __name__ == "__main__":
 
     run_models(prep_tfidf, model_tfidf, sim_spec, patent_dir, output_fp, cpc_fp, n_jobs=8)
     run_models(prep_doc2vec, model_doc2vec, sim_spec, patent_dir, output_fp, cpc_fp, n_jobs=8)
+
+
+if __name__ == "__main__":
+    args = parse_arguments()
+    compute_embeddings(Path(args.patent_dir), Path(args.embedding),
+                       Path(args.cpc_fp))
