@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 import io
-from multiprocessing import Pool
+import multiprocessing
 from pathlib import Path
 from typing import Optional, Dict, Any, Sequence, List, Tuple
 
@@ -322,7 +322,7 @@ def run_jobs_multi(jobs: Sequence[Job],
     n_jobs = min(n_jobs, len(jobs))
     # Process all jobs.
     all_files = []
-    with Pool(processes=n_jobs) as pool:
+    with multiprocessing.get_context("spawn").Pool(processes=n_jobs) as pool:
         for temp_data_fp in tqdm(pool.imap_unordered(_pool_worker, jobs),
                                  total=len(jobs),
                                  disable=not progress_bar):

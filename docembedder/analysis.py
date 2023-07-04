@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from collections import defaultdict
-from multiprocessing import Pool
+import multiprocessing
 from typing import List, Union, Dict, Any, Optional, DefaultDict
 
 import numpy as np
@@ -122,7 +122,7 @@ def compute_impact_novelty(  # pylint: disable=too-many-arguments, too-many-loca
         results = [_compute_impact(*job) for job in jobs]
     else:
         results = []
-        with Pool(processes=n_jobs) as pool:
+        with multiprocessing.get_context('spawn').Pool(processes=n_jobs) as pool:
             for res in tqdm(pool.imap(_multi_compute_impact, jobs),
                             disable=not progress_bar, total=len(jobs)):
                 # for res in pool.starmap(_compute_impact, jobs):

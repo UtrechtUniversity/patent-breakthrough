@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from multiprocessing import Pool
+import multiprocessing
 import re
 from typing import Dict, List, Optional, Any
 
@@ -360,7 +360,7 @@ def cpc_nov_impact(cpc_data: dict[str, Any],  # pylint: disable=too-many-locals
                 for sub_idx_focal in split_idx_focal]
 
         # Use multiprocessing pooling to create the results.
-        with Pool(processes=n_jobs) as pool:
+        with multiprocessing.get_context('spawn').Pool(processes=n_jobs) as pool:
             for data_part in tqdm(pool.imap_unordered(_compute_similarity, jobs), total=len(jobs)):
                 all_results.extend(data_part)
 
