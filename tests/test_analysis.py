@@ -9,6 +9,7 @@ from docembedder import DocAnalysis
 from docembedder.datamodel import DataModel
 from scipy.sparse import csr_matrix
 
+
 def create_dataset(dense=True):
     data_fp = io.BytesIO()
     if dense:
@@ -52,6 +53,7 @@ def test_cpc_correlations(dense):
         cpc_cor_2 = analysis.cpc_correlations(["model_1", "model_2"])
         assert cpc_cor == cpc_cor_2
 
+
 @mark.parametrize("model", ["model_1", "model_2"])
 @mark.parametrize("window", ["window_1", "window_2"])
 class TestParametrized:
@@ -76,8 +78,10 @@ class TestParametrized:
         with DataModel(dense_data_fp) as data_dense, DataModel(sparse_data_fp) as data_sparse:
             analysis_dense = DocAnalysis(data_dense)
             analysis_sparse = DocAnalysis(data_sparse)
-            impact_dense = analysis_dense.patent_impacts(window, model)
-            impact_sparse = analysis_sparse.patent_impacts(window, model)
+            res_dense = analysis_dense.compute_impact_novelty(window, model, exponents=1.0)
+            res_sparse = analysis_sparse.compute_impact_novelty(window, model, exponents=1.0)
+            impact_dense = res_dense[1.0]["impact"]
+            impact_sparse = res_sparse[1.0]["impact"]
             assert isinstance(impact_dense, np.ndarray)
             assert isinstance(impact_sparse, np.ndarray)
             assert np.all(np.isclose(impact_dense, impact_sparse))
@@ -86,14 +90,16 @@ class TestParametrized:
             assert scipy.sparse.issparse(impact_dense) == False
             assert scipy.sparse.issparse(impact_sparse) == False
 
-    def test_patent_novlties(self, window, model):
+    def test_patent_novelties(self, window, model):
         dense_data_fp = create_dataset(dense=True)
         sparse_data_fp = create_dataset(dense=False)
         with DataModel(dense_data_fp) as data_dense, DataModel(sparse_data_fp) as data_sparse:
             analysis_dense = DocAnalysis(data_dense)
             analysis_sparse = DocAnalysis(data_sparse)
-            novelty_dense = analysis_dense.patent_novelties(window, model)
-            novelty_sparse = analysis_sparse.patent_novelties(window, model)
+            res_dense = analysis_dense.compute_impact_novelty(window, model, exponents=1.0)
+            res_sparse = analysis_sparse.compute_impact_novelty(window, model, exponents=1.0)
+            novelty_dense = res_dense[1.0]["novelty"]
+            novelty_sparse = res_sparse[1.0]["novelty"]
             assert isinstance(novelty_dense, np.ndarray)
             assert isinstance(novelty_sparse, np.ndarray)
             assert np.all(np.isclose(novelty_dense, novelty_sparse))

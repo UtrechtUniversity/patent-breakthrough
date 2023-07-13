@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from pathlib import Path
-from typing import Dict, List, Tuple, Iterable, Optional
+from typing import Iterable, Optional
 import io
 
 import h5py
@@ -57,7 +57,7 @@ class DataModel():  # pylint: disable=too-many-public-methods
                 self.handle.create_group("models")
                 self.handle.create_group("preprocessors")
                 self.handle.create_group("cpc")
-                self.handle.create_group("impacts_novelties")
+                self.handle.create_group("impact_novelty")
                 self.handle.attrs["docembedder-version"] = "unknown"  # Should be fixed in case
         else:
             self.handle = h5py.File(hdf5_file, "r")
@@ -183,7 +183,7 @@ class DataModel():  # pylint: disable=too-many-public-methods
             return csr_matrix((data, indices, indptr), shape=shape)
         raise ValueError(f"Unrecognized datatype {dataset_group.attr['dtype']}")
 
-    def store_cpc_correlations(self, window_name: str, data: Dict[str, npt.NDArray]):
+    def store_cpc_correlations(self, window_name: str, data: dict[str, npt.NDArray]):
         """Store CPC correlations for a year/window.
 
         Arguments
@@ -201,7 +201,7 @@ class DataModel():  # pylint: disable=too-many-public-methods
         grp.create_dataset("j_patents", data=data["j_patents"])
         grp.create_dataset("correlations", data=data["correlations"])
 
-    def load_cpc_correlations(self, window_name: str) -> Dict[str, npt.NDArray]:
+    def load_cpc_correlations(self, window_name: str) -> dict[str, npt.NDArray]:
         """Store CPC correlations for a year/window.
 
         Arguments
@@ -296,42 +296,40 @@ class DataModel():  # pylint: disable=too-many-public-methods
         prep = create_preprocessor(prep_type, prep_dict)
         return prep
 
-    def store_impact_novelty(  # pylint: disable=too-many-arguments
-            self,
-            window_name: str,
-            model_name: str,
-            focal_year: int,
-            impacts: np.ndarray,
-            novelties: np.ndarray,
-            overwrite: bool = False):
-        """Store impacts for a window/year.
-                Arguments
-                ---------
-                window_name:
-                    Year or window name.
-                model_name:
-                    Name of the model that generated the embeddings.
-                impacts:
-                    An array containing the impacts per model/window
-                novelties:
-                    An array containing the novelties per model/window
-                overwrite:
-                    If True, overwrite embeddings if they exist.
-                """
+    def store_impact_novelty(self, window_name: str, model_name: str,
+                             data: dict,
+                             overwrite: bool = False):
+        """Store impact and novelty for a window/year.
 
-        dataset_group_str = f"/impacts_novelties/{model_name}/{window_name}"
+        Arguments
+        ---------
+        window_name:
+            Year or window name.
+        model_name:
+            Name of the model that generated the embeddings.
+        impacts:
+            An array containing the impacts per model/window.
+        exponent:
+            Exponent used to compute the impact.
+        overwrite:
+            If True, overwrite embeddings if they exist.
+        """
+        exponent = data["exponent"]
+
+        dataset_group_str = f"/impact_novelty/{model_name}/{window_name}/{exponent}"
         if dataset_group_str in self.handle and overwrite:
             del self.handle[dataset_group_str]
         elif dataset_group_str in self.handle:
             return
         dataset_group = self.handle.create_group(dataset_group_str)
-        dataset_group.attrs['focal_year'] = focal_year
 
-        dataset_group.create_dataset("impact", data=impacts)
-        dataset_group.create_dataset("novelty", data=novelties)
+        dataset_group.attrs["focal_year"] = data["focal_year"]
+        dataset_group.create_dataset("patent_ids", data=data["patent_ids"])
+        dataset_group.create_dataset("novelty", data=data["novelty"])
+        dataset_group.create_dataset("impact", data=data["impact"])
 
-
-    def load_impacts(self, window_name: str, model_name: str) -> npt.NDArray[np.float_]:
+    def load_impact_novelty(self, window_name: str, model_name: str, exponent: float
+                            ) -> dict:
         """Load impacts for a window/year.
 
         Arguments
@@ -346,38 +344,29 @@ class DataModel():  # pylint: disable=too-many-public-methods
         Impacts:
             list of impacts for that window/model.
         """
-        return self.handle[f"/impacts_novelties/{model_name}/{window_name}/impact"][...]
-
-    def load_novelties(self, window_name: str, model_name: str) -> npt.NDArray[np.float_]:
-        """Load novelties for a window/year.
-
-        Arguments
-        ---------
-        window_name:
-            Year or window name.
-        model_name:
-            Name of the model.
-
-        Returns
-        -------
-        Impacts:
-            list of novelties for that window/model.
-        """
-        return self.handle[f"/impacts_novelties/{model_name}/{window_name}/novelty"][...]
+        dataset_group = self.handle[f"/impact_novelty/{model_name}/{window_name}/{exponent}"]
+        results = {
+            "impact": dataset_group["impact"][...],
+            "novelty": dataset_group["novelty"][...],
+            "focal_year": dataset_group.attrs["focal_year"],
+            "patent_ids": dataset_group["patent_ids"][...],
+            "exponent": exponent,
+        }
+        return results
 
     @property
-    def model_names(self) -> List["str"]:
+    def model_names(self) -> list[str]:
         """Names of all stored models."""
         return list(self.handle["embeddings"].keys())
 
     @property
-    def window_list(self) -> List["str"]:
+    def window_list(self) -> list[str]:
         """Names of all stored models."""
         return list(self.handle["windows"].keys())
 
     def iterate_window_models(self,
                               window_name: Optional[str] = None,
-                              model_name: Optional[str] = None) -> Iterable[Tuple[str, str]]:
+                              model_name: Optional[str] = None) -> Iterable[tuple[str, str]]:
         """Iterate over all available windows/models.
 
         Returns

@@ -2,17 +2,19 @@
 
 from __future__ import annotations
 from collections import defaultdict
+import multiprocessing
 from typing import List, Union, Dict, Any, Optional, DefaultDict
 
 import numpy as np
 from numpy import typing as npt
 from scipy.stats import spearmanr
 from scipy.sparse import csr_matrix
-from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import normalize
+from tqdm import tqdm
 
 from docembedder.datamodel import DataModel
 from docembedder.models.base import AllEmbedType
+from docembedder.embedding_utils import _gather_results
 
 
 def _compute_cpc_cor(embeddings: AllEmbedType,
@@ -48,6 +50,86 @@ def _auto_cor(delta: int, embeddings: AllEmbedType):
     return np.array(embeddings[:end].multiply(embeddings[start:]).sum(axis=1)).flatten().mean()
 
 
+def _multi_compute_impact(job):
+    return _compute_impact(*job)
+
+
+def _compute_impact(embedding_back, embedding_focal, embedding_forw, exponent=1.0):
+    if isinstance(embedding_focal, csr_matrix):
+        sim_back = (embedding_focal.dot(embedding_back.T).toarray()+1)/2
+        sim_forw = (embedding_focal.dot(embedding_forw.T).toarray()+1)/2
+    else:
+        sim_back = (np.dot(embedding_focal, embedding_back.T)+1)/2
+        sim_forw = (np.dot(embedding_focal, embedding_forw.T)+1)/2
+    avg_sim_back = (sim_back**exponent).mean(axis=1)**(1/exponent)
+    avg_sim_forw = (sim_forw**exponent).mean(axis=1)**(1/exponent)
+    novelty = 1-avg_sim_back
+    impact = avg_sim_forw / (avg_sim_back+1e-12)
+    return {
+        "novelty": novelty,
+        "impact": impact,
+        "exponent": exponent,
+    }
+
+
+def compute_impact_novelty(  # pylint: disable=too-many-arguments, too-many-locals
+        embeddings: AllEmbedType,
+        back_idx: npt.NDArray[np.int_], focal_idx: npt.NDArray[np.int_],
+        forw_idx: npt.NDArray[np.int_],
+        n_jobs: int = 10,
+        max_mat_size: int = int(1e7),
+        exponents: Union[float, list[float]] = 1.0,
+        progress_bar: bool = False):
+    """Compute the impact and novelty scores from embeddings.
+
+    Arguments
+    ---------
+    embeddings:
+        Document embeddings to compute the novelty and impact for.
+    back_idx:
+        Indices containing the backward patents.
+    focal_idx:
+        Indices containing the focal patents.
+    forw_idx:
+        Indices containing the forward patents (in the future).
+    n_jobs:
+        Parallelize over this many jobs.
+    exponents:
+        Exponents to use for computing the (weighted) average similarity.
+    """
+    if isinstance(exponents, float):
+        exponents = [exponents]
+
+    # Normalize the embeddings.
+    embeddings_backward = normalize(embeddings[back_idx])
+    embeddings_forward = normalize(embeddings[forw_idx])
+
+    # Figure out over how many jobs the focal embeddings should be split.
+    max_back_forw_len = max(embeddings_backward.shape[0], embeddings_forward.shape[0])
+    mem_split = round((len(focal_idx)*max_back_forw_len)/max_mat_size)
+    n_split = min(n_jobs, len(focal_idx))
+    n_split = max(n_split, mem_split)
+
+    # Split the jobs on the focal indices and the exponents.
+    split_focal_idx = np.array_split(focal_idx, n_split)
+    jobs = [
+        (embeddings_backward, normalize(embeddings[cur_focal_idx]), embeddings_forward, expon)
+        for cur_focal_idx in split_focal_idx
+        for expon in exponents]
+
+    # Compute the results
+    if n_jobs == 1:
+        results = [_compute_impact(*job) for job in jobs]
+    else:
+        results = []
+        with multiprocessing.get_context('spawn').Pool(processes=n_jobs) as pool:
+            for res in tqdm(pool.imap(_multi_compute_impact, jobs),
+                            disable=not progress_bar, total=len(jobs)):
+                # for res in pool.starmap(_compute_impact, jobs):
+                results.append(res)
+    return _gather_results(results)
+
+
 class DocAnalysis():
     """Analysis class that can analyse embeddings.
 
@@ -58,12 +140,15 @@ class DocAnalysis():
     def __init__(self, data: DataModel):
         self.data = data
 
-    def compute_impact_novelty(  # pylint: disable=too-many-locals
+    def compute_impact_novelty(  # pylint: disable=too-many-locals,too-many-arguments
             self,
             window_name: str,
             model_name: str,
-            window: Optional[Union[int, tuple[int, int]]] = None
-            ) -> tuple[npt.NDArray[np.float_], npt.NDArray[np.float_], int]:
+            window: Optional[Union[int, tuple[int, int]]] = None,
+            exponents: Union[float, list[float]] = 1.0,
+            n_jobs: int = 10,
+            max_mat_size: int = int(1e8),
+            ) -> dict[float, dict]:
         """Compute the impact and novelty for a window/model name.
 
         Arguments
@@ -76,8 +161,10 @@ class DocAnalysis():
             Size in years of the window to use. If an integer, range will be
             [-window, window].
         """
+        if isinstance(exponents, float):
+            exponents = [exponents]
 
-        _patent_ids, patent_years = self.data.load_window(window_name)
+        patent_ids, patent_years = self.data.load_window(window_name)
         min_year = np.amin(patent_years)
         max_year = np.amax(patent_years)
         focal_year = int((min_year+max_year)/2)
@@ -88,26 +175,18 @@ class DocAnalysis():
         embeddings = self.data.load_embeddings(window_name, model_name)
         focal_idx = np.where(patent_years == focal_year)[0]
         back_idx = np.where((patent_years <= focal_year - window[0])
-                            & (patent_years >= focal_year-window[1]))
+                            & (patent_years >= focal_year-window[1]))[0]
         forw_idx = np.where((patent_years >= focal_year + window[0])
-                            & (patent_years <= focal_year+window[1]))
+                            & (patent_years <= focal_year+window[1]))[0]
 
-        impact_arr: npt.NDArray[np.float_] = np.zeros(len(focal_idx))
-        novelty_arr: npt.NDArray[np.float_] = np.zeros(len(focal_idx))
-        embeddings_backward = embeddings[back_idx]
-        embeddings_forward = embeddings[forw_idx]
-
-        for i_cur_index, cur_index in enumerate(focal_idx):
-            cur_embedding = embeddings[cur_index]
-            if len(cur_embedding.shape) == 1:
-                cur_embedding = cur_embedding.reshape(1, -1)
-
-            backward_similarity = np.mean(cosine_similarity(cur_embedding, embeddings_backward))
-            forward_similarity = np.mean(cosine_similarity(cur_embedding, embeddings_forward))
-            novelty_arr[i_cur_index] = 1-backward_similarity
-            impact_arr[i_cur_index] = forward_similarity / (backward_similarity+1e-12)
-
-        return impact_arr, novelty_arr, focal_year
+        results = compute_impact_novelty(
+            embeddings, back_idx, focal_idx, forw_idx, n_jobs, max_mat_size,
+            exponents)
+        for expon in exponents:
+            results[expon]["focal_year"] = focal_year
+            results[expon]["patent_ids"] = patent_ids[focal_idx]
+            results[expon]["exponent"] = expon
+        return results
 
     def auto_correlation(self,
                          window_name: str,
@@ -121,25 +200,42 @@ class DocAnalysis():
         auto_correlations = np.array([_auto_cor(i, embeddings) for i in delta_count])
         return delta_year, auto_correlations
 
-    def patent_impacts(self, window_name: str, model_name: str) -> npt.NDArray[np.float_]:
-        """Compute impact using cosine similarity between document vectors
-        """
-        try:
-            impacts = self.data.load_impacts(window_name, model_name)
-        except KeyError:
-            impacts, novelties, focal_year = self.compute_impact_novelty(window_name, model_name)
-            self.data.store_impact_novelty(window_name, model_name, focal_year, impacts, novelties)
-        return impacts
+    def impact_novelty_results(self, window_name: str, model_name: str,
+                               exponents: Union[float, list[float]],
+                               cache: bool = True,
+                               **kwargs) -> dict:
+        """Get the impact and novelty results for a window/model.
 
-    def patent_novelties(self, window_name: str, model_name: str) -> npt.NDArray[np.float_]:
-        """Compute novelty using cosine similarity between document vectors
+        Arguments
+        ---------
+        window_name:
+            Name of the window to get the data for.
+        model_name:
+            Name of the model to get the data for.
+        exponents:
+            Exponents to compute the impact/novelty with.
+        kwargs:
+            Extra keyword arguments for computing the novelty/impact if necessary.
+
+        Results
+        -------
+        results:
+            Dictionary with the impact/novelties and other properties.
         """
+        if isinstance(exponents, float):
+            exponents = [exponents]
         try:
-            novelties = self.data.load_novelties(window_name, model_name)
+            results = {}
+            for expon in exponents:
+                results[expon] = self.data.load_impact_novelty(window_name, model_name, expon)
         except KeyError:
-            impacts, novelties, focal_year = self.compute_impact_novelty(window_name, model_name)
-            self.data.store_impact_novelty(window_name, model_name, focal_year, impacts, novelties)
-        return novelties
+            results = self.compute_impact_novelty(window_name, model_name, exponents=exponents,
+                                                  **kwargs)
+            if cache:
+                for expon in exponents:
+                    self.data.store_impact_novelty(window_name, model_name, results[expon],
+                                                   overwrite=True)
+        return results
 
     def cpc_correlations(self, models: Optional[Union[str, List[str]]]=None
                          ) -> Dict[str, Dict[str, Any]]:

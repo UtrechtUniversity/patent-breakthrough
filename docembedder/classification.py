@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from multiprocessing import Pool
+import multiprocessing
 import re
 from typing import Dict, List, Optional, Any
 
@@ -13,6 +13,7 @@ from tqdm import tqdm
 
 from docembedder.typing import PathType, IntSequence
 from docembedder.simspec import SimulationSpecification
+from docembedder.embedding_utils import _gather_results
 
 
 class PatentClassification():
@@ -310,19 +311,6 @@ def _compute_similarity(job: tuple):
     return results
 
 
-def _gather_results(raw_results):
-    # Reformat list of results.
-    all_keys = [key for key in raw_results[0] if key != "exponent"]
-    gathered_results = {}
-    all_exponents = np.unique([x["exponent"] for x in raw_results])
-    for expon in all_exponents:
-        new_res = {}
-        for key in all_keys:
-            new_res[key] = np.concatenate([x[key] for x in raw_results if x["exponent"] == expon])
-        gathered_results[expon] = new_res
-    return gathered_results
-
-
 def cpc_nov_impact(cpc_data: dict[str, Any],  # pylint: disable=too-many-locals
                    sim_spec: SimulationSpecification,
                    exponents: list[float],
@@ -372,7 +360,7 @@ def cpc_nov_impact(cpc_data: dict[str, Any],  # pylint: disable=too-many-locals
                 for sub_idx_focal in split_idx_focal]
 
         # Use multiprocessing pooling to create the results.
-        with Pool(processes=n_jobs) as pool:
+        with multiprocessing.get_context('spawn').Pool(processes=n_jobs) as pool:
             for data_part in tqdm(pool.imap_unordered(_compute_similarity, jobs), total=len(jobs)):
                 all_results.extend(data_part)
 
