@@ -1,0 +1,7 @@
+{
+  "model_name": "tfidf",
+  "classifier_type": "TfidfEmbedder",
+  "prep_type": "Preprocessor",
+  "classifier_params": {},
+  "prep_params": {}
+}

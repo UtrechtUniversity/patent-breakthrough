@@ -12,7 +12,7 @@ from docembedder.preprocessor.preprocessor import Preprocessor
 from docembedder.preprocessor.oldprep import OldPreprocessor
 
 
-def create_model(model_type, model_dict: dict) -> BaseDocEmbedder:
+def create_model(model_type: str, model_dict: dict) -> BaseDocEmbedder:
     """Create a model from a dictionary.
 
     Arguments
@@ -30,6 +30,7 @@ def create_model(model_type, model_dict: dict) -> BaseDocEmbedder:
     all_models = [BERTEmbedder, TfidfEmbedder, D2VEmbedder, BPembEmbedder,
                   CountVecEmbedder]
 
+    # model_type = model_dict.pop("classifier_type")
     try:
         model_class = [x for x in all_models if x.__name__ == model_type][0]
     except IndexError as error:
@@ -39,7 +40,7 @@ def create_model(model_type, model_dict: dict) -> BaseDocEmbedder:
     return model
 
 
-def create_preprocessor(prep_type, prep_dict: dict) -> Preprocessor:
+def create_preprocessor(prep_type: str, prep_dict: dict) -> Preprocessor:
     """Create a preprocessor from a dictionary.
 
     Arguments
@@ -54,8 +55,9 @@ def create_preprocessor(prep_type, prep_dict: dict) -> Preprocessor:
     preprocessor:
         Initialized preprocessor.
     """
+    # prep_type = prep_dict.pop("prep_type")
     if prep_type == "OldPreprocessor":
         prep_model: Preprocessor = OldPreprocessor(**prep_dict)
-    else:
+    elif prep_type == "Preprocessor":
         prep_model = Preprocessor(**prep_dict)
     return prep_model

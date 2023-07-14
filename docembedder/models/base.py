@@ -18,6 +18,10 @@ class BaseDocEmbedder(ABC):
     def transform(self, documents: Union[str, Sequence[str]]) -> AllEmbedType:
         """Get the embedding for a document."""
 
+    def fit_transform(self, documents) -> AllEmbedType:
+        self.fit(documents)
+        return self.transform(documents)
+
     @property
     @abstractmethod
     def settings(self) -> Dict[str, Any]:

@@ -84,11 +84,25 @@ class TfidfEmbedder(BaseDocEmbedder):  # pylint: disable=too-many-instance-attri
                 max_df=max_df)
             self._model.fit(documents)
 
-    def transform(self, documents: Union[str, Sequence[str]]) -> Union[
-            scipy.sparse.spmatrix]:
+    def transform(self, documents: Union[str, Sequence[str]]) -> scipy.sparse.spmatrix:
         if self._model is None:
             raise ValueError("Fit TF-IDF model before transforming data.")
         return self._model.transform(documents).tocsr()
+
+    def fit_transform(self, documents) -> scipy.sparse.spmatrix:
+        # if self._model is None:
+            # raise ValueError("Fit TF-IDF model before transforming data.")
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            self._model = TfidfVectorizer(
+                ngram_range=(1, self.ngram_max),
+                stop_words=self.stop_words,
+                tokenizer=self.stem_tokenizer,
+                min_df=self.min_df,
+                norm=self.norm,
+                sublinear_tf=self.sublinear_tf,
+                max_df=self.max_df)
+        return self._model.fit_transform(documents).tocsr()
 
     @property
     def settings(self) -> Dict[str, Any]:

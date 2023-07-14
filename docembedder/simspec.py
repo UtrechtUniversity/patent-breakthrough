@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 from typing import Optional, Iterable
+import json
 
 from docembedder.datamodel import DataModel
-from docembedder.typing import FileType
+from docembedder.typing import FileType, PathType
 
 
 STARTING_YEAR = 1838  # First year of the patents dataset
@@ -39,15 +40,19 @@ class SimulationSpecification():
         are used.
     """
     def __init__(self,  # pylint: disable=too-many-arguments
+                 input_dir: PathType,
+                 output_dir: PathType,
                  year_start: int,
                  year_end: int,
                  window_size: int=1,
                  window_shift: Optional[int]=None,
                  cpc_samples_per_patent: int=10,
                  debug_max_patents: Optional[int]=None,
-                 n_patents_per_window: Optional[int]=None):
+                 n_patents_per_window: Optional[int]=None,):
         self.year_start = year_start
         self.year_end = year_end
+        self.input_dir = input_dir
+        self.output_dir = output_dir
         self.window_size = window_size
         if window_shift is None:
             self.window_shift = (self.window_size+1)//2
@@ -78,6 +83,25 @@ class SimulationSpecification():
         return (f"s{STARTING_YEAR}-w{self.window_size}-"
                 f"c{self.cpc_samples_per_patent}-d{self.debug_max_patents}-"
                 f"n{self.n_patents_per_window}")
+
+    def to_json(self, setting_fp):
+        with open(setting_fp, "w") as handle:
+            json.dump(
+                {
+                    "year_start": self.year_start,
+                    "year_end": self.year_end,
+                    "input_dir": self.input_dir,
+                    "output_dir": self.output_dir,
+                    "window_size": self.window_size,
+                    "window_shift": self.window_shift,
+                    "cpc_samples_per_patent": self.cpc_samples_per_patent,
+                    "n_patents_per_window": self.n_patents_per_window,
+                 }, handle, indent=4)
+
+    @classmethod
+    def from_json(cls, setting_fp):
+        with open(setting_fp, "r") as handle:
+            return cls(**json.load(handle))
 
     def check_file(self, output_fp: FileType) -> bool:
         """Check whether the output file has a simulation specification.

@@ -14,7 +14,22 @@ from tqdm import tqdm
 
 from docembedder.datamodel import DataModel
 from docembedder.models.base import AllEmbedType
-from docembedder.embedding_utils import _gather_results
+# from docembedder.embedding_utils import _gather_results
+from docembedder.typing import PathType
+
+
+
+def _gather_results(raw_results):
+    # Reformat list of results.
+    all_keys = [key for key in raw_results[0] if key != "exponent"]
+    gathered_results = {}
+    all_exponents = np.unique([x["exponent"] for x in raw_results])
+    for expon in all_exponents:
+        new_res = {}
+        for key in all_keys:
+            new_res[key] = np.concatenate([x[key] for x in raw_results if x["exponent"] == expon])
+        gathered_results[expon] = new_res
+    return gathered_results
 
 
 def _compute_cpc_cor(embeddings: AllEmbedType,
@@ -72,7 +87,7 @@ def _compute_impact(embedding_back, embedding_focal, embedding_forw, exponent=1.
     }
 
 
-def compute_impact_novelty(  # pylint: disable=too-many-arguments, too-many-locals
+def compute_impact_novelty_idx(  # pylint: disable=too-many-arguments, too-many-locals
         embeddings: AllEmbedType,
         back_idx: npt.NDArray[np.int_], focal_idx: npt.NDArray[np.int_],
         forw_idx: npt.NDArray[np.int_],
@@ -128,6 +143,52 @@ def compute_impact_novelty(  # pylint: disable=too-many-arguments, too-many-loca
                 # for res in pool.starmap(_compute_impact, jobs):
                 results.append(res)
     return _gather_results(results)
+
+
+def compute_impact_novelty(  # pylint: disable=too-many-locals,too-many-arguments
+        embeddings: AllEmbedType,
+        patent_ids: npt.NDArray[np.int],
+        patent_years: npt.NDArray[np.int],
+        window: Optional[Union[int, tuple[int, int]]] = None,
+        exponents: Union[float, list[float]] = 1.0,
+        n_jobs: int = 10,
+        max_mat_size: int = int(1e8),
+        ) -> dict[float, dict]:
+    """Compute the impact and novelty for a window/model name.
+
+    Arguments
+    ---------
+    window_name:
+        Name of the window to compute.
+    model_name:
+        Name of the model.
+    window:
+        Size in years of the window to use. If an integer, range will be
+        [-window, window].
+    """
+    if isinstance(exponents, float):
+        exponents = [exponents]
+
+    min_year = np.amin(patent_years)
+    max_year = np.amax(patent_years)
+    focal_year = int((min_year+max_year)/2)
+    if window is None:
+        window = (1, int(max(focal_year-min_year, max_year - focal_year)))
+    elif isinstance(window, int):
+        window = (1, window)
+    focal_idx = np.where(patent_years == focal_year)[0]
+    back_idx = np.where((patent_years <= focal_year - window[0])
+                        & (patent_years >= focal_year-window[1]))[0]
+    forw_idx = np.where((patent_years >= focal_year + window[0])
+                        & (patent_years <= focal_year+window[1]))[0]
+
+    results = compute_impact_novelty_idx(
+        embeddings, back_idx, focal_idx, forw_idx, n_jobs, max_mat_size,
+        exponents)
+    for expon in exponents:
+        results[expon]["year"] = np.full(len(focal_idx), focal_year)
+        results[expon]["patent_ids"] = patent_ids[focal_idx]
+    return results
 
 
 class DocAnalysis():

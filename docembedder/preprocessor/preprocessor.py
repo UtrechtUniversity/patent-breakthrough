@@ -22,7 +22,6 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-pub
 
     def __init__(  # pylint: disable=too-many-arguments too-many-locals
             self,
-            keep_empty_patents: bool = False,
             keep_missing_years: bool = False,
             keep_caps: bool = False,
             keep_start_section: bool = False,
@@ -32,7 +31,6 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-pub
             lexicon_path: Optional[str] = None
             ):
 
-        self.keep_empty_patents = keep_empty_patents
         self.keep_missing_years = keep_missing_years
         self.keep_caps = keep_caps
         self.keep_start_section = keep_start_section
@@ -166,7 +164,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-pub
                         max_patents: Optional[int]=None,
                         return_stats: bool=False) -> Union[
                             List[Dict], Tuple[List[Dict], Dict[str, int]]]:
-        """Iterates individual JSON-docs in JSONL-file and calls preprocsseing
+        """Iterates individual JSON-docs in JSONL-file and calls preprocessing
         for each"""
         # print("current level", self.logger.level)
         # self.logger.setLevel(logging.ERROR)
@@ -190,11 +188,8 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-pub
             body = patent['contents']
 
             if len(body) == 0:
-                # self.logger.warning('Patent #%s has no content',
-                                    # str(patent["patent"]))
-                if not self.keep_empty_patents:
-                    skipped_empty += 1
-                    continue
+                skipped_empty += 1
+                continue
 
             body = self.remove_unprintable(body)
             body = self.reassemble_words(body)

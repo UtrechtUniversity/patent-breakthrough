@@ -403,3 +403,11 @@ def run_models(preprocessors: Optional[dict[str, Preprocessor]],  # pylint: disa
         run_jobs_single(jobs, output_fp, progress_bar=progress_bar)
     else:
         run_jobs_multi(jobs, output_fp, n_jobs=n_jobs, progress_bar=progress_bar)
+
+
+def np_save(file, *args, **kwargs):
+    if "allow_pickle" not in kwargs:
+        kwargs["allow_pickle"] = False
+    with open(file, "wb") as handle:
+        for arg in args:
+            np.save(handle, arg, **kwargs)
