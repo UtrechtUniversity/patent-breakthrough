@@ -5,7 +5,5 @@
   "window_shift": 1,
   "debug_max_patents": 100,
   "cpc_samples_per_patent": 10,
-  "n_patents_per_window": null,
-  "input_dir": "/Users/qubix/Documents/work/patents/patent-breakthrough/data/raw",
-  "output_dir": "/Users/qubix/Documents/work/patents/patent-breakthrough/data/output"
+  "n_patents_per_window": null
 }

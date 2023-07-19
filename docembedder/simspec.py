@@ -40,8 +40,6 @@ class SimulationSpecification():
         are used.
     """
     def __init__(self,  # pylint: disable=too-many-arguments
-                 input_dir: PathType,
-                 output_dir: PathType,
                  year_start: int,
                  year_end: int,
                  window_size: int=1,
@@ -51,8 +49,6 @@ class SimulationSpecification():
                  n_patents_per_window: Optional[int]=None,):
         self.year_start = year_start
         self.year_end = year_end
-        self.input_dir = input_dir
-        self.output_dir = output_dir
         self.window_size = window_size
         if window_shift is None:
             self.window_shift = (self.window_size+1)//2
@@ -90,8 +86,6 @@ class SimulationSpecification():
                 {
                     "year_start": self.year_start,
                     "year_end": self.year_end,
-                    "input_dir": self.input_dir,
-                    "output_dir": self.output_dir,
                     "window_size": self.window_size,
                     "window_shift": self.window_shift,
                     "cpc_samples_per_patent": self.cpc_samples_per_patent,

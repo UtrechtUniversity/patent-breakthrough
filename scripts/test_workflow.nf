@@ -10,7 +10,7 @@ process init_windows {
 
   """
   echo "$output_dir/windows"
-  init_windows.py --settings $settings_file
+  init_windows.py --settings $settings_file --patent_dir $patent_dir --output_dir $output_dir
   """
 }
 
@@ -18,11 +18,12 @@ process create_embeddings {
 
   input:
   path window_file
-  path output_dir
+  val output_file
   path model_file
+  path patent_dir
 
   output:
-  path "$output_dir/modelres/$model_name/$window_name/embedding.npy"
+  path output_file
 
   // model_name = model_file.getSimpleName()
   // println model_name
@@ -30,7 +31,7 @@ process create_embeddings {
 
 
   """
-  echo "?"
+  create_embeddings.py --patent_dir $patent_dir --window_fp $window_file --model_fp $model_file --output_fp $output_file
   """
 }
 
@@ -46,7 +47,12 @@ workflow {
   output_ch = Channel.fromPath(params.output_dir)
   model_ch = Channel.fromPath(params.model_file)
   window_path_ch = init_windows(patent_ch, settings_ch, output_ch)
-  window_ch = Channel.fromList(window_path_ch).map { it -> it.getSimpleName() }.view()
-//  window_ch = init_windows.out.map { it -> it.getSimpleName() }.view()
-  create_embeddings(init_windows.out, output_ch, model_ch).view()
+  window_ch = Channel.fromPath(params.output_dir + "/windows/*.npy").map {[it, it.simpleName]}
+  combined_ch = window_ch.combine(model_ch).map {[it[0],
+    it[2], params.output_dir + "/modelres/" + it[2].simpleName + "/" + it[1] + "/embedding.npy"]}
+  combined_ch.multiMap {it -> 
+                        window_file: it[0]
+                        model_file: it[1]
+                        output_file: it[2]}.set{res}
+  create_embeddings(res.window_file, res.output_file, res.model_file, patent_ch)
 }

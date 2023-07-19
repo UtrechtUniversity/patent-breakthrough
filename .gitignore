@@ -135,3 +135,10 @@ dmypy.json
 
 # local setup for example notebooks 
 examples/hyperopt/setup.ini
+
+# Package specific ignores
+.project
+.pydevproject
+.nextflow*
+.nextflow/*
+temp.h5
