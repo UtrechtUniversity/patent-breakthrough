@@ -132,8 +132,10 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-pub
             self.total_docs['skipped_no_year'] += stats["skipped_no_year"]
         return all_patents, self.total_docs
 
-    def yield_document(self, file: PathType) -> Iterable[Dict]:
+    def yield_document(self, file: Union[PathType, list]) -> Iterable[Dict]:
         """Generator yielding single JSON-doc from input file"""
+        if not isinstance(file, (Path, str)):
+            return file
         suffix = Path(file).suffix
         if suffix == ".jsonl":
             return self.patent_get_jsonl(file)
