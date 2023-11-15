@@ -107,7 +107,7 @@ def parse_raw(patent_input_fp: Union[Path, str], year_lookup: Union[Counter, Dic
     return parsed
 
 
-def read_xz(compressed_fp: Union[Path, str]) -> List[Dict]:
+def read_xz(compressed_fp: Union[Path, str, BytesIO]) -> List[Dict]:
     """Read an .xz file containing patents
 
     Arguments
