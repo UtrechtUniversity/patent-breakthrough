@@ -19,8 +19,8 @@ import datetime
 
 def parse_arguments():
     parser = ArgumentParser(
-        prog="create_novelty_impact.py",
-        description="Create novelty and impact scores")
+        prog="create_embeddings.py",
+        description="Create embeddings")
     parser.add_argument("--patent_dir", required=True)
     parser.add_argument("--embedding", required=True)
     parser.add_argument("--cpc_fp", required=True)
