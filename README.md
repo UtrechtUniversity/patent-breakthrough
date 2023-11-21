@@ -54,7 +54,7 @@ Here, "year.csv" should be a file that that contains the patent ids and the year
 
 ### Hyper parameter optimization
 
-There are procedures to optimize the preprocessor and ML models with respect to predicting CPC classifications. This is not a necessary step to compute the novelties and impacts, and has already been done for patents 1838-1951. FOr more information on how to optimize the models, see the [documentation](docs/hyperparameter.md).
+There are procedures to optimize the preprocessor and ML models with respect to predicting CPC classifications. This is not a necessary step to compute the novelties and impacts, and has already been done for patents 1838-1951. For more information on how to optimize the models, see the [documentation](docs/hyperparameter.md).
 
 ### Preprocessing
 
