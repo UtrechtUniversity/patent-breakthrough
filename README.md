@@ -6,11 +6,9 @@
 The code in this repository is used to identify breakthrough innovations in historical patents from the [USPTO](https://www.uspto.gov/).
 The `docembedding` Python package contains a variety of methods for creating document embeddings. We have optimized and tested these methods for their ability to predict similarity between patents. This was done by maximizing the cosine similarity between patents that are classified into the same technology class, and minimizing cosine similarity between patents that fall into different technology classes. These methods with optimized parameters are then used to create document embeddings. From these embeddings, novelty scores are created using cosine similarities between the focal patent and patents in the previous n years and subsequent n years.
 
-
-<!-- GETTING STARTED -->
 ## Getting Started
 
-Clone this repository to your working station
+Clone this repository to your working station to obtain example notebooks and python scripts:
 
 ```
 git clone https://github.com/UtrechtUniversity/patent-breakthrough.git
@@ -19,6 +17,7 @@ git clone https://github.com/UtrechtUniversity/patent-breakthrough.git
 ### Prerequisites
 
 To install and run this project you need to have the following prerequisites installed.
+
 ```
 - Python [>=3.8, <3.11]
 - jupyterlab (or any other program to run jupyter notebooks)
@@ -30,16 +29,25 @@ pip install jupyterlab
 
 ### Installation
 
-To run the project, ensure to install the project's dependencies.
+To run the project, ensure to install the project's dependencies
 
 ```sh
-cd patent-breakthrough
-pip install .
+pip install git+https://github.com/UtrechtUniversity/patent-breakthrough.git
 ```
 
-### Usage
+### Built with
 
-#### Preparation
+These packages are automatically installed in the step above:
+
+- [scikit-learn](https://scikit-learn.org/)
+- [gensim](https://pypi.org/project/gensim/)
+- [sbert](https://www.sbert.net/)
+- [bpemb](https://bpemb.h-its.org/)
+
+
+## Usage
+
+### 1. Preparation
 
 First you need to make sure that you have the data prepared. There should be a directory with *.xz files, which should have the year, so 1923.xz, 1924.xz, 1925.xz, etc. If this is not the case and you have only the raw .txt files, then you have to compress your data:
 
@@ -52,11 +60,11 @@ Here, "year.csv" should be a file that that contains the patent ids and the year
 
 
 
-### Hyper parameter optimization
+### 2. Hyper parameter optimization
 
 There are procedures to optimize the preprocessor and ML models with respect to predicting CPC classifications. This is not a necessary step to compute the novelties and impacts, and has already been done for patents 1838-1951. For more information on how to optimize the models, see the [documentation](docs/hyperparameter.md).
 
-### Preprocessing
+### 3. Preprocessing
 
 To improve the quality of the patents, and process/remove the start sections and such, it is necessary to preprocess these raw files. This is done using the `Preprocessor` and `OldPreprocessor` classes, for example:
 
@@ -71,7 +79,7 @@ documents = prep.preprocess_file("1928.xz")
 Normally however, we do not need to do preprocessing as a seperate step. We can compute the embeddings directly, which is explained in the next section.
 
 
-### Embedding models
+### 4. Embedding models
 
 There are 5 different embedding models implemented to compute the embeddings:
 
@@ -85,7 +93,7 @@ embeddings = model.transform(documents)
 
 These models can have different parameters for training, see the section on hyper parameter models. The result can be either sparse or dense matrices. The functions and methods in this package work with either in the same way.
 
-### Computing embeddings
+### 5. Computing embeddings
 
 The prepared data can be analysed to compute the embeddings for each of the patents using the `run_models` function. This function has the capability to run in parallel, in case you have more than one core on your CPU for examples.
 
@@ -111,7 +119,7 @@ run_models({"bert": BERTEmbedder()}, model, sim_spec, output_fp, cpc_fp)
 
 The output file is then a HDF5 file, which stores the embeddings for all patents in all windows.
 
-### Computing novelty and impact
+### 6. Computing novelty and impact
 
 To compute the novelty and impact we're using the `Analysis` class:
 ```python
@@ -123,8 +131,6 @@ with DataModel(output_fp, read_only=False) as data
 
 The result is a dictionary that contains the novelties and impacts for each of the patents in that window (in this case 1920-1940).
 
-
-<!-- ABOUT THE PROJECT -->
 ## About the Project
 
 **Date**: February 2023
@@ -141,15 +147,6 @@ The result is a dictionary that contains the novelties and impacts for each of t
 - Casper Kaandorp
 - Jelle Treep (h.j.treep@uu.nl)
 
-### Built with
-
-This section should list any major frameworks used to build this project.
-
-- [scikit-learn](https://scikit-learn.org/)
-- [gensim](https://pypi.org/project/gensim/)
-- [sbert](https://www.sbert.net/)
-- [bpemb](https://bpemb.h-its.org/)
-
 ### License
 
 The code in this project is released under [MIT license](LICENSE).
@@ -158,7 +155,6 @@ The code in this project is released under [MIT license](LICENSE).
 
 Manuscript in preparation
 
-<!-- CONTRIBUTING -->
 ## Contributing
 
 Contributions are what make the open source community an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
@@ -171,8 +167,6 @@ To contribute:
 4. Push to the Branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-<!-- NOTES -->
-<!-- CONTACT -->
 ## Contact
 
 Benjamin Cornejo Costas - b.j.cornejocostas@uu.nl
