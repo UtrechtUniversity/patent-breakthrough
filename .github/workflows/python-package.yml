@@ -9,11 +9,18 @@ on:
     paths:
     - 'docembedder/**'
     - 'tests/**'
+    - 'setup.py'
+    - 'mypy.ini'
+    - '.pylintrc'
+    
   pull_request:
     branches: [ main ]
     paths:
     - 'docembedder/**'
     - 'tests/**'
+    - 'setup.py'
+    - 'mypy.ini'
+    - '.pylintrc'
 
 jobs:
   build:
