@@ -23,7 +23,8 @@ class SimulationSpecification():
     year_start:
         Start of the windows to run the models on.
     year_end:
-        End of the windows to run the models on.
+        End of the windows to run the models on. This year is not included, so if end year is 1902,
+        then it the last year that is forced to run would be 1901.
     window_size:
         Number of years in each window.
     window_shift:
