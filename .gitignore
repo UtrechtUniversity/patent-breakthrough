@@ -137,4 +137,4 @@ dmypy.json
 examples/hyperopt/setup.ini
 examples/output/
 examples/patents/
-examples/output/
+examples/results/
