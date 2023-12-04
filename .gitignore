@@ -135,3 +135,6 @@ dmypy.json
 
 # local setup for example notebooks 
 examples/hyperopt/setup.ini
+examples/output/
+examples/patents/
+examples/output/
