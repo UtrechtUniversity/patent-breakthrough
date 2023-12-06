@@ -1,0 +1,27 @@
+letter,Version 1,Version 2,Version 3
+?,Î±,&agr;,.alpha.,alpha
+?,Î²,&bgr;,.beta.,beta
+?,Î³,&ggr;,.gamma.,gamma
+?,Î¶,&zgr;,.zeta.,zeta
+?,Î´,&dgr;,.delta.,delta
+?,Îµ,&egr;,.epsilon.,epsilon
+?,Î·,&eegr;,.eta.,eta
+?,Ï,&pgr;,.pi.,pi
+?,Î¼,&mgr;,.mu.,mu
+?,Î",&lgr;,.lambda.,lambda
+?,Î©,&OHgr;,Omega,upomega
+?,Î¸,-,.theta.,theta
+?,Ï,&rgr;,.rho.,rho
+?,Ï,&phgr;,-,phi
+?,Î,&Dgr;,-,updelta
+?,Ï,&tgr;,.tau.,tau
+?,Ï,&ohgr;,.omega.,omega
+?,Î¨,&PSgr;,-,uppsi
+?,Î¾,&xgr;,-,xi
+?,Î½,&ngr;,-,nu
+?,Î¿,-,.omicron.,omicron
+?,Îº,&kgr;,Kappa,kappa
+?,Î¹,-,Iota,iota
+?,Î,&Lgr;,-,uplambda
+?,Î£,&Sgr;,-,upsigma
+?,Ï,-,.sigma.,sigma
