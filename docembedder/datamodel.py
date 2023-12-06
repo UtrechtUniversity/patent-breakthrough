@@ -498,6 +498,32 @@ class DataModel():  # pylint: disable=too-many-public-methods
         if delete_copy and not isinstance(data_fp, io.BytesIO):
             Path(data_fp).unlink()
 
+    def remove_model(self, model_name):
+        n_remove = 0
+        # Remove model name/settings.
+        try:
+            del self.handle[f"/models/{model_name}"]
+            n_remove += 1
+        except KeyError:
+            pass
+
+        # Remove impacts/novelties
+        try:
+            del self.handle[f"/impact_novelty/{model_name}"]
+            n_remove += 1
+        except KeyError:
+            pass
+
+        # Remove embeddings
+        try:
+            del self.handle[f"/embeddings/{model_name}"]
+            n_remove += 1
+        except KeyError:
+            pass
+
+        if n_remove == 0:
+            raise KeyError(f"Could not find model with name '{model_name}' in the data.")
+
     def __enter__(self) -> DataModel:
         return self
 
