@@ -66,3 +66,18 @@ max-line-length=100
 max-locals=35
 max-args=10
 
+[[tool.mypy.overrides]]
+module = [
+    "scipy.*",
+    "pandas.*",
+    "sklearn.*",
+    "dill.*",
+    "sentence_transformers.*",
+    "nltk.*",
+    "gensim.*",
+    "bpemb.*",
+    "h5py.*",
+    "matplotlib.*",
+    "hyperopt.*",
+]
+ignore_missing_imports = true
