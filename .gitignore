@@ -138,3 +138,7 @@ examples/hyperopt/setup.ini
 examples/output/
 examples/patents/
 examples/results/
+
+
+# Version should not be included
+docembedder/_version.py
