@@ -23,7 +23,8 @@ class SimulationSpecification():
     year_start:
         Start of the windows to run the models on.
     year_end:
-        End of the windows to run the models on.
+        End of the windows to run the models on. This year is not included, so if end year is 1902,
+        then it the last year that is forced to run would be 1901.
     window_size:
         Number of years in each window.
     window_shift:
@@ -61,8 +62,8 @@ class SimulationSpecification():
     def year_ranges(self) -> Iterable[list[int]]:
         """Year ranges for the simulation specification."""
         cur_start = self.year_start - ((
-            self.year_start-STARTING_YEAR+10000*self.window_size) % self.window_size)
-        cur_end = self.year_start + self.window_size
+            self.year_start-STARTING_YEAR+10000*self.window_shift) % self.window_shift)
+        cur_end = cur_start + self.window_size
         while cur_end <= self.year_end:
             yield list(range(cur_start, cur_end))
             cur_start += self.window_shift
