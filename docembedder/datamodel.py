@@ -498,7 +498,18 @@ class DataModel():  # pylint: disable=too-many-public-methods
         if delete_copy and not isinstance(data_fp, io.BytesIO):
             Path(data_fp).unlink()
 
-    def remove_model(self, model_name):
+    def remove_model(self, model_name: str):
+        """Remove all data and information about a model from the data
+
+        This will attempt to remove the serialization of the model itself,
+        the impacts and novelties and the embeddings. If it can't find any
+        of these items it will throw a KeyError.
+
+        Parameters
+        ----------
+        model_name:
+            Name/tag of the model (combined prep and classifier).
+        """
         n_remove = 0
         # Remove model name/settings.
         try:
