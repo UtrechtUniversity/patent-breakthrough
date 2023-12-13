@@ -1,6 +1,8 @@
 # Patent breakthrough
 
-![tests](https://github.com/UtrechtUniversity/patent-breakthrough/actions/workflows/python-package.yml/badge.svg)
+![tests](https://github.com/UtrechtUniversity/patent-breakthrough/actions/workflows/python-package.yml/badge.svg)[![DOI](https://zenodo.org/badge/502999852.svg)](https://zenodo.org/doi/10.5281/zenodo.10370227)
+
+
 
 
 The code in this repository is used to identify breakthrough innovations in historical patents from the [USPTO](https://www.uspto.gov/).
@@ -29,10 +31,10 @@ pip install jupyterlab
 
 ### Installation
 
-To run the project, ensure to install the project's dependencies
+To run the project, ensure to install the docembedder package that is part of this project.
 
 ```sh
-pip install git+https://github.com/UtrechtUniversity/patent-breakthrough.git
+pip install docembedder
 ```
 
 ### Built with
