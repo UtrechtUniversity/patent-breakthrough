@@ -492,9 +492,9 @@ class DataModel():  # pylint: disable=too-many-public-methods
                             other.handle[group_name],
                             window_name
                         )
-                if (window_name in other.handle["/cpc"].keys()
-                        and window_name not in self.handle["/cpc"].keys()):
-                    self.handle["/cpc"].copy(other.handle[f"/cpc/{window_name}"], window_name)
+                    if (window_name in other.handle["/cpc"].keys()
+                            and window_name not in self.handle["/cpc"].keys()):
+                        self.handle["/cpc"].copy(other.handle[f"/cpc/{window_name}"], window_name)
         if delete_copy and not isinstance(data_fp, io.BytesIO):
             Path(data_fp).unlink()
 
