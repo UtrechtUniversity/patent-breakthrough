@@ -96,12 +96,21 @@ def test_embeddings(real_file, dense):
 
         with DataModel(hdf5_fp2, read_only=False) as data2:
             data2.store_window("window", patent_id, year)
-            data2.store_embeddings("window", "model_2", patent_id, year)
+            data2.store_window("window_2", patent_id, year)
+            data2.store_embeddings("window", "model_2", embeddings)
+            data2.store_embeddings("window_2", "model_2", embeddings_2)
         with pytest.raises(FileNotFoundError):
             data.add_data("test")
         data.add_data(hdf5_fp2, delete_copy=True)
         assert "model_2" in data.model_names
+        embedding_model_2 = data.load_embeddings("window", "model_2")
+        assert_same(embedding_model_2, embeddings, dense)
 
+        assert "window_2" in data.window_list
+        with pytest.raises(KeyError):
+            data.load_embeddings("window_2", "model")
+        assert_same(embeddings_2, data.load_embeddings("window_2", "model_2"), dense)
+        
 
 @mark.parametrize("real_file", [True, False])
 def test_cpc_correlations(real_file):
