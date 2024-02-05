@@ -5,6 +5,7 @@ from pathlib import Path
 from docembedder.simspec import SimulationSpecification
 from docembedder.models import TfidfEmbedder
 from docembedder.preprocessor.preprocessor import Preprocessor
+from docembedder.preprocessor.oldprep import OldPreprocessor
 from docembedder.models.doc2vec import D2VEmbedder
 from docembedder.models import CountVecEmbedder
 from docembedder.models import BERTEmbedder
@@ -44,7 +45,7 @@ def compute_embeddings(patent_dir, output_fp, cpc_fp):
     "countvec": CountVecEmbedder(method='sigmoid')
     }
     prep_cv = {
-    "prep-countvec": Preprocessor(keep_caps=False, keep_start_section=False, remove_non_alpha=True)
+        "prep-countvec": OldPreprocessor()
     }
 
     model_tfidf = {
