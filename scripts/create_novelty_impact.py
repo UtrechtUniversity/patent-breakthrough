@@ -33,6 +33,10 @@ def compute_impacts(embedding_fp: Path, output_dir: Path):
                     impact_novel[model]["patent_ids"].extend(res["patent_ids"])
                 impact_novel[model][f"impact-{expon}"].extend(res["impact"])
                 impact_novel[model][f"novelty-{expon}"].extend(res["novelty"])
+                sim_back = 1-res["novelty"]
+                sim_forw = sim_back*res["impact"]
+                impact_novel[model][f"sim_forw-{expon}"].extend(sim_forw)
+                impact_novel[model][f"sim_back-{expon}"].extend(sim_back)
 
     output_dir.mkdir(exist_ok=True, parents=True)
     for model, data in impact_novel.items():
