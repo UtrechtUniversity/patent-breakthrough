@@ -49,9 +49,9 @@ def _parse_file_contents(contents: str) -> List[Dict]:
 
         contents = current_contents or ''
         patents.append({
-            'patent': patent,
-            'file': current_file,
-            'contents': WHITESPACE.sub(' ', contents).strip()
+            'patent': patent,  # patent number
+            'file': current_file,  # File number
+            'contents': WHITESPACE.sub(' ', contents).strip()  # Text
         })
 
     # iterate over contents
@@ -139,8 +139,19 @@ def write_xz(compressed_fp: Union[Path, str], patents: List[Dict]) -> None:
         handle.write(str.encode(json.dumps(patents), encoding="utf-8"))
 
 
+def parse_raw_tsv(patent_input_fp, year_lookup):
+    df = pd.read_tsv(patent_input_fp)  # Rename column here, etc.
+    parsed = df.to_dict() # List of dictionaries
+    # add year
+    parsed = [
+        {**patent, **{'year': year_lookup[patent['patent']]}}
+        for patent in parsed
+    ]
+    return parsed
+
+
 def compress_raw(patent_input_fp: Union[Path, str], year_fp: Union[Path, str, Dict],
-                 output_dir: Union[Path, str]) -> None:
+                 output_dir: Union[Path, str], is_tsv_file: bool = False) -> None:
     """Compress a raw file into multiple compressed files by year
 
     Arguments
@@ -163,7 +174,10 @@ def compress_raw(patent_input_fp: Union[Path, str], year_fp: Union[Path, str, Di
         year_lookup = Counter(dict(zip(year_df["pat"], year_df["year"])))
 
     # Read the patent data from the raw files and sort them by patent id.
-    parsed_data = parse_raw(patent_input_fp, year_lookup)
+    if is_tsv_file:
+        parsed_data = parse_raw_tsv(patent_input_fp, year_lookup)
+    else:
+        parsed_data = parse_raw(patent_input_fp, year_lookup)
     sorted_patents = sorted(parsed_data, key=lambda x: x["patent"])
 
     # Split the patents by year.
