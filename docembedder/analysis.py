@@ -244,7 +244,7 @@ class DocAnalysis():
         It computes the correlations for each window/year in which the embeddings
         are trained on the same patents.
 
-        Argumentssi
+        Arguments
         ---------
         models: Model names to use for computation. If None, use all models available.
 
