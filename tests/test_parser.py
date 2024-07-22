@@ -7,6 +7,7 @@ data_dir = Path("tests", "data")
 raw_fp = data_dir / "raw_test.txt"
 raw_fp_2 = data_dir / "raw_test_2.txt"
 raw_fp_combined = data_dir / "raw_test_combined.txt"
+cpc_file = data_dir / "test_GPCPs.txt"
 
 year_lookup = {100001: 1960, 100002: 1961, 100003: 1962,
                100004: 1960, 100005: 1961, 100006: 1962}
@@ -33,7 +34,7 @@ def test_xz_io(tmp_path):
 
 
 def test_compress_raw(tmp_path):
-    compress_raw(raw_fp, year_lookup, tmp_path)
+    compress_raw(raw_fp, year_lookup, tmp_path, cpc_file)
     patents = parse_raw(raw_fp, year_lookup)
     for year in year_lookup.values():
         year_fp = tmp_path / f"{year}.xz"
@@ -44,7 +45,7 @@ def test_compress_raw(tmp_path):
 
 
 def test_compress_dir(tmp_path):
-    compress_raw_dir(data_dir, year_lookup, tmp_path)
+    compress_raw_dir(data_dir, year_lookup, tmp_path, cpc_file)
     created_files = list(Path(tmp_path).glob("*.xz"))
     assert len(created_files) == 3
     for xz_file in created_files:

@@ -7,7 +7,6 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import List, Union, Dict
 
-import pandas as pd
 import polars as pl
 
 # compile patterns for patent file format and whitepace
@@ -141,21 +140,19 @@ def write_xz(compressed_fp: Union[Path, str], patents: List[Dict]) -> None:
 
 
 def parse_raw_tsv(patent_input_fp, year_df):
-    # df = pd.read_csv(patent_input_fp, sep="\t")  # Rename column here, etc.
-    # df.rename(columns={"txt": "contents", "appln_id": "patent", "pat": "patent"}, inplace=True)
-    # parsed = df.to_dict("records") # List of dictionaries
-    # add year
+    """Parse tab separated files into standardized .xz files."""
     df = pl.read_csv(patent_input_fp, separator="\t")
     df = df.rename({"txt": "contents"})
     if "appln_id" in df.columns:
         df = df.rename({"appln_id": "pat"})
+
+    # Add year if necessary
     if "year" not in df.columns:
         n_rows = len(df)
         df = df.join(year_df, on="pat", how="inner")
         if len(df) != n_rows:
             print(f"Warning: Missing years: missed {n_rows-len(df)}")
     df = df.rename({"pat": "patent"})
-    print("Convert_to_dict")
     return df.to_dicts()
 
 def _detect_tsv(patent_input_fp):
@@ -165,7 +162,6 @@ def _detect_tsv(patent_input_fp):
     if "txt" in cols and ("appln_id" in cols or "pat" in cols):
         return True
     return False
-    
 
 
 def compress_raw(patent_input_fp: Union[Path, str], year_fp: Union[Path, str, Dict],
@@ -183,7 +179,6 @@ def compress_raw(patent_input_fp: Union[Path, str], year_fp: Union[Path, str, Di
     """
     output_dir = Path(output_dir)
     output_dir.mkdir(exist_ok=True)
-    print("Get year")
 
     # Create the year lookup so that we can add the year to the patents.
     if isinstance(year_fp, dict):
@@ -194,14 +189,13 @@ def compress_raw(patent_input_fp: Union[Path, str], year_fp: Union[Path, str, Di
             year_df = pl.read_csv(year_fp, separator=",")
         year_lookup = Counter(dict(zip(year_df["pat"], year_df["year"])))
 
-    print("parse data")
     # Read the patent data from the raw files and sort them by patent id.
     if _detect_tsv(patent_input_fp):
         parsed_data = parse_raw_tsv(patent_input_fp, year_df)
     else:
         parsed_data = parse_raw(patent_input_fp, year_lookup)
 
-    print("Filter CPC")
+    # Filter patents if the patent does not have any CPC codes.
     parsed_patents = {x["patent"] for x in parsed_data}
     cpc_patents = set(pl.read_csv(cpc_fp, separator="\t").drop_nulls()["pat"])
     unavailable_patents = parsed_patents-cpc_patents
@@ -236,7 +230,7 @@ def compress_raw(patent_input_fp: Union[Path, str], year_fp: Union[Path, str, Di
 
 
 def compress_raw_dir(patent_input_dir: Union[Path, str], year_fp: Union[Path, str, dict],
-                     output_dir: Union[Path, str]) -> None:
+                     output_dir: Union[Path, str], cpc_fp: Union[Path, str]) -> None:
     """Compress all raw files in a directory.
 
     For efficiency, it stores which files have already been processed in
@@ -270,7 +264,7 @@ def compress_raw_dir(patent_input_dir: Union[Path, str], year_fp: Union[Path, st
         if patent_fp.name in processed:
             continue
 
-        compress_raw(patent_fp, year_fp, output_dir)
+        compress_raw(patent_fp, year_fp, output_dir, cpc_fp)
         processed.append(patent_fp.name)
 
     # Save the processed file.

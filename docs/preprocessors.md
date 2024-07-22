@@ -6,7 +6,7 @@ module:
 
 ```python
 from docembedder.preprocessor.parser import compress_raw
-compress_raw("file_with_raw_input.txt", "year.csv", "some_output_dir")
+compress_raw("file_with_raw_input.txt", "year.csv", "some_output_dir", "your_cpc_file.csv")
 ``` 
 
 The files are packaged in LZMA-compressed archives (.xz files), and arranged

@@ -151,8 +151,7 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-pub
 
     def patent_get_xz(self, file: PathType) -> Iterable[Dict]:
         """Generate patents from a compressed xz file"""
-        for pat in read_xz(file):
-            yield pat
+        yield from read_xz(file)
 
     @overload
     def preprocess_file(self, file: PathType, max_patents: Optional[int],
@@ -168,8 +167,6 @@ class Preprocessor:  # pylint: disable=too-many-instance-attributes too-many-pub
                             List[Dict], Tuple[List[Dict], Dict[str, int]]]:
         """Iterates individual JSON-docs in JSONL-file and calls preprocsseing
         for each"""
-        # print("current level", self.logger.level)
-        # self.logger.setLevel(logging.ERROR)
 
         processed = 0
         skipped_empty = 0

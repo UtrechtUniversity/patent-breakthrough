@@ -55,7 +55,7 @@ First you need to make sure that you have the data prepared. There should be a d
 
 ```python
 from docembedder.preprocessor.parser import compress_raw
-compress_raw(some_file_name, "year.csv", some_output_dir)
+compress_raw(some_file_name, "year.csv", some_output_dir, "Your_CPC_file.csv")
 ```
 
 Here, "year.csv" should be a file that that contains the patent ids and the year in which they were issued.
