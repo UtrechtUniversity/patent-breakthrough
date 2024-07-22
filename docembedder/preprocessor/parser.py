@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import List, Union, Dict
 
 import pandas as pd
+import polars as pl
 
 # compile patterns for patent file format and whitepace
 PATENT_FILE_PATTERN = re.compile(r'^\/Volumes\/(.*)?\d+\-\d+\/US\d+\.txt')
@@ -139,19 +140,36 @@ def write_xz(compressed_fp: Union[Path, str], patents: List[Dict]) -> None:
         handle.write(str.encode(json.dumps(patents), encoding="utf-8"))
 
 
-def parse_raw_tsv(patent_input_fp, year_lookup):
-    df = pd.read_tsv(patent_input_fp)  # Rename column here, etc.
-    parsed = df.to_dict() # List of dictionaries
+def parse_raw_tsv(patent_input_fp, year_df):
+    # df = pd.read_csv(patent_input_fp, sep="\t")  # Rename column here, etc.
+    # df.rename(columns={"txt": "contents", "appln_id": "patent", "pat": "patent"}, inplace=True)
+    # parsed = df.to_dict("records") # List of dictionaries
     # add year
-    parsed = [
-        {**patent, **{'year': year_lookup[patent['patent']]}}
-        for patent in parsed
-    ]
-    return parsed
+    df = pl.read_csv(patent_input_fp, separator="\t")
+    df = df.rename({"txt": "contents"})
+    if "appln_id" in df.columns:
+        df = df.rename({"appln_id": "pat"})
+    if "year" not in df.columns:
+        n_rows = len(df)
+        df = df.join(year_df, on="pat", how="inner")
+        if len(df) != n_rows:
+            print(f"Warning: Missing years: missed {n_rows-len(df)}")
+    df = df.rename({"pat": "patent"})
+    print("Convert_to_dict")
+    return df.to_dicts()
+
+def _detect_tsv(patent_input_fp):
+    with open(patent_input_fp, "r", encoding="utf-8") as handle:
+        line = handle.readline().rstrip("\n")
+    cols = line.split("\t")
+    if "txt" in cols and ("appln_id" in cols or "pat" in cols):
+        return True
+    return False
+    
 
 
 def compress_raw(patent_input_fp: Union[Path, str], year_fp: Union[Path, str, Dict],
-                 output_dir: Union[Path, str], is_tsv_file: bool = False) -> None:
+                 output_dir: Union[Path, str], cpc_fp: Union[Path, str]) -> None:
     """Compress a raw file into multiple compressed files by year
 
     Arguments
@@ -165,19 +183,32 @@ def compress_raw(patent_input_fp: Union[Path, str], year_fp: Union[Path, str, Di
     """
     output_dir = Path(output_dir)
     output_dir.mkdir(exist_ok=True)
+    print("Get year")
 
     # Create the year lookup so that we can add the year to the patents.
     if isinstance(year_fp, dict):
         year_lookup = year_fp
     else:
-        year_df = pd.read_csv(year_fp, sep='\t')
+        year_df = pl.read_csv(year_fp, separator='\t')
+        if "pat" not in year_df:
+            year_df = pl.read_csv(year_fp, separator=",")
         year_lookup = Counter(dict(zip(year_df["pat"], year_df["year"])))
 
+    print("parse data")
     # Read the patent data from the raw files and sort them by patent id.
-    if is_tsv_file:
-        parsed_data = parse_raw_tsv(patent_input_fp, year_lookup)
+    if _detect_tsv(patent_input_fp):
+        parsed_data = parse_raw_tsv(patent_input_fp, year_df)
     else:
         parsed_data = parse_raw(patent_input_fp, year_lookup)
+
+    print("Filter CPC")
+    parsed_patents = {x["patent"] for x in parsed_data}
+    cpc_patents = set(pl.read_csv(cpc_fp, separator="\t").drop_nulls()["pat"])
+    unavailable_patents = parsed_patents-cpc_patents
+    if len(unavailable_patents) > 0:
+        parsed_data = [x for x in parsed_data if x["patent"] not in unavailable_patents]
+        print(f"Warning: unavailable patents: {unavailable_patents}")
+
     sorted_patents = sorted(parsed_data, key=lambda x: x["patent"])
 
     # Split the patents by year.

@@ -28,6 +28,8 @@ class PatentClassification():
     """
     def __init__(self, classification_file: PathType, similarity_exponent=2./3.):
         self.class_df = pl.read_csv(classification_file, separator="\t")
+        if "CPC_Class" in self.class_df:
+            self.class_df = self.class_df.rename({"CPC_Class": "CPC"})
         self.similarity_exponent = similarity_exponent
         self._lookup: Dict[int, List[str]] = {}
         self._initialized = False
@@ -105,7 +107,7 @@ class PatentClassification():
         pat_df = pl.DataFrame({"pat": patent_ids})
         query = (
             self.class_df.lazy()
-            .groupby("pat")
+            .group_by("pat")
             .agg(
                 [
                     pl.col("CPC")
